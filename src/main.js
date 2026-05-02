@@ -1,3 +1,7 @@
+/**
+ * Application entry point.
+ * Loads processed GIS data, initializes the map/waterfall/UI, and starts the simulation.
+ */
 import { initMap } from './map.js';
 import { initWaterfall } from './waterfall.js';
 import { createSimulation } from './simulation.js';

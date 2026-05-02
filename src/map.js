@@ -1,3 +1,15 @@
+/**
+ * 3D MapLibre map — terrain, hillshade, GIS layers, and dynamic vehicle/anomaly markers.
+ *
+ * Tile sources (all free, no API key):
+ *   - Base map: OpenStreetMap raster tiles
+ *   - Terrain: AWS Terrarium RGB elevation tiles (for 3D + hillshade)
+ *
+ * GIS layers added on map load: road centerline, fiber route, mileposts, crossings.
+ * Dynamic layers updated by simulation: vehicle markers, anomaly markers.
+ *
+ * Exports: initMap(), updateMapVehicles(), updateMapAnomalies()
+ */
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 

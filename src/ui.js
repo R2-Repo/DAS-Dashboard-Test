@@ -1,3 +1,9 @@
+/**
+ * Sidebar UI — stats cards and scrolling event feed.
+ *
+ * Exports initUI() which returns { updateStats, updateChannelCount, addEvent }.
+ * Called by the simulation engine on each tick to update live dashboard state.
+ */
 const MAX_EVENTS = 60;
 
 export function initUI() {

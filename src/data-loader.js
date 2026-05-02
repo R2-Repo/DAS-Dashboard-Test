@@ -1,3 +1,9 @@
+/**
+ * Data loader — fetches all processed GIS and config files from Vite's publicDir.
+ *
+ * Files are served from the `data/` directory (configured as publicDir in vite.config.js).
+ * To swap in real DAS data, replace the fetch URLs or add a WebSocket/SSE adapter here.
+ */
 export async function loadData() {
   const [fiberRoute, road, mileposts, crossings, channels, config] = await Promise.all([
     fetchJSON('/fiber_route.geojson'),
