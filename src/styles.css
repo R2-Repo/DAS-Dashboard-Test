@@ -135,7 +135,7 @@ html, body {
 
 /* Waterfall */
 #waterfall-container {
-  height: 220px;
+  height: 300px;
   flex-shrink: 0;
   background: var(--bg-panel);
   border-top: 1px solid var(--border);

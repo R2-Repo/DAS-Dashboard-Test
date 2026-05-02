@@ -1,11 +1,56 @@
-const HISTORY_ROWS = 180;
-const VISIBLE_CHANNELS = 300;
-const COLOR_STOPS = [
-  [0, 10, 20, 40],
-  [0, 30, 80, 180],
-  [0, 60, 160, 255],
-  [0, 20, 60, 120],
-];
+/**
+ * DAS Waterfall renderer — realistic jet colormap waterfall display.
+ *
+ * Axes: X = channel/fiber distance (horizontal), Y = time (vertical, oldest at top, newest at bottom).
+ * Colormap: standard jet — deep blue → cyan → green → yellow → orange → red.
+ *
+ * Real DAS physics:
+ *   - 2m channel spacing
+ *   - 10 Hz sample rate (100ms per row)
+ *   - 256 rows visible = 25.6 seconds of history
+ *   - Vehicle at 45 mph ≈ 1 channel/tick → diagonal crosses ~256 channels in view
+ */
+
+const HISTORY_ROWS = 256;
+const INITIAL_VIEW_CHANNELS = 600;
+
+// Precomputed jet colormap LUT — 512 entries for smooth gradients
+const LUT_SIZE = 512;
+const JET_R = new Uint8Array(LUT_SIZE);
+const JET_G = new Uint8Array(LUT_SIZE);
+const JET_B = new Uint8Array(LUT_SIZE);
+
+(function buildJetLUT() {
+  for (let i = 0; i < LUT_SIZE; i++) {
+    const t = i / (LUT_SIZE - 1);
+    // Standard jet: deep navy → blue → cyan → green → yellow → orange → red → dark red
+    if (t < 0.1) {
+      JET_R[i] = 0;
+      JET_G[i] = 0;
+      JET_B[i] = Math.floor(80 + t / 0.1 * 175);
+    } else if (t < 0.35) {
+      JET_R[i] = 0;
+      JET_G[i] = Math.floor((t - 0.1) / 0.25 * 255);
+      JET_B[i] = 255;
+    } else if (t < 0.5) {
+      JET_R[i] = 0;
+      JET_G[i] = 255;
+      JET_B[i] = Math.floor(255 - (t - 0.35) / 0.15 * 255);
+    } else if (t < 0.65) {
+      JET_R[i] = Math.floor((t - 0.5) / 0.15 * 255);
+      JET_G[i] = 255;
+      JET_B[i] = 0;
+    } else if (t < 0.85) {
+      JET_R[i] = 255;
+      JET_G[i] = Math.floor(255 - (t - 0.65) / 0.2 * 255);
+      JET_B[i] = 0;
+    } else {
+      JET_R[i] = Math.floor(255 - (t - 0.85) / 0.15 * 128);
+      JET_G[i] = 0;
+      JET_B[i] = 0;
+    }
+  }
+})();
 
 export function initWaterfall(canvasId, data) {
   const canvas = document.getElementById(canvasId);
@@ -13,10 +58,69 @@ export function initWaterfall(canvasId, data) {
   const totalChannels = data.channels.length;
 
   let viewStart = 0;
-  let viewEnd = Math.min(VISIBLE_CHANNELS, totalChannels);
+  let viewEnd = Math.min(INITIAL_VIEW_CHANNELS, totalChannels);
   const buffer = new Float32Array(totalChannels * HISTORY_ROWS);
   let currentRow = 0;
   let hoveredChannel = null;
+
+  // === Per-channel static noise profile ===
+  // Real fiber has coupling variations, micro-bends, splice points, etc.
+  const channelBias = new Float32Array(totalChannels);
+
+  // Base bias: smooth low-frequency variation across fiber
+  for (let i = 0; i < totalChannels; i++) {
+    channelBias[i] = 0.03
+      + 0.015 * Math.sin(i * 0.002)
+      + 0.01 * Math.sin(i * 0.0073)
+      + 0.008 * Math.sin(i * 0.019);
+  }
+
+  // Noisy channels: fiber coupling imperfections
+  for (let i = 0; i < totalChannels; i++) {
+    if (Math.random() < 0.04) {
+      const spread = 1 + Math.floor(Math.random() * 3);
+      const extra = 0.04 + Math.random() * 0.10;
+      for (let d = -spread; d <= spread; d++) {
+        const idx = i + d;
+        if (idx >= 0 && idx < totalChannels) {
+          channelBias[idx] += extra * (1 - Math.abs(d) / (spread + 1));
+        }
+      }
+    }
+  }
+
+  // Persistent horizontal bands (visible in all reference images)
+  for (let b = 0; b < 20; b++) {
+    const center = Math.floor(Math.random() * totalChannels);
+    const halfWidth = 1 + Math.floor(Math.random() * 6);
+    const strength = 0.05 + Math.random() * 0.15;
+    for (let d = -halfWidth; d <= halfWidth; d++) {
+      const idx = center + d;
+      if (idx >= 0 && idx < totalChannels) {
+        channelBias[idx] += strength * (1 - Math.abs(d) / (halfWidth + 1));
+      }
+    }
+  }
+
+  // Crossing zones: elevated baseline near fiber-road crossings
+  for (const ch of data.channels) {
+    if (ch.crossing_flag) {
+      channelBias[ch.channel_id] += 0.06 + Math.random() * 0.04;
+    }
+  }
+
+  // Canyon mouth end is noisier (more ambient road/traffic vibration)
+  for (let i = 0; i < Math.min(400, totalChannels); i++) {
+    channelBias[i] += 0.02 * (1 - i / 400);
+  }
+
+  // Pre-fill buffer with baseline noise so waterfall has texture immediately
+  for (let row = 0; row < HISTORY_ROWS; row++) {
+    const offset = row * totalChannels;
+    for (let i = 0; i < totalChannels; i++) {
+      buffer[offset + i] = channelBias[i] + Math.random() * 0.015;
+    }
+  }
 
   function resize() {
     const rect = canvas.parentElement.getBoundingClientRect();
@@ -30,32 +134,29 @@ export function initWaterfall(canvasId, data) {
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    const delta = Math.sign(e.deltaY) * Math.max(10, Math.floor((viewEnd - viewStart) * 0.05));
+    const range = viewEnd - viewStart;
+    const delta = Math.sign(e.deltaY) * Math.max(5, Math.floor(range * 0.04));
     if (e.shiftKey) {
-      const range = viewEnd - viewStart;
-      const newRange = Math.max(50, Math.min(totalChannels, range + delta * 5));
+      // Zoom in/out
+      const newRange = Math.max(80, Math.min(totalChannels, range + delta * 8));
       const center = (viewStart + viewEnd) / 2;
       viewStart = Math.max(0, Math.floor(center - newRange / 2));
       viewEnd = Math.min(totalChannels, viewStart + newRange);
     } else {
+      // Pan
       viewStart = Math.max(0, viewStart + delta);
       viewEnd = Math.min(totalChannels, viewEnd + delta);
-      if (viewEnd - viewStart < 50) {
-        viewStart = Math.max(0, viewEnd - 50);
-      }
+      if (viewEnd - viewStart < 80) viewStart = Math.max(0, viewEnd - 80);
     }
   });
 
   canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const channelRange = viewEnd - viewStart;
-    hoveredChannel = viewStart + Math.floor((x / canvas.width) * channelRange);
+    hoveredChannel = viewStart + Math.floor((x / canvas.width) * (viewEnd - viewStart));
   });
 
-  canvas.addEventListener('mouseleave', () => {
-    hoveredChannel = null;
-  });
+  canvas.addEventListener('mouseleave', () => { hoveredChannel = null; });
 
   function pushRow(values) {
     const offset = currentRow * totalChannels;
@@ -70,47 +171,42 @@ export function initWaterfall(canvasId, data) {
     if (width === 0 || height === 0) return;
 
     const imageData = ctx.createImageData(width, height);
-    const pixels = imageData.data;
-    const channelRange = viewEnd - viewStart;
-    const rowHeight = height / HISTORY_ROWS;
+    const pix = imageData.data;
+    const chanRange = viewEnd - viewStart;
+    const rowH = height / HISTORY_ROWS;
 
     for (let row = 0; row < HISTORY_ROWS; row++) {
       const bufRow = (currentRow - HISTORY_ROWS + row + HISTORY_ROWS * 2) % HISTORY_ROWS;
-      const y0 = Math.floor(row * rowHeight);
-      const y1 = Math.floor((row + 1) * rowHeight);
+      const y0 = Math.floor(row * rowH);
+      const y1 = Math.max(y0 + 1, Math.floor((row + 1) * rowH));
 
       for (let px = 0; px < width; px++) {
-        const ch = viewStart + Math.floor((px / width) * channelRange);
+        const ch = viewStart + Math.floor((px / width) * chanRange);
         if (ch < 0 || ch >= totalChannels) continue;
 
-        const val = buffer[bufRow * totalChannels + ch];
-        const clamped = Math.min(1, Math.max(0, val));
-        const ci = Math.min(3, Math.floor(clamped * 4));
-        const t = (clamped * 4) - ci;
-
-        const r = lerp(COLOR_STOPS[0][ci], COLOR_STOPS[0][Math.min(3, ci + 1)], t);
-        const g = lerp(COLOR_STOPS[1][ci], COLOR_STOPS[1][Math.min(3, ci + 1)], t);
-        const b = lerp(COLOR_STOPS[2][ci], COLOR_STOPS[2][Math.min(3, ci + 1)], t);
-        const a = lerp(COLOR_STOPS[3][ci], COLOR_STOPS[3][Math.min(3, ci + 1)], t);
+        const raw = buffer[bufRow * totalChannels + ch];
+        // Gamma compress to keep most of the range in blues with signals popping to warm colors
+        const val = Math.pow(Math.min(1, Math.max(0, raw)), 0.65);
+        const lutIdx = Math.min(LUT_SIZE - 1, Math.floor(val * (LUT_SIZE - 1)));
 
         for (let y = y0; y < y1; y++) {
-          const idx = (y * width + px) * 4;
-          pixels[idx] = r;
-          pixels[idx + 1] = g;
-          pixels[idx + 2] = b;
-          pixels[idx + 3] = Math.max(80, a);
+          const off = (y * width + px) * 4;
+          pix[off] = JET_R[lutIdx];
+          pix[off + 1] = JET_G[lutIdx];
+          pix[off + 2] = JET_B[lutIdx];
+          pix[off + 3] = 255;
         }
       }
     }
 
     ctx.putImageData(imageData, 0, 0);
 
-    // Draw crosshair for hovered channel
+    // Crosshair
     if (hoveredChannel !== null && hoveredChannel >= viewStart && hoveredChannel < viewEnd) {
-      const x = ((hoveredChannel - viewStart) / channelRange) * width;
-      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      const x = ((hoveredChannel - viewStart) / chanRange) * width;
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
       ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
+      ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, height);
@@ -118,19 +214,17 @@ export function initWaterfall(canvasId, data) {
       ctx.setLineDash([]);
     }
 
-    // Axis labels
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    // Bottom axis: milepost labels
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.font = '10px monospace';
-    const step = Math.max(1, Math.floor(channelRange / 6));
-    for (let i = viewStart; i < viewEnd; i += step) {
-      const x = ((i - viewStart) / channelRange) * width;
+    const labelStep = Math.max(1, Math.floor(chanRange / 8));
+    for (let i = viewStart; i < viewEnd; i += labelStep) {
+      const x = ((i - viewStart) / chanRange) * width;
       const ch = data.channels[i];
-      if (ch) {
-        ctx.fillText(`MP ${ch.milepost.toFixed(1)}`, x + 2, height - 4);
-      }
+      if (ch) ctx.fillText(`MP ${ch.milepost.toFixed(1)}`, x + 2, height - 3);
     }
 
-    // Hovered channel info
+    // Hover info
     const infoEl = document.getElementById('waterfall-info');
     if (infoEl && hoveredChannel !== null && data.channels[hoveredChannel]) {
       const ch = data.channels[hoveredChannel];
@@ -138,9 +232,5 @@ export function initWaterfall(canvasId, data) {
     }
   }
 
-  return { pushRow, render, getViewRange: () => [viewStart, viewEnd] };
-}
-
-function lerp(a, b, t) {
-  return a + (b - a) * t;
+  return { pushRow, render, channelBias, getViewRange: () => [viewStart, viewEnd] };
 }
