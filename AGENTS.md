@@ -14,6 +14,7 @@ DAS (Distributed Acoustic Sensing) Canyon Dashboard for **SR-190 Big Cottonwood 
 |-------|------------|-------|
 | Runtime | Node.js 20 LTS | installed via nodesource apt repo |
 | Build tool | Vite | dev server + production build |
+| PWA | vite-plugin-pwa (Workbox) | web manifest, service worker, offline-oriented caching; see handoff section below |
 | Map | MapLibre GL JS | 3D terrain via AWS Terrarium tiles (no API key) |
 | Linting | ESLint 10 | flat config in `eslint.config.js` |
 | Testing | Vitest 4 | test files in `test/` |
@@ -26,12 +27,14 @@ DAS (Distributed Acoustic Sensing) Canyon Dashboard for **SR-190 Big Cottonwood 
 /workspace
 ├── index.html              ← Vite entry point (dashboard layout + DOM structure)
 ├── package.json            ← npm scripts: dev, build, lint, test
-├── vite.config.js          ← Vite: publicDir=data/, port 5173, host 0.0.0.0
+├── vite.config.js          ← Vite base URL (dev vs GitHub Pages), PWA plugin, publicDir=data/, port 5173
+├── .github/workflows/      ← `deploy-pages.yml`: build + GitHub Pages on push to main
 ├── eslint.config.js        ← ESLint flat config with browser globals
 ├── vitest.config.js        ← Vitest: test/**/*.test.js
 ├── src/
-│   ├── main.js             ← Boot: loads data → init map/waterfall/ui → start sim
-│   ├── data-loader.js      ← Fetches all JSON/GeoJSON from publicDir
+│   ├── main.js             ← Boot; registers PWA service worker; loads data → map/waterfall/ui → sim
+│   ├── base-url.js         ← `getBaseUrl()` wraps `import.meta.env.BASE_URL` for subpath deployments
+│   ├── data-loader.js      ← Fetches JSON/GeoJSON using base-aware URLs (GitHub project Pages)
 │   ├── map.js              ← MapLibre 3D map: terrain, hillshade, road/fiber/milepost layers, vehicle/anomaly markers
 │   ├── waterfall.js         ← Canvas-based DAS waterfall: jet colormap LUT, per-channel noise, scroll/zoom
 │   ├── simulation.js        ← Physics engine: vehicle spawning, movement, anomalies, waterfall row generation
@@ -40,6 +43,7 @@ DAS (Distributed Acoustic Sensing) Canyon Dashboard for **SR-190 Big Cottonwood 
 ├── test/
 │   └── simulation.test.js  ← 12 tests: data integrity, waterfall logic, milepost interpolation
 ├── data/                   ← Processed data (served by Vite as publicDir)
+│   ├── icons/              ← PWA manifest icons (PNG + SVG source); copied to dist root
 │   ├── fiber_route.geojson ← Stitched continuous fiber line
 │   ├── fiber_channels.json ← Channel lookup table (8676 channels @ 2m spacing)
 │   ├── fiber_crossings.geojson
@@ -84,8 +88,37 @@ data/raw/*.geojson  →  python3 scripts/preprocess_fiber.py  →  data/*.json /
 
 1. Raw GIS files go in `data/raw/` (fiber.geojson, road.geojson, mileposts.geojson, crossings.geojson)
 2. Run `python3 scripts/preprocess_fiber.py` to produce processed files in `data/`
-3. Vite's `publicDir` is set to `data/` so all JSON/GeoJSON files are served at root (e.g. `/fiber_channels.json`)
-4. `src/data-loader.js` fetches these on page load
+3. Vite's `publicDir` is set to `data/` so JSON/GeoJSON are emitted at the site root of `dist/` (URLs are `BASE_URL + filename`, e.g. `/fiber_channels.json` locally or `/repo-name/fiber_channels.json` on project Pages).
+4. `src/data-loader.js` fetches these on page load using URLs prefixed with `getBaseUrl()` so paths stay correct when the app is hosted under a subpath (for example `https://owner.github.io/repo-name/`).
+
+### GitHub Pages, base URL, and PWA (agent handoff)
+
+This repo is intended to run unchanged in **Cursor Cloud / local dev** (`npm run dev`, base `/`) and as a **GitHub Pages** static site (often base `/<repository-name>/` for project pages).
+
+**How `base` is chosen** (see `vite.config.js`):
+
+1. If **`VITE_BASE_URL`** is set (non-empty), it wins. Use a trailing slash for non-root bases (example: `VITE_BASE_URL=/my-repo/`). Set this when the published URL path does not match the GitHub repo name.
+2. Else if **`GITHUB_PAGES=true`** and **`GITHUB_REPOSITORY=owner/repo-name`** are set (as in CI), `base` is `/<repo-name>/`.
+3. Otherwise `base` is `/`.
+
+The GitHub Actions workflow **`.github/workflows/deploy-pages.yml`** runs on pushes to **`main`**: `npm ci`, production build with **`GITHUB_PAGES=true`**, then uploads **`dist/`** via the Pages artifact/deploy actions. Repo maintainers must enable **Pages with GitHub Actions** as the source in repository settings.
+
+**Runtime vs build**: Map tiles and terrain still require network access; PWA caching improves repeat visits and shell offline behavior but does not replace live tile servers.
+
+**PWA implementation**:
+
+- **`vite-plugin-pwa`** generates **`manifest.webmanifest`**, **`sw.js`**, and Workbox precaching for hashed JS/CSS/HTML and smaller static assets from `publicDir`.
+- **`fiber_channels.json`** is large (~3 MB); it is **excluded from precache** (`globIgnores`) and handled by a **runtime `NetworkFirst`** rule so the install/precache bundle stays small. After one successful online load it can be served from cache when offline.
+- **`src/main.js`** calls **`registerSW`** from **`virtual:pwa-register`** with `immediate: true` (auto-update registration).
+- PWA plugin is **skipped when `mode === 'test'`** so Vitest does not load the virtual module.
+
+**npm**: `vite-plugin-pwa` peer-dependencies may lag Vite major versions; **`package.json`** includes **`overrides`** (`vite-plugin-pwa` → `$vite`, `serialize-javascript`) so `npm install` resolves cleanly on Vite 8. If overrides are removed and install fails, restore them or use the upstream plugin version that officially supports the current Vite.
+
+**Files to touch when changing hosting**:
+
+- Asset/fetch URLs: prefer **`import.meta.env.BASE_URL`** or **`getBaseUrl()`** from `src/base-url.js` for anything loaded from the same origin as the app.
+- New root static assets: add under **`data/`** (publicDir) or reference with base-aware paths.
+- Icons / manifest fields: `vite.config.js` (`VitePWA` → `manifest`) and **`data/icons/`**.
 
 ### DAS simulation physics model
 
@@ -110,6 +143,7 @@ Vehicle speed → channels/tick: `speedMph × 0.44704 × 0.1 / 2.0`
 - **Waterfall view vs fiber length**: The fiber is ~17 km (8676 channels). The default waterfall view shows 600 channels (~1.2 km). Users can scroll (mouse wheel) and zoom (Shift + scroll) on the waterfall. If the view is too wide, diagonals appear nearly vertical.
 - **Waterfall pre-fill**: The buffer is pre-filled with per-channel noise at startup so the waterfall isn't blank. Pre-seeded vehicles produce immediate diagonal tracks.
 - **The `data/` directory is in `.gitignore`'s exclusion**: Processed data files ARE committed. If you regenerate them, commit the updated files.
+- **GitHub Pages base path**: Local preview of a subpath build: `GITHUB_PAGES=true GITHUB_REPOSITORY=owner/repo-name npm run build && npm run preview` (or set `VITE_BASE_URL` explicitly).
 
 ### What to work on next (from Scope.md)
 
