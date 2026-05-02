@@ -2,11 +2,14 @@
  * Application entry point.
  * Loads processed GIS data, initializes the map/waterfall/UI, and starts the simulation.
  */
+import { registerSW } from 'virtual:pwa-register';
 import { initMap } from './map.js';
 import { initWaterfall } from './waterfall.js';
 import { createSimulation } from './simulation.js';
 import { initUI } from './ui.js';
 import { loadData } from './data-loader.js';
+
+registerSW({ immediate: true });
 
 async function boot() {
   const data = await loadData();
