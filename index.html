@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DAS Canyon Dashboard</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="header">
+      <h1>DAS Canyon Dashboard</h1>
+      <span class="subtitle">Distributed Acoustic Sensing — Canyon Roadway Monitor</span>
+    </header>
+    <main id="main">
+      <div id="map-container">
+        <div id="map"></div>
+      </div>
+      <aside id="sidebar">
+        <section id="stats-panel">
+          <h2>Stats</h2>
+          <div class="stat-cards">
+            <div class="stat-card"><span class="stat-value" id="stat-vehicles">0</span><span class="stat-label">Active Vehicles</span></div>
+            <div class="stat-card"><span class="stat-value" id="stat-speed">—</span><span class="stat-label">Avg Speed (mph)</span></div>
+            <div class="stat-card"><span class="stat-value" id="stat-up">0</span><span class="stat-label">Up Canyon</span></div>
+            <div class="stat-card"><span class="stat-value" id="stat-down">0</span><span class="stat-label">Down Canyon</span></div>
+            <div class="stat-card"><span class="stat-value" id="stat-anomalies">0</span><span class="stat-label">Anomalies</span></div>
+          </div>
+        </section>
+        <section id="event-feed">
+          <h2>Event Feed</h2>
+          <ul id="event-list"></ul>
+        </section>
+      </aside>
+    </main>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
