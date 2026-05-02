@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DAS Canyon Dashboard — SR-190</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="header">
+      <div class="header-left">
+        <h1>DAS Canyon Dashboard</h1>
+        <span class="subtitle">SR-190 Big Cottonwood Canyon — Distributed Acoustic Sensing</span>
+      </div>
+      <div class="header-right">
+        <div class="replay-controls">
+          <button id="btn-play" class="ctrl-btn active" title="Play">&#9654;</button>
+          <button id="btn-pause" class="ctrl-btn" title="Pause">&#9646;&#9646;</button>
+          <label class="speed-label">
+            Speed
+            <select id="speed-select">
+              <option value="0.5">0.5x</option>
+              <option value="1" selected>1x</option>
+              <option value="2">2x</option>
+              <option value="4">4x</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </header>
+    <main id="main">
+      <div id="left-panel">
+        <div id="map-container">
+          <div id="map"></div>
+        </div>
+        <div id="waterfall-container">
+          <div class="waterfall-header">
+            <span>Waterfall — Time × Distance</span>
+            <span id="waterfall-info" class="waterfall-info"></span>
+          </div>
+          <canvas id="waterfall-canvas"></canvas>
+        </div>
+      </div>
+      <aside id="sidebar">
+        <section id="stats-panel">
+          <h2>Live Stats</h2>
+          <div class="stat-cards">
+            <div class="stat-card">
+              <span class="stat-value" id="stat-vehicles">0</span>
+              <span class="stat-label">Active Vehicles</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" id="stat-speed">&mdash;</span>
+              <span class="stat-label">Avg Speed (mph)</span>
+            </div>
+            <div class="stat-card up">
+              <span class="stat-value" id="stat-up">0</span>
+              <span class="stat-label">Up Canyon &#9650;</span>
+            </div>
+            <div class="stat-card down">
+              <span class="stat-value" id="stat-down">0</span>
+              <span class="stat-label">Down Canyon &#9660;</span>
+            </div>
+            <div class="stat-card warn">
+              <span class="stat-value" id="stat-anomalies">0</span>
+              <span class="stat-label">Anomalies</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" id="stat-channels">&mdash;</span>
+              <span class="stat-label">Total Channels</span>
+            </div>
+          </div>
+        </section>
+        <section id="event-feed">
+          <h2>Event Feed</h2>
+          <ul id="event-list"></ul>
+        </section>
+      </aside>
+    </main>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

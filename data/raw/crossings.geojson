@@ -1,0 +1,75 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "crossing_id": "xing_001",
+        "type": "fiber_road_crossing"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.766253,
+          40.614
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "crossing_id": "xing_002",
+        "type": "fiber_road_crossing"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.731153,
+          40.604301
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "crossing_id": "xing_003",
+        "type": "fiber_road_crossing"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.693598,
+          40.595
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "crossing_id": "xing_004",
+        "type": "fiber_road_crossing"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.655751,
+          40.58915
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "crossing_id": "xing_005",
+        "type": "fiber_road_crossing"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.618749,
+          40.5849
+        ]
+      }
+    }
+  ]
+}
