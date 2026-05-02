@@ -1,0 +1,995 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 8.0,
+        "label": "MP 8.0",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.7952,
+          40.6232
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 8.1,
+        "label": "MP 8.1",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.792354,
+          40.621955
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 8.2,
+        "label": "MP 8.2",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.789639,
+          40.620451
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 8.3,
+        "label": "MP 8.3",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.786838,
+          40.619126
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 8.4,
+        "label": "MP 8.4",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.783942,
+          40.618006
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 8.5,
+        "label": "MP 8.5",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.781003,
+          40.617001
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 8.6,
+        "label": "MP 8.6",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.778028,
+          40.616108
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 8.7,
+        "label": "MP 8.7",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.775023,
+          40.615329
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 8.8,
+        "label": "MP 8.8",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.771987,
+          40.614687
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 8.9,
+        "label": "MP 8.9",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.768911,
+          40.614257
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 9.0,
+        "label": "MP 9.0",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.765819,
+          40.613962
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 9.1,
+        "label": "MP 9.1",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.762755,
+          40.613504
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 9.2,
+        "label": "MP 9.2",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.759736,
+          40.612776
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 9.3,
+        "label": "MP 9.3",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.756825,
+          40.611693
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 9.4,
+        "label": "MP 9.4",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.753884,
+          40.610697
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 9.5,
+        "label": "MP 9.5",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.750917,
+          40.60978
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 9.6,
+        "label": "MP 9.6",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.747896,
+          40.609061
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 9.7,
+        "label": "MP 9.7",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.744905,
+          40.608227
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 9.8,
+        "label": "MP 9.8",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.741937,
+          40.607312
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 9.9,
+        "label": "MP 9.9",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.738991,
+          40.60633
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 10.0,
+        "label": "MP 10.0",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.736008,
+          40.605469
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 10.1,
+        "label": "MP 10.1",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.733001,
+          40.604694
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 10.2,
+        "label": "MP 10.2",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.729963,
+          40.604047
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 10.3,
+        "label": "MP 10.3",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.726909,
+          40.603485
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 10.4,
+        "label": "MP 10.4",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.723848,
+          40.60296
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 10.5,
+        "label": "MP 10.5",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.720847,
+          40.602159
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 10.6,
+        "label": "MP 10.6",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.71785,
+          40.601344
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 10.7,
+        "label": "MP 10.7",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.714857,
+          40.600516
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 10.8,
+        "label": "MP 10.8",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.711859,
+          40.599704
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 10.9,
+        "label": "MP 10.9",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.708873,
+          40.59885
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 11.0,
+        "label": "MP 11.0",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.705908,
+          40.597927
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 11.1,
+        "label": "MP 11.1",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.702918,
+          40.597086
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 11.2,
+        "label": "MP 11.2",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.699911,
+          40.596315
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 11.3,
+        "label": "MP 11.3",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.69687,
+          40.595681
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 11.4,
+        "label": "MP 11.4",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.693829,
+          40.595048
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 11.5,
+        "label": "MP 11.5",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.690784,
+          40.594438
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 11.6,
+        "label": "MP 11.6",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.687712,
+          40.593981
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 11.7,
+        "label": "MP 11.7",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.684647,
+          40.593485
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 11.8,
+        "label": "MP 11.8",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.681583,
+          40.592977
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 11.9,
+        "label": "MP 11.9",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.678494,
+          40.592656
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 12.0,
+        "label": "MP 12.0",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.675412,
+          40.592268
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 12.1,
+        "label": "MP 12.1",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.672339,
+          40.59182
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 12.2,
+        "label": "MP 12.2",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.669277,
+          40.591302
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 12.3,
+        "label": "MP 12.3",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.666215,
+          40.590781
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 12.4,
+        "label": "MP 12.4",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.663153,
+          40.59026
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 12.5,
+        "label": "MP 12.5",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.660081,
+          40.589803
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 12.6,
+        "label": "MP 12.6",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.657009,
+          40.589346
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 12.7,
+        "label": "MP 12.7",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.65394,
+          40.588868
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 12.8,
+        "label": "MP 12.8",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.65086,
+          40.588463
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 12.9,
+        "label": "MP 12.9",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.647775,
+          40.588115
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 13.0,
+        "label": "MP 13.0",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.64468,
+          40.587857
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 13.1,
+        "label": "MP 13.1",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.641581,
+          40.587639
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 13.2,
+        "label": "MP 13.2",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.638486,
+          40.587392
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 13.3,
+        "label": "MP 13.3",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.635397,
+          40.587064
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 13.4,
+        "label": "MP 13.4",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.632329,
+          40.586588
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 13.5,
+        "label": "MP 13.5",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.629264,
+          40.586085
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 13.6,
+        "label": "MP 13.6",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.626195,
+          40.585608
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 13.7,
+        "label": "MP 13.7",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.623112,
+          40.585235
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 13.8,
+        "label": "MP 13.8",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.62002,
+          40.584956
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 13.9,
+        "label": "MP 13.9",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.616917,
+          40.584819
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 14.0,
+        "label": "MP 14.0",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.613818,
+          40.584621
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 14.1,
+        "label": "MP 14.1",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.610724,
+          40.584358
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 14.2,
+        "label": "MP 14.2",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.607637,
+          40.584015
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 14.3,
+        "label": "MP 14.3",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.604577,
+          40.58348
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 14.4,
+        "label": "MP 14.4",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.601532,
+          40.582874
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "milepost": 14.5,
+        "label": "MP 14.5",
+        "route_id": "SR-190"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -111.5985,
+          40.5822
+        ]
+      }
+    }
+  ]
+}

@@ -13,8 +13,10 @@ export default [
         setInterval: 'readonly',
         clearInterval: 'readonly',
         setTimeout: 'readonly',
+        fetch: 'readonly',
         URL: 'readonly',
         HTMLElement: 'readonly',
+        Float32Array: 'readonly',
       },
     },
     rules: {
