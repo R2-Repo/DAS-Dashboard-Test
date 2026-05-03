@@ -28,6 +28,8 @@ html, body {
   background: var(--bg-dark);
   color: var(--text-primary);
   overflow: hidden;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 #app {
@@ -43,6 +45,9 @@ html, body {
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -154,12 +159,17 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.35rem;
   padding: 0.35rem 0.75rem;
   font-size: 0.75rem;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   flex-shrink: 0;
+}
+
+.wf-title-mobile {
+  display: none;
 }
 
 .waterfall-info {
@@ -194,9 +204,15 @@ html, body {
 
 .stat-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.4rem;
   padding: 0 0.6rem 0.6rem;
+}
+
+@media (min-width: 1101px) {
+  .stat-cards {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .stat-card {
@@ -232,43 +248,83 @@ html, body {
   margin-top: 0.15rem;
 }
 
-/* Traffic lab (pedagogical single-vehicle mode) */
-.traffic-lab-panel {
+/* Traffic control + fleet */
+.traffic-control-panel {
   border-top: 1px solid var(--border);
-  padding-bottom: 0.35rem;
+  padding-bottom: 0.5rem;
 }
 
-.traffic-lab-intro {
+.traffic-control-intro {
   font-size: 0.72rem;
   color: var(--text-secondary);
   line-height: 1.45;
   padding: 0 0.75rem 0.5rem;
 }
 
-.traffic-lab-toggle {
+.vehicle-palette {
+  padding: 0 0.75rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.vehicle-palette-title {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.vehicle-palette-chips {
   display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.8rem;
-  padding: 0 0.75rem 0.5rem;
-  cursor: pointer;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.palette-chip {
+  flex: 1 1 auto;
+  min-width: 3.2rem;
+  padding: 0.4rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: grab;
   user-select: none;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
 }
 
-.traffic-lab-toggle input {
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--accent);
+.palette-chip:hover {
+  border-color: var(--accent);
+  background: var(--bg-card-hover);
 }
 
-.traffic-lab-controls {
-  padding: 0 0.75rem 0.5rem;
+.palette-chip:active {
+  cursor: grabbing;
+  transform: scale(0.98);
 }
 
-.traffic-lab-presets {
+.palette-chip-pending {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.vehicle-palette-touch-hint {
+  font-size: 0.65rem;
+  color: var(--accent);
+  margin-top: 0.45rem;
+  line-height: 1.35;
+}
+
+.traffic-control-actions {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  padding: 0 0.75rem 0.5rem;
 }
 
 .lab-btn {
@@ -288,11 +344,102 @@ html, body {
   border-color: var(--accent);
 }
 
-.traffic-lab-hint {
-  font-size: 0.65rem;
+.lab-btn-muted:hover {
+  border-color: var(--text-secondary);
+}
+
+.lab-btn-hazard {
+  border-color: rgba(239, 83, 80, 0.45);
+}
+
+.lab-btn-hazard:hover {
+  border-color: var(--accent-red);
+  background: rgba(239, 83, 80, 0.12);
+}
+
+.fleet-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0 0.75rem 0.5rem;
+}
+
+.fleet-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.68rem;
   color: var(--text-secondary);
-  line-height: 1.4;
-  margin-top: 0.5rem;
+}
+
+.fleet-field input,
+.fleet-field select {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 0.35rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.fleet-field input:disabled,
+.fleet-field select:disabled {
+  opacity: 0.55;
+}
+
+.fleet-table-wrap {
+  max-height: 200px;
+  overflow: auto;
+  margin: 0 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.fleet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.68rem;
+}
+
+.fleet-table th {
+  text-align: left;
+  padding: 0.35rem 0.4rem;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.fleet-table td {
+  padding: 0.3rem 0.4rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.fleet-row-selected {
+  background: rgba(79, 195, 247, 0.12);
+}
+
+.fleet-id {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+}
+
+.fleet-remove-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent-red);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.1rem 0.25rem;
+  border-radius: 3px;
+}
+
+.fleet-remove-btn:hover {
+  background: rgba(239, 83, 80, 0.15);
 }
 
 /* Event feed */
@@ -383,8 +530,8 @@ html, body {
   flex-shrink: 0;
   align-items: stretch;
   justify-content: space-around;
-  gap: 0.25rem;
-  padding: 0.35rem 0.5rem calc(0.35rem + env(safe-area-inset-bottom, 0px));
+  gap: 0.2rem;
+  padding: 0.4rem max(0.35rem, env(safe-area-inset-left, 0px)) calc(0.45rem + env(safe-area-inset-bottom, 0px)) max(0.35rem, env(safe-area-inset-right, 0px));
   background: var(--bg-panel);
   border-top: 1px solid var(--border);
 }
@@ -395,16 +542,25 @@ html, body {
 
 .mobile-tab {
   flex: 1;
-  min-height: 44px;
-  padding: 0.35rem 0.5rem;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0.4rem 0.25rem;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--bg-card);
   color: var(--text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.mobile-tab-label {
+  display: block;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mobile-tab[aria-selected="true"] {
@@ -418,8 +574,8 @@ html, body {
   outline-offset: 2px;
 }
 
-/* --- Mobile / small screens: stacked panels + tabs --- */
-@media (max-width: 768px), (max-width: 900px) and (max-height: 520px) {
+/* --- Mobile / small screens: stacked panels + bottom tabs --- */
+@media (max-width: 768px), (max-width: 900px) and (max-height: 560px), (max-width: 1024px) and (max-height: 480px) {
   #app.app-mobile-layout #main {
     flex-direction: column;
   }
@@ -432,13 +588,25 @@ html, body {
   }
 
   #app.app-mobile-layout #map-container {
-    min-height: min(42vh, 320px);
+    min-height: min(38vh, 280px);
     flex: 1;
   }
 
   #app.app-mobile-layout #waterfall-container {
-    height: clamp(160px, 28vh, 240px);
+    height: clamp(140px, 26vh, 220px);
     flex-shrink: 0;
+  }
+
+  #app.app-mobile-layout .wf-title-desktop {
+    display: none;
+  }
+
+  #app.app-mobile-layout .wf-title-mobile {
+    display: inline;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-size: 0.68rem;
+    line-height: 1.25;
   }
 
   #app.app-mobile-layout #sidebar {
@@ -456,14 +624,36 @@ html, body {
     display: none;
   }
 
-  #app.app-mobile-layout #sidebar.mobile-tab-data #event-feed {
+  #app.app-mobile-layout #sidebar.mobile-tab-stats #event-feed,
+  #app.app-mobile-layout #sidebar.mobile-tab-stats .sidebar-mobile-fleet {
     display: none;
   }
 
-  #app.app-mobile-layout #sidebar.mobile-tab-data #sidebar-data-stack {
+  #app.app-mobile-layout #sidebar.mobile-tab-stats #sidebar-data-stack {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #app.app-mobile-layout #sidebar.mobile-tab-stats .sidebar-mobile-stats {
+    display: block;
+  }
+
+  #app.app-mobile-layout #sidebar.mobile-tab-fleet #event-feed,
+  #app.app-mobile-layout #sidebar.mobile-tab-fleet .sidebar-mobile-stats {
+    display: none;
+  }
+
+  #app.app-mobile-layout #sidebar.mobile-tab-fleet #sidebar-data-stack {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #app.app-mobile-layout #sidebar.mobile-tab-fleet .sidebar-mobile-fleet {
+    display: block;
   }
 
   #app.app-mobile-layout #sidebar.mobile-tab-feed #sidebar-data-stack {
@@ -473,6 +663,8 @@ html, body {
   #app.app-mobile-layout #sidebar.mobile-tab-feed #event-feed {
     flex: 1;
     min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   #app.app-mobile-layout .waterfall-header {
@@ -490,7 +682,7 @@ html, body {
   #app.app-mobile-layout #header {
     flex-wrap: wrap;
     align-items: flex-start;
-    padding: 0.45rem 0.65rem;
+    padding: max(0.45rem, env(safe-area-inset-top, 0px)) max(0.65rem, env(safe-area-inset-right, 0px)) 0.45rem max(0.65rem, env(safe-area-inset-left, 0px));
   }
 
   #app.app-mobile-layout .header-left {
@@ -539,6 +731,62 @@ html, body {
 
   #app.app-mobile-layout .lab-btn {
     min-height: 44px;
+  }
+
+  #app.app-mobile-layout #sidebar {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  #app.app-mobile-layout #sidebar h2 {
+    padding-top: 0.65rem;
+  }
+
+  #app.app-mobile-layout .traffic-control-intro {
+    font-size: 0.74rem;
+    line-height: 1.45;
+  }
+
+  #app.app-mobile-layout .vehicle-palette-chips {
+    gap: 0.45rem;
+  }
+
+  #app.app-mobile-layout .palette-chip {
+    min-height: 48px;
+    flex: 1 1 calc(33.333% - 0.35rem);
+    font-size: 0.78rem;
+    padding: 0.45rem 0.35rem;
+  }
+
+  #app.app-mobile-layout .fleet-field input,
+  #app.app-mobile-layout .fleet-field select {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+
+  #app.app-mobile-layout .fleet-table-wrap {
+    max-height: min(42vh, 320px);
+  }
+
+  #app.app-mobile-layout .fleet-table {
+    font-size: 0.72rem;
+  }
+
+  #app.app-mobile-layout .fleet-table th,
+  #app.app-mobile-layout .fleet-table td {
+    padding: 0.45rem 0.35rem;
+  }
+
+  #app.app-mobile-layout .fleet-remove-btn {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #app.app-mobile-layout #event-list li {
+    font-size: 0.8rem;
+    padding: 0.55rem 0.65rem;
   }
 }
 

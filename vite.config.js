@@ -39,10 +39,10 @@ export default defineConfig(({ mode }) => {
               injectRegister: 'auto',
               includeAssets: ['icons/*.png', 'icons/*.svg'],
               manifest: {
-                name: 'DAS Canyon Dashboard',
-                short_name: 'DAS Canyon',
+                name: 'SR-190 Traffic & DAS Lab',
+                short_name: 'Traffic DAS',
                 description:
-                  'Distributed Acoustic Sensing roadway monitoring — SR-190 Big Cottonwood Canyon',
+                  'Traffic microsimulation with live synthetic DAS waterfall — SR-190 Big Cottonwood Canyon',
                 theme_color: '#0f1422',
                 background_color: '#0f1422',
                 display: 'standalone',

@@ -1,15 +1,14 @@
 /**
- * Sidebar UI — stats cards and scrolling event feed.
- *
- * Exports initUI() which returns { updateStats, updateChannelCount, addEvent }.
- * Called by the simulation engine on each tick to update live dashboard state.
+ * Sidebar UI — live stats, fleet controls, event feed.
  */
+import { vehicleSpec } from './vehicle-model.js';
+
 const MAX_EVENTS = 60;
 
 export function initUI() {
   const el = (id) => document.getElementById(id);
 
-  function updateStats(vehicles, anomalies) {
+  function updateStats(vehicles, anomalies, meta = {}) {
     const ebCount = vehicles.filter((v) => v.laneKey === 'eb').length;
     const wbCount = vehicles.filter((v) => v.laneKey === 'wb').length;
     const avgSpeed = vehicles.length > 0
@@ -21,6 +20,17 @@ export function initUI() {
     el('stat-up').textContent = ebCount;
     el('stat-down').textContent = wbCount;
     el('stat-anomalies').textContent = anomalies.length;
+
+    const hz = meta.sampleRateHz ?? 10;
+    el('stat-sample-rate').textContent = `${hz} Hz`;
+    el('stat-sim-time').textContent = formatSimTime(meta.simTimeS ?? 0);
+  }
+
+  function formatSimTime(sec) {
+    const s = Math.floor(sec);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${String(r).padStart(2, '0')}`;
   }
 
   function updateChannelCount(count) {
@@ -35,7 +45,7 @@ export function initUI() {
     if (type === 'vehicle') {
       const lane = data.laneKey === 'wb' ? 'WB (down canyon)' : 'EB (up canyon)';
       const dirClass = data.laneKey === 'eb' ? 'up-canyon' : 'down-canyon';
-      const typeLabel = data.vehicleType === 'truck' ? 'Truck' : 'Vehicle';
+      const typeLabel = vehicleSpec(data.vehicleType).label;
       li.className = dirClass;
       li.innerHTML = `
         <span class="event-time">${time}</span>
@@ -58,5 +68,43 @@ export function initUI() {
     }
   }
 
-  return { updateStats, updateChannelCount, addEvent };
+  function refreshFleetPanel(sim) {
+    const tbody = el('fleet-table-body');
+    if (!tbody || !sim) return;
+    tbody.replaceChildren();
+    const list = sim.getVehicles();
+    const sel = sim.getSelectedVehicleId();
+
+    for (const v of list) {
+      const tr = document.createElement('tr');
+      if (v.id === sel) tr.classList.add('fleet-row-selected');
+      tr.dataset.vehicleId = v.id;
+      const lane = v.laneKey === 'wb' ? 'WB' : 'EB';
+      tr.innerHTML = `
+        <td><code class="fleet-id">${v.id}</code></td>
+        <td>${lane}</td>
+        <td>${vehicleSpec(v.vehicleType).label}</td>
+        <td class="fleet-speed">${Math.round(v.speedMph)}</td>
+        <td class="fleet-mp">${v.currentMilepost != null ? v.currentMilepost.toFixed(1) : '\u2014'}</td>
+        <td><button type="button" class="fleet-remove-btn" data-remove-id="${v.id}" title="Remove">×</button></td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    const speedInput = el('fleet-speed-input');
+    const typeSelect = el('fleet-type-select');
+    const applyBtn = el('fleet-apply-btn');
+    const selected = sel ? list.find((v) => v.id === sel) : null;
+    if (speedInput) {
+      speedInput.disabled = !selected;
+      if (selected) speedInput.value = String(Math.round(selected.desiredSpeedMph));
+    }
+    if (typeSelect) {
+      typeSelect.disabled = !selected;
+      if (selected) typeSelect.value = selected.vehicleType;
+    }
+    if (applyBtn) applyBtn.disabled = !selected;
+  }
+
+  return { updateStats, updateChannelCount, addEvent, refreshFleetPanel };
 }

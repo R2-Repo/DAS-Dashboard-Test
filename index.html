@@ -2,18 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0f1422" />
-  <meta name="description" content="Distributed Acoustic Sensing roadway monitoring — SR-190 Big Cottonwood Canyon" />
-  <title>DAS Canyon Dashboard — SR-190</title>
+  <meta name="description" content="Traffic-first DAS simulator — SR-190 Big Cottonwood Canyon fiber sensing lab" />
+  <title>SR-190 Traffic &amp; DAS Lab</title>
   <link rel="stylesheet" href="./src/styles.css" />
 </head>
 <body>
   <div id="app">
     <header id="header">
       <div class="header-left">
-        <h1>DAS Canyon Dashboard</h1>
-        <span class="subtitle">SR-190 Big Cottonwood Canyon — Distributed Acoustic Sensing</span>
+        <h1>SR-190 Traffic &amp; DAS Lab</h1>
+        <span class="subtitle">User-driven traffic microsim &rarr; live synthetic DAS waterfall (SR-190 Big Cottonwood Canyon)</span>
       </div>
       <div class="header-right">
         <div class="replay-controls">
@@ -38,7 +38,8 @@
         </div>
         <div id="waterfall-container">
           <div class="waterfall-header">
-            <span>Waterfall — Time × Distance</span>
+            <span class="wf-title-desktop">DAS waterfall — time × fiber channel (runtime strain-rate proxy)</span>
+            <span class="wf-title-mobile">DAS waterfall · time × channel</span>
             <span id="waterfall-info" class="waterfall-info"></span>
           </div>
           <canvas id="waterfall-canvas"></canvas>
@@ -46,55 +47,93 @@
       </div>
       <aside id="sidebar">
         <div id="sidebar-data-stack" class="sidebar-data-stack">
-        <section id="stats-panel">
-          <h2>Live Stats</h2>
+        <section id="stats-panel" class="sidebar-mobile-panel sidebar-mobile-stats">
+          <h2>Live sensing</h2>
           <div class="stat-cards">
             <div class="stat-card">
               <span class="stat-value" id="stat-vehicles">0</span>
-              <span class="stat-label">Active Vehicles</span>
+              <span class="stat-label">Vehicles on fiber</span>
             </div>
             <div class="stat-card">
               <span class="stat-value" id="stat-speed">&mdash;</span>
-              <span class="stat-label">Avg Speed (mph)</span>
+              <span class="stat-label">Avg speed (mph)</span>
             </div>
             <div class="stat-card up">
               <span class="stat-value" id="stat-up">0</span>
-              <span class="stat-label">Eastbound (EB)</span>
+              <span class="stat-label">EB (up canyon)</span>
             </div>
             <div class="stat-card down">
               <span class="stat-value" id="stat-down">0</span>
-              <span class="stat-label">Westbound (WB)</span>
+              <span class="stat-label">WB (down canyon)</span>
             </div>
             <div class="stat-card warn">
               <span class="stat-value" id="stat-anomalies">0</span>
-              <span class="stat-label">Anomalies</span>
+              <span class="stat-label">Hazard bands</span>
             </div>
             <div class="stat-card">
               <span class="stat-value" id="stat-channels">&mdash;</span>
-              <span class="stat-label">Total Channels</span>
+              <span class="stat-label">Fiber channels</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" id="stat-sample-rate">&mdash;</span>
+              <span class="stat-label">Row rate</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value" id="stat-sim-time">0:00</span>
+              <span class="stat-label">Sim time</span>
             </div>
           </div>
         </section>
-        <section id="traffic-lab-panel" class="traffic-lab-panel">
-          <h2>Traffic lab</h2>
-          <p class="traffic-lab-intro">
-            Synthetic single-vehicle runs to learn how time (vertical) and fiber channel (horizontal) relate on the waterfall. Not live DAS data.
-          </p>
-          <label class="traffic-lab-toggle">
-            <input type="checkbox" id="traffic-lab-enable" />
-            <span>Enable traffic lab</span>
-          </label>
-          <div id="traffic-lab-controls" class="traffic-lab-controls" hidden>
-            <div class="traffic-lab-presets">
-              <button type="button" id="lab-preset-eb" class="lab-btn">EB: mouth → up canyon</button>
-              <button type="button" id="lab-preset-wb" class="lab-btn">WB: top → down canyon</button>
+        <section id="traffic-control-panel" class="traffic-control-panel sidebar-mobile-panel sidebar-mobile-fleet">
+          <h2>Fleet &amp; map</h2>
+          <p class="traffic-control-intro" id="traffic-map-hint"></p>
+          <div id="vehicle-palette" class="vehicle-palette" aria-label="Add vehicles to the map">
+            <span class="vehicle-palette-title">Add vehicle</span>
+            <div class="vehicle-palette-chips" role="group" aria-label="Vehicle types">
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="bicycle" title="Bicycle">Bike</button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="motorcycle" title="Motorcycle">Moto</button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="car" title="Car">Car</button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="truck" title="Truck">Truck</button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="semi_truck" title="Semi truck">Semi</button>
             </div>
-            <p id="traffic-lab-drag-hint" class="traffic-lab-hint">
-              Drag on the map to move the vehicle along the road (snapped to SR-190 centerline). Use two fingers or right-drag to pan the map.
-            </p>
-            <p id="traffic-lab-legacy-hint" class="traffic-lab-hint" hidden>
-              Road lanes are unavailable; presets use fiber-index motion. Map drag placement is disabled.
-            </p>
+            <p id="vehicle-palette-touch-hint" class="vehicle-palette-touch-hint" hidden></p>
+          </div>
+          <div class="traffic-control-actions">
+            <button type="button" id="btn-demo-fleet" class="lab-btn">Load demo fleet</button>
+            <button type="button" id="btn-clear-fleet" class="lab-btn lab-btn-muted">Clear all</button>
+            <button type="button" id="btn-rockslide" class="lab-btn lab-btn-hazard">Simulate rock slide</button>
+          </div>
+          <div class="fleet-editor">
+            <label class="fleet-field">
+              <span>Desired speed (mph)</span>
+              <input type="number" id="fleet-speed-input" min="0" max="85" step="1" value="38" disabled />
+            </label>
+            <label class="fleet-field">
+              <span>Vehicle type</span>
+              <select id="fleet-type-select" disabled>
+                <option value="bicycle">Bicycle</option>
+                <option value="motorcycle">Motorcycle</option>
+                <option value="car">Car</option>
+                <option value="truck">Truck</option>
+                <option value="semi_truck">Semi truck</option>
+              </select>
+            </label>
+            <button type="button" id="fleet-apply-btn" class="lab-btn" disabled>Apply to selected</button>
+          </div>
+          <div class="fleet-table-wrap">
+            <table class="fleet-table" aria-label="Vehicle fleet">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Lane</th>
+                  <th>Type</th>
+                  <th>mph</th>
+                  <th>MP</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="fleet-table-body"></tbody>
+            </table>
           </div>
         </section>
         </div>
@@ -108,8 +147,11 @@
       <button type="button" class="mobile-tab" data-mobile-tab="map" aria-selected="true">
         <span class="mobile-tab-label">Map</span>
       </button>
-      <button type="button" class="mobile-tab" data-mobile-tab="data" aria-selected="false">
-        <span class="mobile-tab-label">Data</span>
+      <button type="button" class="mobile-tab" data-mobile-tab="stats" aria-selected="false">
+        <span class="mobile-tab-label">Stats</span>
+      </button>
+      <button type="button" class="mobile-tab" data-mobile-tab="fleet" aria-selected="false">
+        <span class="mobile-tab-label">Fleet</span>
       </button>
       <button type="button" class="mobile-tab" data-mobile-tab="feed" aria-selected="false">
         <span class="mobile-tab-label">Feed</span>
