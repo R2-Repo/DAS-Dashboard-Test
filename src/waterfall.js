@@ -55,12 +55,15 @@ const JET_B = new Uint8Array(LUT_SIZE);
   }
 })();
 
-export function initWaterfall(canvasId, data, options = {}) {
-  const canvas = document.getElementById(canvasId);
-  const ctx = canvas.getContext('2d');
+/**
+ * Channel indices to draw as vertical crossing guides (GeoJSON + channel flags).
+ * Exported for unit tests (browser init uses the same logic).
+ *
+ * @param {{ crossings?: { features?: unknown[] }; channels: { channel_id?: number; crossing_flag?: boolean }[] }} data
+ * @returns {number[]}
+ */
+export function collectCrossingChannelIndices(data) {
   const totalChannels = data.channels.length;
-
-  /** Unique channel indices at fiber–road crossings (for vertical markers). */
   const crossingChannelSet = new Set();
   if (data.crossings && Array.isArray(data.crossings.features)) {
     for (const f of data.crossings.features) {
@@ -76,7 +79,15 @@ export function initWaterfall(canvasId, data, options = {}) {
       crossingChannelSet.add(Math.max(0, Math.min(totalChannels - 1, ch.channel_id)));
     }
   }
-  const crossingChannels = [...crossingChannelSet].sort((a, b) => a - b);
+  return [...crossingChannelSet].sort((a, b) => a - b);
+}
+
+export function initWaterfall(canvasId, data, options = {}) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const totalChannels = data.channels.length;
+
+  const crossingChannels = collectCrossingChannelIndices(data);
 
   let viewStart = 0;
   let viewEnd = totalChannels;
