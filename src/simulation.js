@@ -24,6 +24,7 @@ import {
   vehicleDasFootprint,
   vehicleSpec,
 } from './vehicle-model.js';
+import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
 
 const CHANNEL_SPACING_M = 2.0;
 const TICK_MS = 100;
@@ -74,6 +75,26 @@ function rgbaFromHex(hex, a) {
   const g = parseInt(h.slice(2, 4), 16);
   const b = parseInt(h.slice(4, 6), 16);
   return `rgba(${r},${g},${b},${a})`;
+}
+
+function mixRgbWithHex(baseHex, tintHex, t) {
+  const parse = (hex) => {
+    const h = String(hex).trim().replace('#', '');
+    if (h.length !== 6) return null;
+    return [
+      parseInt(h.slice(0, 2), 16),
+      parseInt(h.slice(2, 4), 16),
+      parseInt(h.slice(4, 6), 16),
+    ];
+  };
+  const a = parse(baseHex);
+  const b = parse(tintHex);
+  if (!a || !b) return baseHex;
+  const u = Math.max(0, Math.min(1, t));
+  const r = Math.round(a[0] * (1 - u) + b[0] * u);
+  const g = Math.round(a[1] * (1 - u) + b[1] * u);
+  const bl = Math.round(a[2] * (1 - u) + b[2] * u);
+  return `#${[r, g, bl].map((x) => x.toString(16).padStart(2, '0')).join('')}`;
 }
 
 export function createSimulation(data, targets) {
@@ -313,7 +334,10 @@ export function createSimulation(data, targets) {
           bearingDeg,
         );
         const sel = v.id === selectedVehicleId;
-        const fillColor = rgbaFromHex(spec.color, sel ? 0.96 : 0.82);
+        const laneTint =
+          v.laneKey === 'eb' ? LANE_ROUTE_COLOR_HEX.eb : LANE_ROUTE_COLOR_HEX.wb;
+        const baseFillHex = mixRgbWithHex(spec.color, laneTint, roadOk ? 0.38 : 0);
+        const fillColor = rgbaFromHex(baseFillHex, sel ? 0.96 : 0.82);
         const outlineColor = sel ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.42)';
 
         return {

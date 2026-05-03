@@ -5,7 +5,7 @@
  *   - Base map: Esri World Imagery + reference overlays (transportation, boundaries/places) — hybrid satellite
  *   - Terrain: AWS Terrarium RGB elevation tiles (for 3D + hillshade)
  *
- * GIS layers on load: fiber route only (road centerline, mileposts, crossings hidden).
+ * GIS layers on load: fiber route + EB/WB road centerlines (mileposts, crossings not drawn).
  * Dynamic layers: anomaly pulses (below), then vehicles as fill-extrusion blocks on terrain
  * so markers do not obscure vehicles.
  *
@@ -13,6 +13,7 @@
  */
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
 import { vehicleSpec } from './vehicle-model.js';
 import { VEHICLE_HIT_LAYERS } from './map-constants.js';
 
@@ -38,7 +39,10 @@ function vehicleTypeLabel(type) {
 }
 
 export function initMap(containerId, data) {
-  const bounds = computeBounds(data.road);
+  const bounds = unionBounds([
+    boundsFromLineFeaturesGeojson(data.road),
+    boundsFromLineFeaturesGeojson(data.fiberRoute),
+  ]);
   const coarsePointer = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)')?.matches;
   const narrowScreen = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 768px)')?.matches;
 
@@ -129,6 +133,7 @@ export function initMap(containerId, data) {
 
   map.on('load', () => {
     addFiberLayer(map, data.fiberRoute);
+    addRoadCenterlineLayers(map, data.road);
     addAnomalyLayer(map);
     addVehicleLayers(map);
   });
@@ -136,17 +141,99 @@ export function initMap(containerId, data) {
   return map;
 }
 
-function computeBounds(road) {
-  let minLon = 180, maxLon = -180, minLat = 90, maxLat = -90;
-  for (const feat of road.features) {
-    for (const coord of feat.geometry.coordinates) {
-      if (coord[0] < minLon) minLon = coord[0];
-      if (coord[0] > maxLon) maxLon = coord[0];
-      if (coord[1] < minLat) minLat = coord[1];
-      if (coord[1] > maxLat) maxLat = coord[1];
-    }
+function extendBoundsWithCoord(bounds, lon, lat) {
+  const [minLon, minLat, maxLon, maxLat] = bounds;
+  return [
+    Math.min(minLon, lon),
+    Math.min(minLat, lat),
+    Math.max(maxLon, lon),
+    Math.max(maxLat, lat),
+  ];
+}
+
+/** Walk LineString / MultiLineString coordinates (2D only). */
+function extendBoundsWithLineCoords(bounds, coords) {
+  if (!coords?.length) return bounds;
+  if (typeof coords[0] === 'number') {
+    return extendBoundsWithCoord(bounds, coords[0], coords[1]);
   }
-  return [minLon, minLat, maxLon, maxLat];
+  let b = bounds;
+  for (const part of coords) {
+    b = extendBoundsWithLineCoords(b, part);
+  }
+  return b;
+}
+
+const EMPTY_BOUNDS = [180, 90, -180, -90];
+
+function boundsFromLineFeaturesGeojson(fc) {
+  let b = EMPTY_BOUNDS.slice();
+  for (const feat of fc?.features ?? []) {
+    const g = feat?.geometry;
+    if (!g) continue;
+    if (g.type === 'LineString') b = extendBoundsWithLineCoords(b, g.coordinates);
+    else if (g.type === 'MultiLineString') b = extendBoundsWithLineCoords(b, g.coordinates);
+  }
+  return b;
+}
+
+function unionBounds(boundsList) {
+  let b = EMPTY_BOUNDS.slice();
+  for (const box of boundsList) {
+    if (!box || box[0] > box[2] || box[1] > box[3]) continue;
+    b = [
+      Math.min(b[0], box[0]),
+      Math.min(b[1], box[1]),
+      Math.max(b[2], box[2]),
+      Math.max(b[3], box[3]),
+    ];
+  }
+  if (b[0] > b[2] || b[1] > b[3]) {
+    return [-111.8, 40.6, -111.6, 40.7];
+  }
+  return b;
+}
+
+function laneKeyFromRoadFeatureProps(props) {
+  const alias = String(props?.ROUTE_ALIAS_COMMON ?? '').toLowerCase();
+  if (alias.includes('eb') || alias.includes('east')) return 'eb';
+  if (alias.includes('wb') || alias.includes('west')) return 'wb';
+  return null;
+}
+
+function roadFeaturesForLane(roadGeojson, laneKey) {
+  return (roadGeojson?.features ?? []).filter(
+    (f) => laneKeyFromRoadFeatureProps(f.properties) === laneKey,
+  );
+}
+
+function addRoadCenterlineLayers(map, roadGeojson) {
+  const ebFc = { type: 'FeatureCollection', features: roadFeaturesForLane(roadGeojson, 'eb') };
+  const wbFc = { type: 'FeatureCollection', features: roadFeaturesForLane(roadGeojson, 'wb') };
+
+  map.addSource('road-eb', { type: 'geojson', data: ebFc });
+  map.addSource('road-wb', { type: 'geojson', data: wbFc });
+
+  map.addLayer({
+    id: 'road-wb-centerline',
+    type: 'line',
+    source: 'road-wb',
+    paint: {
+      'line-color': LANE_ROUTE_COLOR_HEX.wb,
+      'line-width': 2.2,
+      'line-opacity': 0.95,
+    },
+  });
+  map.addLayer({
+    id: 'road-eb-centerline',
+    type: 'line',
+    source: 'road-eb',
+    paint: {
+      'line-color': LANE_ROUTE_COLOR_HEX.eb,
+      'line-width': 2.2,
+      'line-opacity': 0.95,
+    },
+  });
 }
 
 function addFiberLayer(map, fiberRoute) {
