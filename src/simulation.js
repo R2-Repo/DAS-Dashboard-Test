@@ -8,7 +8,7 @@ import { updateMapVehicles, updateMapAnomalies } from './map.js';
 import {
   buildRoadMotionModel,
   roadDistanceToChannelPos,
-  curvatureAtRoadDistance,
+  maxCurvatureAhead,
   roadForwardSignForDirection,
   lonLatAtRoadDistance,
   nearestPointOnLanesPrefer,
@@ -33,7 +33,48 @@ const TICK_MS = 100;
 const MS_PER_S = 1000;
 const MPH_TO_MS = 0.44704;
 
-const MIN_CURVE_SPEED_MPH = 18;
+/** Lookahead distance (m) for curve speed — slow before the bend. */
+const CURVE_LOOKAHEAD_M = 70;
+
+function mphToChannelsPerTick(mph) {
+  const metersPerSec = mph * MPH_TO_MS;
+  const metersPerTick = metersPerSec * (TICK_MS / MS_PER_S);
+  return metersPerTick / CHANNEL_SPACING_M;
+}
+
+/**
+ * Speed cap (mph) from path curvature (1/m). Tight bends ~15–20 mph, moderate ~25–35,
+ * gentle curves merge into a lateral-acceleration comfort model.
+ */
+function curveSpeedCapMph(curvaturePerM) {
+  const κ = Math.max(0, curvaturePerM);
+  if (κ < 3e-6) return 120;
+  const r = 1 / κ;
+  const ay = 2.45;
+  const vComfortMph = (Math.sqrt(ay * Math.max(8, r)) / MPH_TO_MS) * 0.9;
+
+  if (κ >= 0.03) {
+    return Math.min(vComfortMph, 17);
+  }
+  if (κ >= 0.018) {
+    const t = (κ - 0.018) / (0.03 - 0.018);
+    return Math.min(vComfortMph, 19 + (1 - t) * 2);
+  }
+  if (κ >= 0.01) {
+    const t = (κ - 0.01) / (0.018 - 0.01);
+    return Math.min(vComfortMph, 27 + (1 - t) * 6);
+  }
+  if (κ >= 0.0055) {
+    const t = (κ - 0.0055) / (0.01 - 0.0055);
+    return Math.min(vComfortMph, 34 + (1 - t) * 8);
+  }
+  if (κ >= 0.0025) {
+    const t = (κ - 0.0025) / (0.0055 - 0.0025);
+    return Math.min(vComfortMph, 48 + (1 - t) * 12);
+  }
+  return Math.min(120, Math.max(35, vComfortMph));
+}
+
 const LAB_SNAP_MAX_M = 650;
 
 let vehicles = [];
@@ -44,22 +85,6 @@ let intervalId = null;
 
 let selectedVehicleId = null;
 let dragVehicleId = null;
-
-function mphToChannelsPerTick(mph) {
-  const metersPerSec = mph * MPH_TO_MS;
-  const metersPerTick = metersPerSec * (TICK_MS / MS_PER_S);
-  return metersPerTick / CHANNEL_SPACING_M;
-}
-
-function curveSpeedCapMph(curvaturePerM) {
-  const κ = Math.max(0, curvaturePerM);
-  if (κ < 1e-8) return 120;
-  const rEst = 1 / κ;
-  const lateralAccelMax = 2.8;
-  const vmaxMs = Math.sqrt(lateralAccelMax * Math.max(8, rEst));
-  const vmaxMph = (vmaxMs / MPH_TO_MS) * 0.92;
-  return Math.max(MIN_CURVE_SPEED_MPH, Math.min(120, vmaxMph));
-}
 
 function directionForLane(laneKey) {
   return laneKey === 'eb' ? 'up_canyon' : 'down_canyon';
@@ -118,17 +143,42 @@ export function createSimulation(data, targets) {
   }
 
   let syncFleetPanelFn = () => {};
+  let plotFocusChannel = null;
 
   function setSelectedVehicleId(id) {
     selectedVehicleId = id;
+    if (id) plotFocusChannel = null;
     const v = id ? vehicleById(id) : null;
     if (v && v.roadDistM !== undefined) {
       targets.waterfall.scrollChannelIntoView(v.channelPos);
     }
-    targets.waterfall.setHighlightChannel(
-      v ? Math.min(Math.max(0, Math.floor(v.channelPos)), totalChannels - 1) : null,
-    );
+    if (v) {
+      targets.waterfall.setHighlightChannel(
+        Math.min(Math.max(0, Math.floor(v.channelPos)), totalChannels - 1),
+      );
+    } else if (plotFocusChannel !== null) {
+      targets.waterfall.setHighlightChannel(plotFocusChannel);
+    } else {
+      targets.waterfall.setHighlightChannel(null);
+    }
     syncFleetPanelFn();
+  }
+
+  function focusMapOnChannel(channelIndex) {
+    const ci = Math.max(0, Math.min(totalChannels - 1, Math.floor(channelIndex)));
+    const ch = channels[ci];
+    if (!ch) return;
+    plotFocusChannel = ci;
+    targets.waterfall.scrollChannelIntoView(ci);
+    targets.waterfall.setHighlightChannel(ci);
+    const map = targets.map;
+    const z = Math.max(map.getZoom(), 15.4);
+    map.easeTo({
+      center: [ch.lon, ch.lat],
+      zoom: z,
+      duration: 850,
+      essential: true,
+    });
   }
 
   function tick() {
@@ -156,8 +206,8 @@ export function createSimulation(data, targets) {
           if (fwd < 0 && k > 0) leader = vehicles[sorted[k - 1]];
 
           if (v.id !== dragVehicleId) {
-            const curv = curvatureAtRoadDistance(lane, v.roadDistM);
-            const cap = curveSpeedCapMph(curv);
+            const k = maxCurvatureAhead(lane, v.roadDistM, CURVE_LOOKAHEAD_M, fwd);
+            const cap = curveSpeedCapMph(k);
             stepVehicleIdm(v, leader, v.desiredSpeedMph, cap, fwd, dtS, DEFAULT_IDM);
           }
 
@@ -302,9 +352,15 @@ export function createSimulation(data, targets) {
     targets.waterfall.render();
 
     const sel = selectedVehicleId ? vehicleById(selectedVehicleId) : null;
-    targets.waterfall.setHighlightChannel(
-      sel ? Math.min(Math.max(0, Math.floor(sel.channelPos)), totalChannels - 1) : null,
-    );
+    if (sel) {
+      targets.waterfall.setHighlightChannel(
+        Math.min(Math.max(0, Math.floor(sel.channelPos)), totalChannels - 1),
+      );
+    } else if (plotFocusChannel !== null) {
+      targets.waterfall.setHighlightChannel(plotFocusChannel);
+    } else {
+      targets.waterfall.setHighlightChannel(null);
+    }
 
     const vehicleFeatures = vehicles
       .map((v) => {
@@ -643,6 +699,7 @@ export function createSimulation(data, targets) {
     anomalies = [];
     selectedVehicleId = null;
     dragVehicleId = null;
+    plotFocusChannel = null;
     intervalId = setInterval(tick, TICK_MS);
     targets.ui.updateChannelCount(totalChannels);
     targets.ui.updateStats(vehicles, anomalies, { sampleRateHz: MS_PER_S / TICK_MS, simTimeS: 0 });
@@ -654,6 +711,7 @@ export function createSimulation(data, targets) {
     getVehicles: () => vehicles,
     getSelectedVehicleId: () => selectedVehicleId,
     setSelectedVehicleId,
+    focusMapOnChannel,
     addVehicleNearLngLat,
     placeVehicleAtLngLat,
     removeVehicle,

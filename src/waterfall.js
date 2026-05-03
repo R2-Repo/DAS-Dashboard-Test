@@ -53,7 +53,7 @@ const JET_B = new Uint8Array(LUT_SIZE);
   }
 })();
 
-export function initWaterfall(canvasId, data) {
+export function initWaterfall(canvasId, data, options = {}) {
   const canvas = document.getElementById(canvasId);
   const ctx = canvas.getContext('2d');
   const totalChannels = data.channels.length;
@@ -66,9 +66,21 @@ export function initWaterfall(canvasId, data) {
   /** Traffic lab: emphasize one channel column (integer index or null). */
   let highlightChannel = null;
 
+  /** Called when user picks a channel on the plot (map can fly to that fiber location). */
+  let plotChannelPickCallback = typeof options.onPlotChannelPick === 'function'
+    ? options.onPlotChannelPick
+    : null;
+
+  /** Mouse: left-drag horizontal pan; distinguish from click-to-focus-map. */
+  let wfMousePan = null; // { pointerId, originClientX, originViewStart, movedPx }
+  let wfPanPickSuppressed = false;
+
   /** One-finger pan / two-finger pinch on the waterfall (touch). */
   let wfTouchPan = null; // { pointerId, lastClientX }
   let wfPinch = null; // { idA, idB, dist0, range0, centerCh }
+
+  /** Defer single-click so double-click zoom does not also trigger map focus. */
+  let plotPickTimer = null;
 
   function setHighlightChannel(ch) {
     if (ch === null || ch === undefined) {
@@ -180,18 +192,100 @@ export function initWaterfall(canvasId, data) {
 
   const activeTouchX = new Map();
 
+  const MIN_VIEW_CHANNELS = 60;
+  const MAX_VIEW_CHANNELS = totalChannels;
+
+  /** Scroll/pan horizontally by channel delta (positive = view moves toward higher channel indices / right side of plot). */
+  function applyHorizontalScroll(deltaCh) {
+    const range = viewEnd - viewStart;
+    if (range <= 0) return;
+    viewStart = Math.max(0, viewStart + deltaCh);
+    viewEnd = Math.min(totalChannels, viewEnd + deltaCh);
+    if (viewEnd - viewStart < range) {
+      if (viewStart === 0) viewEnd = Math.min(totalChannels, viewStart + range);
+      else if (viewEnd === totalChannels) viewStart = Math.max(0, viewEnd - range);
+    }
+  }
+
+  /** Zoom so channel under `clientX` stays fixed; `deltaY` > 0 zooms out (wider view). */
+  function applyWheelZoomAtClientX(clientX, deltaY, shiftKey) {
+    const range = viewEnd - viewStart;
+    if (range <= 0) return;
+    const focal = floatChannelFromClientX(clientX);
+    if (focal === null) return;
+    const sign = Math.sign(deltaY);
+    const strong = shiftKey ? 1.14 : 1.09;
+    let newRange = sign > 0 ? range * strong : range / strong;
+    newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(MAX_VIEW_CHANNELS, Math.round(newRange)));
+    const frac = (viewEnd - 1 - focal) / range;
+    let newEnd = focal + 1 + frac * newRange;
+    let newStart = newEnd - newRange;
+    if (newStart < 0) {
+      newStart = 0;
+      newEnd = Math.min(totalChannels, newStart + newRange);
+    }
+    if (newEnd > totalChannels) {
+      newEnd = totalChannels;
+      newStart = Math.max(0, newEnd - newRange);
+    }
+    viewStart = newStart;
+    viewEnd = newEnd;
+  }
+
+  /** Legacy: wheel without focal (fallback). */
   function applyWheelDelta(deltaY, shiftKey) {
     const range = viewEnd - viewStart;
-    const delta = Math.sign(deltaY) * Math.max(5, Math.floor(range * 0.04));
+    const delta = Math.sign(deltaY) * Math.max(8, Math.floor(range * 0.06));
     if (shiftKey) {
-      const newRange = Math.max(80, Math.min(totalChannels, range + delta * 8));
+      const newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(totalChannels, range + delta * 6));
       const center = (viewStart + viewEnd) / 2;
       viewStart = Math.max(0, Math.floor(center - newRange / 2));
       viewEnd = Math.min(totalChannels, viewStart + newRange);
     } else {
-      viewStart = Math.max(0, viewStart + delta);
-      viewEnd = Math.min(totalChannels, viewEnd + delta);
-      if (viewEnd - viewStart < 80) viewStart = Math.max(0, viewEnd - 80);
+      applyHorizontalScroll(delta);
+    }
+  }
+
+  /** Double-click: zoom in around pointer (repeatable). */
+  function zoomIntoClientX(clientX) {
+    const range = viewEnd - viewStart;
+    if (range <= 0) return;
+    const focal = floatChannelFromClientX(clientX);
+    if (focal === null) return;
+    const newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(range, Math.round(range * 0.42)));
+    const frac = (viewEnd - 1 - focal) / range;
+    let newEnd = focal + 1 + frac * newRange;
+    let newStart = newEnd - newRange;
+    if (newStart < 0) {
+      newStart = 0;
+      newEnd = Math.min(totalChannels, newStart + newRange);
+    }
+    if (newEnd > totalChannels) {
+      newEnd = totalChannels;
+      newStart = Math.max(0, newEnd - newRange);
+    }
+    viewStart = newStart;
+    viewEnd = newEnd;
+  }
+
+  function schedulePlotChannelPick(clientX) {
+    if (!plotChannelPickCallback) return;
+    if (plotPickTimer) window.clearTimeout(plotPickTimer);
+    plotPickTimer = window.setTimeout(() => {
+      plotPickTimer = null;
+      if (wfPanPickSuppressed) {
+        wfPanPickSuppressed = false;
+        return;
+      }
+      const ch = channelFromClientX(clientX);
+      if (ch !== null) plotChannelPickCallback(ch);
+    }, 300);
+  }
+
+  function cancelScheduledPlotPick() {
+    if (plotPickTimer) {
+      window.clearTimeout(plotPickTimer);
+      plotPickTimer = null;
     }
   }
 
@@ -200,10 +294,35 @@ export function initWaterfall(canvasId, data) {
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    applyWheelDelta(e.deltaY, e.shiftKey);
+    if (e.ctrlKey || e.metaKey) {
+      applyWheelDelta(e.deltaY, true);
+    } else {
+      applyWheelZoomAtClientX(e.clientX, e.deltaY, e.shiftKey);
+    }
   }, { passive: false });
 
+  canvas.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    cancelScheduledPlotPick();
+    wfPanPickSuppressed = true;
+    zoomIntoClientX(e.clientX);
+  });
+
   canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button === 0) {
+      wfMousePan = {
+        pointerId: e.pointerId,
+        originClientX: e.clientX,
+        originViewStart: viewStart,
+        movedPx: 0,
+      };
+      wfPanPickSuppressed = false;
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    }
     if (e.pointerType === 'touch') {
       try {
         canvas.setPointerCapture(e.pointerId);
@@ -237,6 +356,33 @@ export function initWaterfall(canvasId, data) {
   });
 
   canvas.addEventListener('pointermove', (e) => {
+    if (wfMousePan && e.pointerId === wfMousePan.pointerId && e.pointerType === 'mouse') {
+      const dx = e.clientX - wfMousePan.originClientX;
+      wfMousePan.movedPx = Math.max(wfMousePan.movedPx, Math.abs(dx));
+      if (wfMousePan.movedPx > 6) {
+        wfPanPickSuppressed = true;
+        cancelScheduledPlotPick();
+      }
+      const w = canvas.width || canvas.getBoundingClientRect().width;
+      const range = viewEnd - viewStart;
+      if (w > 0 && range > 0 && wfMousePan.movedPx > 2) {
+        const deltaCh = Math.round(-dx * (range / w));
+        if (deltaCh !== 0) {
+          viewStart = wfMousePan.originViewStart + deltaCh;
+          viewEnd = viewStart + range;
+          wfMousePan.originClientX = e.clientX;
+          wfMousePan.originViewStart = viewStart;
+          if (viewStart < 0) {
+            viewStart = 0;
+            viewEnd = Math.min(totalChannels, range);
+          }
+          if (viewEnd > totalChannels) {
+            viewEnd = totalChannels;
+            viewStart = Math.max(0, viewEnd - range);
+          }
+        }
+      }
+    }
     if (e.pointerType === 'touch' && activeTouchX.has(e.pointerId)) {
       activeTouchX.set(e.pointerId, e.clientX);
 
@@ -246,7 +392,7 @@ export function initWaterfall(canvasId, data) {
         const dist = Math.abs(xb - xa);
         if (wfPinch.dist0 > 1 && dist > 1) {
           let newRange = Math.round(wfPinch.range0 * (wfPinch.dist0 / dist));
-          newRange = Math.max(80, Math.min(totalChannels, newRange));
+          newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(totalChannels, newRange));
           const c = wfPinch.centerCh;
           viewStart = Math.max(0, Math.floor(c - newRange / 2));
           viewEnd = Math.min(totalChannels, viewStart + newRange);
@@ -279,6 +425,17 @@ export function initWaterfall(canvasId, data) {
   });
 
   canvas.addEventListener('pointerup', (e) => {
+    if (wfMousePan && e.pointerId === wfMousePan.pointerId && e.pointerType === 'mouse') {
+      if (e.button === 0 && wfMousePan.movedPx <= 6 && plotChannelPickCallback) {
+        schedulePlotChannelPick(e.clientX);
+      }
+      wfMousePan = null;
+      try {
+        canvas.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    }
     activeTouchX.delete(e.pointerId);
     if (wfTouchPan && wfTouchPan.pointerId === e.pointerId) wfTouchPan = null;
     if (wfPinch && (e.pointerId === wfPinch.idA || e.pointerId === wfPinch.idB)) wfPinch = null;
@@ -288,6 +445,7 @@ export function initWaterfall(canvasId, data) {
   });
 
   canvas.addEventListener('pointercancel', (e) => {
+    if (wfMousePan && e.pointerId === wfMousePan.pointerId) wfMousePan = null;
     activeTouchX.delete(e.pointerId);
     if (wfTouchPan && wfTouchPan.pointerId === e.pointerId) wfTouchPan = null;
     if (wfPinch && (e.pointerId === wfPinch.idA || e.pointerId === wfPinch.idB)) wfPinch = null;
@@ -381,14 +539,20 @@ export function initWaterfall(canvasId, data) {
     }
 
     // Bottom axis: milepost labels
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '10px monospace';
+    ctx.fillStyle = 'rgba(245,248,252,0.92)';
+    ctx.font = '11px monospace';
+    ctx.shadowColor = 'rgba(0,0,0,0.75)';
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 1;
     const labelStep = Math.max(1, Math.floor(chanRange / 8));
     for (let i = viewStart; i < viewEnd; i += labelStep) {
       const x = ((viewEnd - 1 - i) / chanRange) * width;
       const ch = data.channels[i];
-      if (ch) ctx.fillText(`MP ${ch.milepost.toFixed(1)}`, x + 2, height - 3);
+      if (ch) ctx.fillText(`MP ${ch.milepost.toFixed(1)}`, x + 2, height - 4);
     }
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
 
     if (hoveredChannel !== null && data.channels[hoveredChannel]) {
       const ch = data.channels[hoveredChannel];
@@ -402,5 +566,18 @@ export function initWaterfall(canvasId, data) {
     }
   }
 
-  return { pushRow, render, channelBias, getViewRange: () => [viewStart, viewEnd], setHighlightChannel, scrollChannelIntoView, resize };
+  function setPlotChannelPickCallback(fn) {
+    plotChannelPickCallback = typeof fn === 'function' ? fn : null;
+  }
+
+  return {
+    pushRow,
+    render,
+    channelBias,
+    getViewRange: () => [viewStart, viewEnd],
+    setHighlightChannel,
+    scrollChannelIntoView,
+    resize,
+    setPlotChannelPickCallback,
+  };
 }
