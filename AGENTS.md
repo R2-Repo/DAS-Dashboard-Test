@@ -127,7 +127,7 @@ Key constants (in `src/simulation.js`):
 | Parameter | Value | Notes |
 |-----------|-------|-------|
 | Channel spacing | 2 m | Each channel = 2 meters of fiber |
-| Tick interval | 100 ms (10 Hz) | One waterfall row per tick |
+| Tick interval | 100 ms | One waterfall row per sim tick (browser lab pace, not interrogator PRF) |
 | History depth | 256 rows | 25.6 seconds of visible history |
 | 1 channel/tick | = 20 m/s ≈ 45 mph | Diagonal slope in waterfall |
 | Default view | 600 channels | ~1.2 km of fiber visible |
