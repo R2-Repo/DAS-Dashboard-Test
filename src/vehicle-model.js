@@ -12,7 +12,7 @@ export const VEHICLE_TYPES = ['bicycle', 'motorcycle', 'car', 'truck', 'semi_tru
 export const MAP_VEHICLE_FOOTPRINT_SCALE = 2.85;
 
 /** Extra scale for user-placed vehicles so they read clearly on the map. */
-export const MAP_VEHICLE_USER_DROP_SCALE = 1.42;
+export const MAP_VEHICLE_USER_DROP_SCALE = 1.58;
 
 /** Minimum ground footprint width (m) so narrow classes stay clickable at overview zoom. */
 export const MAP_VEHICLE_MIN_WIDTH_M = 2.8;
@@ -68,7 +68,7 @@ export const VEHICLE_SPECS = {
     widthM: 2.5,
     heightM: 3.2,
     color: '#ffb74d',
-    label: 'Truck',
+    label: 'Pickup',
     dasHalfWidthCh: 2,
     dasStrength: 0.52,
   },

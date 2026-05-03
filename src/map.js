@@ -258,6 +258,22 @@ function addVehicleLayers(map) {
   });
 
   map.addLayer({
+    id: 'vehicle-glow',
+    type: 'line',
+    source: 'vehicles',
+    layout: {
+      'line-cap': 'round',
+      'line-join': 'round',
+    },
+    paint: {
+      'line-color': ['get', 'glow_color'],
+      'line-width': ['case', ['==', ['get', 'user_placed'], 1], 7, 0],
+      'line-opacity': ['case', ['==', ['get', 'user_placed'], 1], 0.5, 0],
+      'line-blur': 3.2,
+    },
+  });
+
+  map.addLayer({
     id: 'vehicle-blocks-fill',
     type: 'fill-extrusion',
     source: 'vehicles',
@@ -267,6 +283,7 @@ function addVehicleLayers(map) {
       'fill-extrusion-color': ['get', 'fill_color'],
       // Per-feature opacity is not supported on fill-extrusion (data-constant only).
       'fill-extrusion-opacity': 0.92,
+      'fill-extrusion-vertical-gradient': false,
     },
   });
 
@@ -279,6 +296,7 @@ function addVehicleLayers(map) {
       'fill-extrusion-base': ['get', 'height_m'],
       'fill-extrusion-color': ['get', 'outline_color'],
       'fill-extrusion-opacity': 0.88,
+      'fill-extrusion-vertical-gradient': false,
     },
   });
 

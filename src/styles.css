@@ -790,3 +790,61 @@ html, body {
     grid-template-columns: 1fr;
   }
 }
+
+/* User-placed vehicle callouts (MapLibre Marker) */
+.vehicle-callout {
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateY(-4px);
+}
+
+.vehicle-callout-pole {
+  width: 2px;
+  height: 22px;
+  border-radius: 1px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.12) 100%
+  );
+  box-shadow:
+    0 0 6px rgba(var(--callout-glow-rgb, 41, 182, 246), 0.85),
+    0 0 14px rgba(var(--callout-glow-rgb, 41, 182, 246), 0.45);
+}
+
+.vehicle-callout-flag {
+  --callout-glow-rgb: 41, 182, 246;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  padding: 0.2rem 0.45rem 0.22rem;
+  margin-bottom: 2px;
+  min-width: 4.5rem;
+  max-width: 7.5rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  background: rgba(12, 14, 20, 0.88);
+  border: 1px solid rgba(var(--callout-glow-rgb), 0.55);
+  border-radius: 4px;
+  box-shadow:
+    0 0 10px rgba(var(--callout-glow-rgb), 0.55),
+    0 0 22px rgba(var(--callout-glow-rgb), 0.28),
+    0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.vehicle-callout-id {
+  font-weight: 600;
+  color: rgba(var(--callout-glow-rgb), 1);
+  text-shadow: 0 0 8px rgba(var(--callout-glow-rgb), 0.65);
+}
+
+.vehicle-callout-meta {
+  font-size: 0.58rem;
+  color: var(--text-secondary);
+}

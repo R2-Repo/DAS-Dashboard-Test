@@ -9,7 +9,7 @@ const VEHICLE_ICON = {
   bicycle: '🚴',
   motorcycle: '🏍',
   car: '🚗',
-  truck: '🚚',
+  truck: '🛻',
   semi_truck: '🚛',
 };
 
