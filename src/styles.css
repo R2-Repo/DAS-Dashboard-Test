@@ -806,14 +806,14 @@ html, body {
 .vehicle-callout-pole {
   width: 2px;
   flex: 0 0 auto;
-  height: 52px;
+  height: 88px;
   border-radius: 1px;
-  transform-origin: 50% 100%;
-  transform: rotateX(-42deg);
+  transform-origin: 50% 0%;
+  transform: rotateX(42deg);
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.62) 0%,
-    rgba(255, 255, 255, 0.14) 100%
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.62) 100%
   );
   box-shadow:
     0 0 6px rgba(var(--callout-glow-rgb, 41, 182, 246), 0.85),
