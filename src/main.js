@@ -78,11 +78,6 @@ async function boot() {
     }
   });
 
-  document.getElementById('btn-play').addEventListener('click', () => sim.play());
-  document.getElementById('btn-pause').addEventListener('click', () => sim.pause());
-  document.getElementById('speed-select').addEventListener('change', (e) => {
-    sim.setSpeed(parseFloat(e.target.value));
-  });
 }
 
 const MOBILE_TAB_CLASSES = ['mobile-tab-map', 'mobile-tab-stats', 'mobile-tab-fleet', 'mobile-tab-feed'];
@@ -109,6 +104,7 @@ function initResponsiveLayout(map, waterfall) {
     sidebar.dataset.mobileTab = t;
     sidebar.classList.remove(...MOBILE_TAB_CLASSES);
     sidebar.classList.add(`mobile-tab-${t}`);
+    app.classList.toggle('mobile-show-fleet-hint', mobileMq.matches && t === 'map');
     tabbar.querySelectorAll('.mobile-tab').forEach((btn) => {
       btn.setAttribute('aria-selected', btn.dataset.mobileTab === t ? 'true' : 'false');
     });
@@ -134,6 +130,7 @@ function initResponsiveLayout(map, waterfall) {
     } else {
       sidebar.classList.remove(...MOBILE_TAB_CLASSES);
       delete sidebar.dataset.mobileTab;
+      app.classList.remove('mobile-show-fleet-hint');
       tabbar.querySelectorAll('.mobile-tab').forEach((btn) => btn.setAttribute('aria-selected', 'false'));
       window.requestAnimationFrame(() => {
         map.resize();
