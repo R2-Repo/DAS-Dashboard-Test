@@ -1,7 +1,7 @@
 /**
  * DAS Waterfall renderer — realistic jet colormap waterfall display.
  *
- * Axes: X = channel/fiber distance (horizontal), Y = time (vertical, oldest at top, newest at bottom).
+ * Axes: X = channel/fiber distance (horizontal), Y = time (vertical, newest at top flowing downward — matches common DAS waterfall plots).
  * Colormap: standard jet — deep blue → cyan → green → yellow → orange → red.
  *
  * Real DAS physics:
@@ -310,7 +310,8 @@ export function initWaterfall(canvasId, data) {
     const rowH = height / HISTORY_ROWS;
 
     for (let row = 0; row < HISTORY_ROWS; row++) {
-      const bufRow = (currentRow - HISTORY_ROWS + row + HISTORY_ROWS * 2) % HISTORY_ROWS;
+      // Newest sample at top (row 0); ring slot about to be overwritten (currentRow) at bottom.
+      const bufRow = (currentRow - 1 - row + HISTORY_ROWS * 2) % HISTORY_ROWS;
       const y0 = Math.floor(row * rowH);
       const y1 = Math.max(y0 + 1, Math.floor((row + 1) * rowH));
 
