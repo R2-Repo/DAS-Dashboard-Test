@@ -1,0 +1,2265 @@
+0:03
+good morning welcome back to the Utah connected webinar theories this is a
+0:08
+fifth of six webinars in the series hosted by the Utah Department of Transportation my name is Muriel
+0:15
+sochamel and I will be your facilitator for this event the webinar series Utah connected
+0:21
+webinar is intended to Foster collaboration and promote information sharing among UDOT and its Partners
+0:27
+across the country it highlights six successful deployments across Utah
+0:33
+including significant deployments with connected vehicle technology that has helped to improve Mobility safety and
+0:40
+quality of life right here in Utah collectively we have seen over a thousand individuals participate in our
+0:48
+webinars so far these webinars are free and open to the public but Advanced registration is
+0:54
+required all meetings are being recorded and the recording will be made available to the public within one week of each
+1:00
+webinar on the UDOT website we will provide a URL for that as we go
+1:08
+we would like to note that while you'll see showcased here certain Technologies UDOT does not necessarily endorse any
+1:15
+one company or product but has had great success in working with its Partners on these deployments
+1:21
+before we get started we wanted to hear from all of you to see who's been joining us uh this morning so we wanted
+1:28
+to pull up a poll and ask you just a few questions first of all what role best describes
+1:34
+you are you an engineer a planner a researcher a consultant policy maker or
+1:43
+something else
+1:55
+secondly what industry sector do you work in the public sector the private
+2:01
+sector maybe for a non-profit or an academic institution or something else
+2:14
+how long have you worked in the field less than five years six to ten years 11 to 15 years
+2:21
+16 to 20 years or more than 26 years we'll give you just a minute to take that poll
+2:44
+we'll go ahead and end the poll now looks like we have a lot of Engineers
+2:50
+joining us today you'll appreciate the acronyms but we also have planners researchers consultants and one policy
+2:58
+maker with a representative sampling of folks across the industry we also have
+3:03
+14 folks who may be representing another type
+3:09
+in terms of Industry sector we have a good mix of public and private with some
+3:16
+non-profit and Academia represented as well and across the board
+3:22
+folks that have just started out in the profession and folks that have been here
+3:27
+for quite a long time and everything in between so thank you so much for participating in that poll with us
+3:35
+we'll now get right into it so with over 3200 miles of fiber UDOT has one of the
+3:44
+most robust dot-owned fiber optic networks in the nation distributed
+3:49
+acoustic sensing or Das which is fiber sensing uses Fiber Optic Cables buried
+3:56
+along the road to monitor roadways in real time by detecting acoustic events in the vicinity of the fiber those could
+4:03
+include crashes Avalanches vehicle speeds and travel times so it's good to have you back this information can then
+4:09
+be efficiently transmitted to udot's traffic operations center where it can be used to assess traffic conditions
+4:15
+dispatch response vehicles or even worn motorists of hazardous conditions
+4:20
+this UDOT fiber sensing project is one of the first in the entire country it aims to provide critical safety and
+4:27
+maintenance information the webinar will provide an update on the Project's progressed and highlight its next steps
+4:34
+I would just note if you have any questions throughout today's program please feel free to submit them in the Q
+4:40
+a an icon for that is located at the bottom of your screen if we are unable
+4:45
+to answer all of the questions today we will follow up with you via email directly after the webinar
+4:52
+we've got the quite the lineup of subject matter experts who have been kind of managing this day to day for the
+4:58
+past several years we'll first start with Blaine Leonard for those of you who have not gotten the
+Blaine Leonard
+5:04
+pleasure of meeting Blaine he is the transportation technology manager at UDOT in this role he leads the planning
+5:10
+and deployment of connected automated Vehicles he has chaired the American Association of State Highway and
+5:16
+transportation officials connected automated vehicle working group and has led the stat challenge tactical working
+5:22
+group he is currently co-chair of the Astro technology subcommittee
+5:27
+prior to joining UDOT in 2001 Blaine spent 20 years in the Consulting
+5:32
+engineering Business Blaine has a bachelor and master of science in civil engineering from the University of Utah
+5:39
+blame thank you Muriel I appreciate that
+5:44
+introduction and I'm happy to have everyone with us today let me pull up
+5:52
+my presentation um you know it's really hard for me to
+5:58
+believe that we are now in the um
+6:04
+fifth of our six webinars we have been planning this webinar series since the
+6:11
+very beginning of 2023 and a lot of work has gone into them and all of a sudden we're we're at webinar number five
+6:19
+um the first three webinars or the last previous three webinars were very much
+6:24
+focused on our connected vehicle deployments um that's where a lot of our ATC MTD
+6:31
+effort has gone and a lot of what our program does today is a shift for us we're moving to another technology where
+6:39
+we use Fiber for situational awareness but before we get to the topic I want to
+Thank You
+6:45
+offer some thanks first of all to the Federal Highway Administration their atcmtd grants team and their local
+6:52
+office who have worked with us throughout this atcmtd grant program over the last several years it's their
+7:00
+funding that brings you this webinar series and most of the work we talk about in this series if you're
+7:07
+interested in more information about the atcmtd program and our particular Utah
+7:12
+connected grant that was in webinar number one and the recording and the presentations are posted at
+7:19
+Transportation technology.u.gov our website want to thank Muriel and her team at X
+7:26
+Factor who have done all the heavy lifting and work to coordinate and organize and sort of beat us all into
+7:32
+shape um so we could pull these webinars off we appreciate them and we're grateful
+7:37
+for today's presenters from UDOT from duraline Luna optusense and wcg I will
+7:44
+note that the speakers today Andy and Alistair from Luna optusense are coming
+7:50
+to us from England it's a very late in the evening there and so we really appreciate them uh taking some of their
+7:56
+evening time to uh to be with us of course we want to thank all of you who are joining us today live those of
+8:03
+you who will watch us later um and and have participated in any of our webinars we've had
+8:10
+over 500 people sign up for this series of webinars uh we have uh 150 or so of
+8:17
+you right this moment logged on with us and and we appreciate all of you being here
+Webinar Series
+8:24
+um this series of webinars there are six of them is really intended to share information that we've learned
+8:30
+um through our work that's been funded by this atcmt program um we want to we want to give away as
+8:37
+much as we can and let everybody else learn from our mistakes and our lessons and our deployments we want to Foster
+8:44
+collaboration and we want to encourage all of you to deploy similar Technologies based on some of the things
+8:51
+that we've done to help Advance these Technologies so that we can all meet our
+8:57
+our agency goals um at UDOT our primary goal
+Agency Goals
+9:03
+um our primary goals are focused around safety um zero crashes injuries and fatalities
+9:08
+and Mobility um and um and the things that we do in
+9:13
+our transportation Technology Group primarily Focus there safety is our number one strategy much of what we've
+9:20
+done in the short term focuses on Mobility as sub goals we're trying Statewide to
+9:27
+achieve situational awareness understanding what's going on in our network and to prepare for production
+9:33
+Vehicles which come with veto X equipment on board so that we can achieve safety today's webinar will
+9:40
+focus primarily on this concept of situational awareness helping us to
+9:45
+understand what's happening along our roadways with all of our Travelers so that's what gets us to the
+9:52
+distributed acoustic sensing program to achieve situational awareness and that's
+9:58
+that's the focus of today's webinars when we
+10:03
+um began to consider distributed acoustic sensing um we wanted to figure out what we could
+10:11
+do to augment or or potentially replace some of the sensors we have along our
+10:16
+roadways distribute acoustic sensing is a concept that uses fiber that's laid
+10:23
+along the road um as you know fiber um uh is is transmitting data over a
+10:31
+light stream um and any vibration in the ground picks up uh it disrupts the light stream and
+10:40
+we can identify those disruptions very uh specifically as to location so we
+10:46
+wanted to evaluate the capabilities of distributed acoustic sensing and these disruptions to monitor traffic speed
+10:53
+travel times q and congestion conditions because those cause ground vibrations
+10:58
+that can be picked up we also wanted to see whether we could detect incidents
+11:04
+and crashes and rockfall and Avalanche events I'll describe in a minute that
+11:09
+we've deployed this in some can along some Canyon roads where um rockfall and Avalanches are fairly
+11:16
+frequent occurrences we also wanted to assess the user interface of these
+11:21
+systems how easy is it for us to to see and get the information and then assess
+11:28
+the feasibility and deployability and operations of these systems
+Wasatch Front
+11:33
+if you've been on any of other webinars you've seen this map it's the Wasatch Front of northern Utah that the flank of
+11:40
+the Wasatch mountains which really forms the greater Salt Lake Metro Area
+11:46
+um and I've used this map to show our connected vehicle deployments in this particular instance here in Northern
+11:52
+Utah I've put a blue box around big and little Cottonwood Canyons these are two
+11:57
+Canyon roads that go up to four of our eight or nine Premier ski resorts other
+12:03
+heavily traveled roads with a lot of interest both winter and summer and a
+12:10
+lot of activity in the canyon and so we chose these specifically as places where
+12:16
+although we have cameras and radar and other sensors in the canyon the narrow
+12:21
+windy road geometry makes it so we we can't always see what's going on in the
+12:27
+canyon here's a zoom in of those two Canyons this comes from our fiber map
+12:34
+and the colors on the road really represent fiber type or a number of
+12:40
+strands those kinds of things so this is really a definition of our fiber location I show big Cottonwood Canyon
+12:47
+which is about 14 miles long and 12 and and Little Cottonwood Canyon which is about 12 miles long
+12:55
+um and the fiber placement and the Das program covers both of these Canyons as
+13:01
+well as Wasatch Boulevard at the left side of the image which connects the Canyons the equipment is located in a
+13:08
+fiber Hub Building inside the little blue box on the left side of the image which is at the intersection The
+13:15
+Interchange of our Interstate 215 that circles the valley you'll you'll see more images of the
+13:23
+canyon you'll see more maps to the canyon I just wanted to start you out with an understanding of the
+13:28
+geographical context for the project as I mentioned fiber in this case senses
+Geographic Context
+13:34
+ground vibrations and uses those vibrations to be able to detect traffic
+13:40
+movements from which we can derive speeds and travel times and sense impact
+13:45
+events and the speakers today will talk a lot about very specific issues show
+13:51
+you specific examples of those kinds of events how they measure them and and how
+13:58
+we use them here's just one quick high-level example you can see at the top of the screen
+Waterfall Example
+14:04
+what we call the waterfall and the experts will sort of describe to you what that is and what you're seeing
+14:11
+you'll notice that one zone which looks different than the rest and below it you'll see the type of fiber happens to
+14:18
+change in that particular location so one of the primary things we learned and
+14:24
+again others will talk about this is that fiber placement fiber type a fiber
+14:30
+backfill is very critical to the operation of the Das system and this
+14:36
+simple graphic sort of gives you an example of that
+Next Steps
+14:42
+um from a programmatic standpoint um our next steps and I'm sort of jumping to the end for me but you're
+14:49
+going to hear a lot of detail in between we're still tweaking the algorithms to make sure that we fully understand what
+14:55
+the fiber is seeing in the canyon and how we can make use of that we're refining the notification process so
+15:03
+that emails can be directed alerts can be directed to appropriate people at appropriate times containing useful
+15:10
+information and reducing false positives we don't currently have specific plans
+15:17
+to expand this system because we're still evaluating some of those things we do have a cost model that allows us to
+15:24
+compare this in a general sense with other kinds of Technologies like cameras
+15:29
+and radar sensors and things we don't believe that this will replace those you
+15:35
+can't see something like you can with a camera but we believe it can augment those
+15:40
+um as we looked at as we look at Cost Effectiveness um it would probably be most effective
+15:47
+in areas where there are other Technologies maybe aren't as frequently placed uh specifically in in corridors
+15:54
+that might be more Rural and that was really our original intent and one of the reasons we picked Canyon roads
+16:02
+um because because we could augment the limited view we have in those areas so
+16:08
+we're still evaluating some of those things and figuring out what we could do with this this was an incredibly
+16:14
+valuable experience working with duraline and and Luna optusense to
+16:20
+understand what this technology could do it's a relatively new technology we
+16:25
+first identified it a number of years ago and saw that it was being used in
+16:30
+North Dakota for transportation uses in New Zealand for transportation uses
+16:36
+um but but not a lot of other places at the time and that's what piqued our interest and we're still sort of
+16:42
+evaluating of what we could do with it so with that introduction I will turn it
+16:48
+back to Muriel and we'll move into some of the experts who can give us a lot more detail about this system and our
+16:55
+deployment of it in Utah thank you fantastic blame thank you so much
+Paul Dickinson
+17:00
+it's nice to have that context now we're going to do a deeper dive with Paul Dickinson Dr Paul Dickinson is the
+17:08
+Director of Business Development at duraline and chairman of the board at the fiber optic sensing Association
+17:15
+that is a telecom industry veteran uh he has over 32 years of experience Paul
+17:21
+began his career as an at T Bell Labs materials research scientist developing
+17:26
+new optical fiber cable material formulations before moving on to a wide variety of technical marketing and sales
+17:34
+management positions within Lucent Technologies ofs and now duraline Paul
+17:40
+is currently involved in innovative business ventures including strategic planning and development of fiber optic
+17:46
+sensing Solutions in a wide variety of vertical markets Paul earned his bachelor degree in chemistry from
+17:53
+Cornell University and a PhD in polymer science from the University of Connecticut's Institute of Materials
+17:59
+Science I have to say he's the first person I've ever met with a PhD in polymer science
+18:05
+so with that Paul we'll kick it to you so Muriel I watched The Graduate one too
+Muriel
+18:12
+many times I think if you remember that scene where uh where uh Dustin Hoffman was coached by his uncle to get into
+18:19
+Plastics so that was my story there let me um let me start by sharing my screen
+18:26
+is my screen uh visible yes it looks grateful fantastic I'm not
+18:34
+a zoom guy I'm a Ms teams guy so uh Blaine did a fantastic introduction uh
+18:39
+which was absolutely wonderful and I am going to now uh continue the enviable
+18:46
+position at least for me of setting the stage before we really dive deep into
+18:51
+the technology uh speaking for myself and duraline I'm very excited to to share the virtual stage with Blaine an
+18:58
+entire UDOT Visionary team it's become apparent to us in our collaboration just
+19:03
+how future thinking Blaine and UDOT is and how wonderful it is that they're willing to share their ideas for the
+19:09
+benefit of everyone in not only a DT dot end users but the ecosystem of its so I
+19:17
+certainly did not understand at all but I thoroughly enjoyed the other four UDOT uh connected webinars uh as Blaine
+19:24
+said we're returning the corner here and we're getting into uh technology that
+19:30
+has been years and the making but is really emerging in a wonderful way for uh for Highway Transportation so our
+19:37
+Reliance on technology and the ability to benefit technology is reaching New Heights every day
+19:43
+fiber connectivity is no longer just a convenience it's a necessity that's becoming ubiquitous
+19:49
+so I I went ahead and I boldly put the phrase seizing the moment on the slide since I firmly believe that funding and
+19:56
+Technology stars are aligning in a rather unique way for end users designers and partners
+20:02
+to look at how to leverage this technology for complementing the surge
+20:08
+in broadband that's occurring and we'll continue to occur for the foreseeable future so across the globe in the U.S
+20:14
+new funding from public and private sectors is available that's going to meet this Rising demand and appetite for
+20:20
+innovation and all of this complements and gives us new abilities to leverage our fiber
+20:26
+infrastructure so it's my view that organizations should seize the moment so
+20:31
+to speak as I put here to take advantage of this unique opportunity um in time for near-term and longer term
+20:38
+opportunities um I will now move to the next slide so just a quick introduction uh for my
+20:45
+company uh duraline duraline is a leading Global manufacturer and innovator has been for over 50 years uh
+20:53
+continues to transform infrastructure that's we we require for communication and uh I know many of you
+21:00
+um both Embrace and push back on technology I know I certainly do classic example is kids or maybe our spouses or
+21:08
+ourselves in front of our screens all day you know but it's unavoidable technology data and constant
+21:14
+communication are more intertwined with daily lives than ever before in human history and duraline provides that
+21:20
+essential infrastructure traditional conduit novel new conduits like Future Path and accessories to make this
+21:26
+possible so today hopefully we're going to illustrate for you how to further the
+21:32
+benefits of what's already in place this this product set that's in our ground now or aerially and it's going to become
+21:39
+even more prevalent going forward for the use of the intelligence that this
+21:44
+can provide above and beyond just data common broadcom so just to close on duraline we focus on
+21:50
+innovator product Solutions through customer insight and we do indeed create the pathways that the fiber cable uses
+21:58
+to connect all of us serving wide variety markets including telecommunications Enterprise energy and
+22:04
+now transportation um one more slide on conduit I promised conduits will go away for the remainder
+Conduit
+22:11
+of this presentation but it's important in setting the stage for how this all interconnects
+22:17
+so this is what a conduit looks like for those of you who may never have seen it with fiber cable inside the UDOT
+22:23
+technology we're presenting today and talking about is not about conduit at all per se but it's about the novel
+22:29
+multi-use applications that can result for the use of either the existing
+22:35
+conduit that's in place today or the or the conduit that's going to go in going forward so it's important for this audience I
+22:43
+believe to understand the interrelationship between fiber and Blaine already mentioned a few minutes ago that the fiber selection is
+22:49
+important the interrelationship between conduit fiber and what we're about to talk about so in order to place that fiber for
+22:57
+those who aren't familiar with underground infrastructure for future growth you need a conduit system you
+23:02
+need something that's robust reliable scalable upgradable so this shouldn't be new to all the engineers on this call
+23:09
+what's new is that the technology we're talking about comes from the same Optical fibers in the conduit that were
+23:16
+put in for an entirely different purpose communication so we're leveraging those for a new and exciting application so
+23:23
+just one last uh depiction of what you're looking at here what you see here are various conduit designs both a
+23:31
+traditional single pathway on the right and the more modern multi-pathway conduit systems to take advantage of uh
+23:38
+high fiber density in what are called micro cables so these higher density
+23:43
+cables combined with multi-path conduit enable any users to have this scalable
+23:48
+system that can continue to put in bandwidth over time without incurring
+23:53
+labor costs year and digging up the ground time and time again this speaks to what probably others on this call are
+23:59
+familiar with called dig once where you want to spend all the time and labor digging up the ground once and then have
+24:05
+a system where you can incrementally add to it over time so as designers
+24:11
+engineers and end users consider how to implement uh what we're going to talk about today you got to integrate and
+24:18
+that's the point of this slide you got to integrate your your conduit placement your selection your fiber cable
+24:24
+selection so it all works together as a total solution now this is a little bit of an eye chart
+24:32
+uh so I'm not going to spend too much time on this but the point I want to leave you with today the takeaway is I
+24:39
+want you to realize that conduit and fiber are everywhere and that's that and it's only going to continue to become
+24:45
+more prevalent this includes everything from Long Haul undersea transmission between continents to long-haul cable
+24:52
+across the U.S to Middle mile routes that eventually Branch off to Enterprise and and fiber to the home
+24:59
+so for the purpose of this presentation audience an ever increasing amount of conduit and fiber cable is being put in
+25:07
+our right-of-ways along the highways and the roadways in the U.S so that's how
+25:12
+this ties into what we uh un you know undertook with UDOT a couple years ago
+25:18
+to really dive into and understanding how we could leverage this the main point of this slide that I want to leave
+25:24
+you with is there currently exists in there and there will be a growing need to leverage this infrastructure for more
+25:32
+than just the data Communications that that already are in place and to gather
+25:37
+more insights from the fiber to the extent that we can so I want to tell you how this
+How it Works
+25:44
+technology Works a little bit before we start diving into specifically the uh the transportation aspects of this
+25:51
+Blaine already touched upon this so if you look at the photograph of the box that says interrogator unit that's
+25:58
+essentially a rack mounted piece of electronics equipment and the purpose of that box is to inject pulses of laser
+26:05
+energy into an optical fiber and then detect what's called Backscatter from that fiber so it basically sends light
+26:12
+out and light comes right back to the same box and that's what enables us to turn an entire cable
+26:18
+into a very long continuous or distributed sensor so if you have for example a typical
+26:25
+Communications cable running in parallel to an asset that acid could be a pipeline a railroad or a border or of
+26:32
+course for this webinar we're focusing on roadside what you do is you basically turn that entire length of cable into a
+26:39
+sensor with repeated sensing positions so the resolution can vary depending on
+26:44
+the application in the data set but A good rule of thumb is to think of the resolution of about 10 to 20 feet over
+26:51
+say a distance as long as 25 to 60 miles so there then for also if your monitored
+26:58
+assets longer than the reach that I just described you simply have to put another interrogator box in line and concatenate
+27:05
+them so in the case of roadside this simply means having an interrogator equipment in a DOT Hut spaced out at
+27:12
+appropriate intervals the other thing is don't think of the fiber as needing to complete a loop or a
+27:18
+circuit that's often a question you simply send out signals in the same fiber and it comes back on the same
+27:24
+fiber in the opposite direction the other important point is electricity is not required on the cable itself it's
+27:30
+just required to power the Box on one end so what does that do it leaves the interrogator or the Hut uh as the only
+27:38
+Power mechanism and all the rest of it is an extremely passive underground system that benefits from the similar
+27:44
+decades-long longevity that a buried telecommunication cable has in conduit
+27:50
+so the other thing you need to know is depending on the configuration of the equipment used we can detect changes in
+27:57
+temperature with this technology we can also detect changes in strain or compression as as Blaine said that the
+28:02
+fiber is essentially feeling what's going on in the environment but in many cases what's most important and the
+28:09
+technology we're talking about here for for UDOT is that we can detect vibration and that's what's called distributed
+28:15
+acoustic sensing or Das for short so with this technology we can hear and
+28:21
+classify and locate activities such as shown here in the black Silhouettes we
+28:26
+can actually hear and classify digging excavation tampering and also vehicles of course
+28:34
+which are important to what we're also talking about here so through the rest of this presentation you're going to see
+28:40
+a lot of under the hood analysis or so to speak how the sausage gets made
+28:45
+uh with a lot of data Rich screens but then don't let that scare you the important thing to remember is that the
+28:51
+application for the end user or the operator or in this case the dot engineering center
+28:57
+is typically to receive integrated information into their existing monitoring system in the case of traffic
+29:04
+monitoring and also to provide live preventative alerts in the case of live
+29:09
+damage prevention and the final point I'll make in this slide is simply that the technology is very well established
+29:17
+with use cases in many vertical markets in fact it was mentioned in my bio I
+29:22
+chair the fiber optic sensing Association this is a non-profit organization and and this technology has
+29:28
+been out for decades in other markets so uh we we constantly share information how to best to integrate this with
+29:35
+enabling systems such as we're talking today Highway Transportation its systems
+Integration
+29:41
+so before I pass the Baton to Luna and yudah and Michael and Chuck to describe
+29:47
+the technology and the results from this wonderfully collaborative work we've done with Blaine and his team I want to
+29:53
+provide just a little bit more context for all the engineering companies designers funders and end users in this
+30:00
+audience today so I'm gonna assert something I'm gonna pose the following
+Perfect Storm Situation
+30:06
+question might there be a beneficial Perfect Storm situation that's Brewing
+30:11
+right now for underground infrastructure and specifically for Dots in the U.S
+30:17
+I'd like to suggest that's indeed the case and I'm going to give you six reasons I believe that's the case
+30:23
+first of all let's start with the most obvious U.S and the world see optical fiber as the
+30:29
+preferred data com medium whether it's long-haul routes direct to the home or
+30:34
+critical back hall or 5G Wireless optical fiber is the de facto technology
+30:40
+moving forward for high-speed symmetrical data communication secondly there's a tremendous ongoing
+30:47
+domain for broadcom services to reduce reduce the digital divide I remember
+30:52
+data from 2020 that said the US was 27th in the world with respect to global
+30:58
+internet connectivity you know that's appalling so things have approved but it's still accepted that the US is
+31:04
+behind and then of course what's driving this Nationwide focus and funding to
+31:10
+serve both the city and particular rural citizens with uh providing them adequate symmetrical broadband
+31:17
+based on that the government and the private sector funding for optical infrastructure is
+31:22
+currently at an unprecedented level through infrastructure bills and this is going to go on for a long time more than
+31:28
+90 billion dollars has been or will be allocated to the U.S Broadband related projects in 2018 to 2028. you know these
+31:36
+terms as bead or middle mile funding but there's also an increasing amount of funding that's not automatically
+31:43
+allocated state by state and it requires competitive proposals which benefit from
+31:49
+differentiation and one example of this is this year's dot smart grant funding
+31:55
+which I've learned about recently this program I think actually has a deadline in October and I think it's an annual
+32:00
+program where they provide funding every year for Innovative projects
+32:06
+and then number four is there's a growing emphasis on sustainability and the need for resilience and this crosses
+32:12
+outside of Highway transportation and its systems just to give you again more context outside of the highway system
+32:19
+our nation's infrastructure in general is coming into scrutiny but respect to robustness and the ability to handle
+32:26
+future demand uh you you've seen things on outages a lot of talk about cyber
+32:31
+security third party intrusion and minimizing Life Safety events uh I've
+32:37
+read a lot in the press and it's being discussed uh throughout Congress now about power substation attacks utility
+32:44
+outages you know Ransom events it goes on and on folks are searching for a way
+32:49
+to stop bad things from happening and then there's also a desire to make the money go farther so how do we lower
+32:57
+the total cost of ownership by looking hard at both Opex and capex you know
+33:02
+Blaine already mentioned we're now as the next step of this project looking at how to integrate this in the portfolio
+33:07
+along with other Technologies available so for example reducing damage and cuts
+33:14
+and the time to locate them when they happen that's going to have significant direct and indirect costs
+33:20
+so now coming full circle to roadside which is the you know the topic today
+33:27
+there's an ever increasing importance of its you know the last Utah connected webinars emphasized where we're headed
+33:34
+with this technology and it's pretty exciting there's a recognition that roadside fiber is critical or beneficial if not
+33:41
+critical as a complimentary precursor to both 5G backhaul and connected vehicle
+33:47
+technology so what does this do this technology what all this said it means that
+33:54
+Technologies can leverage these this new build roadside fiber that was originally
+34:00
+unintended for this purpose so if we can leverage that for other purposes that that will provide the ability to
+34:09
+differentiate grants and proposals and will provide the ability for the
+34:14
+government to see that their money is being well spent it means the Technologies can leverage this in ways
+34:20
+that we didn't anticipate a decade ago and when all the dirt settles and that
+34:27
+was a pun intended so to speak you know how do you improve the total cost of ownership and the ROI for an integrated
+34:34
+system you have to look at the total solution so that that's the message I'm trying to give here today is is look at
+34:40
+where we're headed as a as a company as a uh dot as a nation in terms of all
+34:48
+the fiber that's going to be utilized going forward and how can we leverage it elsewhere
+Future of Fiber
+34:53
+and then I'm not going to read through this in detail I would consider this more of a reference slide to go back to
+34:59
+after after all the folks that follow me go into the go into the depths that are required to to show the detail here but
+35:07
+it is a proven technology in other vertical markets uh it's a perimeter and
+35:12
+border security pipeline monitoring protection and protection of underground utilities so this is tried and true in
+35:20
+many other cases what's new and emerging is Blaine points out is the utility of using this on the roadside applications
+35:27
+and then what we hope to show you through the rest of this presentation and through the really exciting
+35:33
+collaboration we've had over the last couple years with Utah are the following things and you can read them as well as
+35:39
+I can say them but we're looking at the ability to put in a complementary ultra
+35:46
+low maintenance sensing capability that's always present there uh in
+35:51
+parallel to many of the other sensors you already have on your roads we're looking at a a unique situation
+35:58
+and it's very low latency and this can provide consistency speed Q congestion and travel times
+36:04
+it's also going to give you situational awareness which which we really dove
+36:09
+into in this project and you'll see that in a few minutes uh it's not just a traffic monitoring it's you know my God
+36:15
+uh addressing accidents and and all kinds of other events that can happen along your Road in a way that no other
+36:21
+technology truly can in a continuous manner it's also again getting back to that
+36:28
+robustness and sustainability and reliability it provides asset protection
+36:33
+for any right-of-ways in that third party intrusion or anyone who either
+36:38
+intentionally or unintentionally is trying to get into your system it's going to be it's going to be identified
+36:44
+and also it's uh you could use it as an operational tool where you can monitor
+36:50
+things that you planned on occurring in terms of listening for when they occur when they start and they stop
+36:56
+and then finally and this is a very important going forward for our world for that matter it can reduce the carbon
+37:02
+footprint by potentially reducing peripheral device density so with that said this is my final slide
+Conclusion
+37:09
+and I'm gonna pass it on I hope I set the stage uh properly and I hope I piqued your interest uh for the remains of this
+37:16
+presentation it's as we head down the road with Visionaries like Blaine and UDOT let's just ask ourselves what we
+37:23
+could do right now to leverage all the new infrastructure that's going in with technologies that we never previously
+37:29
+imagined and then as a final takeaway and a request for people on this who are
+37:36
+attending this presentation either live or later on you know we would we would
+37:41
+love as contracted its service companies as Affiliated companies or dots
+37:47
+themselves we would love to work with you to evaluate how to integrate this in
+37:53
+your technology look at the business model and see how this could be another critical tool in your its toolbox
+38:00
+and with that I thank you for allowing us to be present and participate in this
+38:05
+presentation and I'm going to stop my sharing and pass it on to uh Bureau it again
+Andrew Hall
+38:11
+perfect thank you so much Paul I think you have piqued our interest we've had a couple dozen more people join us during
+38:18
+your presentation let's go to Andrew has Blaine mentioned at the top of the
+38:24
+hour Andrew and austere are joining us from Europe so it's a little late in your time zone thanks for joining us and
+38:32
+let me just give a brief intro so since 2010 Andrew Hall has been working on
+38:37
+distributed fiber sensing Technologies with a specialism in transportation and applications in particular
+38:43
+during this time he has progressed from installing and commissioning systems to becoming the global segment lead for
+38:50
+transportation he has been involved with the technology committee on the fiber optic sensing
+38:56
+Association presenting webinars and helping with the production of Technology primers for in transportation
+39:02
+applications Andrew has a first-class Bachelor of Science degree from Bangor University in
+39:09
+Wales and with that Andrew feel free to take it away
+Technology Overview
+39:15
+thanks Muriel yes
+39:30
+okay so I am going to give a technology overview there will be a little bit of
+39:36
+an overlay from what Paul has said but I want to focus on uh the journey from
+39:41
+sensing um through to valuable information that is output
+39:48
+I want to cover a few of the sort of common plots that the technology provides before looking at some of the
+39:54
+installation considerations for the fiber optic cable and how those have applied to some of the deployments
+40:01
+within the Canyons that we have done at Utah too and before then looking at the
+40:07
+use cases so we'll start I'll start with sharing some of the traffic monitoring
+40:12
+applications before handing over to uh to Michael so how does the technology work
+40:21
+so ultimately the essence of distributed acoustic sensing is the ability to
+40:26
+convert a roadside roadside fiber optic cable into a distributed sensor this
+40:33
+could be an existing single mode fiber optic cable it could be a newly installed fiber optic cable or it could
+40:40
+be a cable that's installed overlaying into an existing duct for example
+40:46
+enter since you interrupt um like the black bar at the top of your stream it's extracting our ability to
+40:53
+see there you go thank you uh sorry no problem okay so we we have um our asset
+41:00
+um in this case the the road and then we have the fiber optic cable that runs parallel to it the technology needs a
+41:08
+single core within the fiber optic cable so if you have a a multi-core so 16 core
+41:15
+um or a lot of different variations it just needs one of the cores within there when they manufacture the glass there's
+41:23
+a lot of scattering sites that are frozen out when they're pulling the glass through so there's thousands of
+41:29
+these um every inch as they manufacture the cable and this allows us to get a signal from
+41:36
+it and we do that by plug in an interrogator unit an instrument onto the
+41:42
+end of the fiber optic cable and we shine a light pulse down that fiber
+41:48
+optic cable as that cable goes along a small
+41:53
+fraction of the light is scattered by all of these scattering sites and that
+41:58
+returns back to the instrument that is monitoring it as well because we know very accurately the time
+42:06
+of light flight of light through the through glass we can equate the
+42:11
+returning scatter that we see to positions along the fiber optic cable so
+42:17
+to give you an idea a sort of scale like Paul mentioned it earlier but for for Highway applications we can monitor uh
+42:24
+28 miles in one direction and we can monitor like 30 feet intervals of the
+42:32
+returning scatter as well that return in Scatter that we see or
+42:37
+the returning light that we see from the interrogator unit has its own pattern
+42:42
+but when there's an event that occurs in the vicinity of the fiber optic cable such as vehicle movement this might be a
+42:50
+car that you don't see very often in the US but more UK but if you see um vehicle
+42:56
+movements or trucks or passenger vehicles they radiate acoustic noise
+43:02
+which actually vibrates and puts uh strain onto the fiber optic cable this
+43:08
+strain changes the back scatter signal that we see and we received that back at the
+43:15
+interrogator unit the technology is sensitive enough that you can see in uh people walking around the fiber and dig
+43:22
+in as well and the strain from those events changes the back scatter as well and this is why it's called distributed
+43:29
+acoustic sensing is that because we're sensing at the speed of light we're able
+43:34
+to send more thousands of samples every second down the fiber so we can monitor
+43:40
+in real time over the whole distributed asset and we're monitoring quickly enough that we can make sense of the
+43:48
+acoustic signals that are occurring as well all of that data is sent over to our
+43:55
+processing unit and the processing unit takes all of that information and it runs the
+44:03
+classification algorithms through it so it's looking for acoustic Fingerprints of different events so is it a car is it
+44:11
+a person walking is the car moving the direction of the car are there the build
+44:17
+up of traffic events such as q and congestion and then we send that out to we have a
+44:25
+user interface which um I'll show but also as well this there's a suite of
+44:31
+external interfaces that send it out to um third party so this could be Central
+44:37
+command software it also could be a SMS text message uh to to individuals and
+44:45
+later on I'll share the interface the external interfaces that we had for this
+44:50
+project too um as always you know technology
+44:55
+develops and one of the developments um is the increase of range so now from
+45:01
+an interrogator unit we can actually monitor up to 56 miles so 28 miles in
+45:06
+one direction and 28 miles um on the other and to give you an idea of what the equipment looks like so the
+Equipment Stack
+45:13
+equipment stack that you see here this is one of the interrogator units that you see here and the processing unit is
+45:21
+a 1u rack server as well so that equipment could give you an efficient
+45:26
+route coverage of up to 56 miles and it's a very simple and Rapid installation so once you connect to the
+45:34
+fiber you can receive sensor information within minutes which can then start to
+45:39
+be used to turn into valuable information as well because the equipment's located away
+45:46
+from the road there's no Road or lane closures that are required and because there's no
+45:52
+power that's needed along the roadside too it's an ultra low maintenance burden
+45:58
+for monitoring that amount of distance and it's impervious to weather to road
+46:04
+maintenance wear or renewals as well and has a long life with a mean time between
+46:09
+failure that's growing but it's in excess of of 10 years as well
+46:14
+so the the valuable information that's output as alarms you know is what a lot
+Waterfall Plot
+46:20
+of people are interested in so for operators they don't want any interpretation they just want that
+46:26
+valuable information to say you know this is an event this is where it occurred and so that they can react uh
+46:32
+quickly however you know because we're doing a multitude of different applications that we'll be sharing
+46:39
+within this webinar I want to orientate you with a couple of the common data
+46:45
+plots that the technology provides as well see these plots are used when we
+46:50
+are looking at new applications to see what the signatures the acoustic signatures look like so that we can
+46:57
+configure the classification algorithms to automatically automatically generate
+47:02
+alarms from them and a common one is called a waterfall plot so the waterfall
+47:07
+plot is a real-time view across the whole of the monitored asset so on the y-axis here we've got time and
+47:15
+we're looking at 30 minutes and on the x-axis typically this is up to the say 28 miles that we are monitoring of the
+47:23
+asset but for this uh it's two miles that we're showing here in this zoomed in area
+47:29
+and the color scale relates to the acoustic intensity so we have low level White
+47:36
+through Grays and up to Black which is high level acoustic intensity
+47:43
+and the latest information or the latest data arrives at the top and it gently
+47:48
+pushes um the the information down the page hence flowing like a a waterfall as well
+47:56
+the waterfall is just an overview of the activity across the asset so what it
+48:02
+does is it sums specific frequency bands of acoustic energy to just give a sort
+48:08
+of approximation of the of the energy so it's typically set to 20 to 200 Hertz
+48:13
+but it could be configured differently finally there's a couple of different
+48:19
+um flavors if you like of the waterfall in terms of the color so this is also a commonly used one which is known as a
+48:26
+jet waterfall but this goes from Blues through yellows oranges and reds to
+48:31
+higher level activity and there's a final one that I've got one slide on where it's gray which is
+48:38
+low and it goes through to white as well which I'll share a little bit further on
+Frequency Ranges
+48:46
+but the technology is a lot more powerful than just the waterfall so
+48:51
+behind the waterfall as well if we take a slice within time but we could equally
+48:58
+take a slice in distance as well and what you see in the time slice
+49:03
+um is that there's a lot of other frequency bands that are available for us to use
+49:09
+so here we've got frequency that we're looking at now on this axis and this is just to give you to show you that
+49:16
+although the waterfall is some in specific frequency Energies behind the waterfall we can see a lot
+49:22
+higher or a lot different frequency ranges as well so for a typical installation that monitors uh two fibers
+49:29
+for example we could monitor a kilohertz but we sample at so we would monitor up
+49:34
+to like 500 Hertz that we could see as well foreign
+Traffic Events
+49:40
+which provides a rich data set for our classification algorithms too so finally
+49:45
+let's take the step to transforming some of these plots into valuable information
+49:50
+and I think it's always helpful to have like a video of an actual event as well that you can see to make sense of it so
+49:58
+on the top of this um to help orientate you with this video we have a waterfall image again
+50:05
+but we're actually zoomed into a specific location so this road here is
+50:11
+about 20 miles along that we're monitoring and we're zoomed into a six mile section
+50:17
+um uh of the the specific Road and here we are looking at about 30 seconds of
+50:24
+time and six miles there and on the bottom we're actually looking
+50:29
+at part of the of the user interface that can be shown and the colors relate
+50:35
+to the speeds that are being generated from the vehicle movements as as well we
+50:41
+have a number of times on the top which are the travel times between the uh Junctions as as well so the first thing
+50:48
+that you can see is that there's a lot of lines uh that are on there and these actually correspond to individual
+50:54
+Vehicles so the thick lines the thick black lines are actually trucks and the
+51:00
+thinner gray lines are passenger vehicles too and what we're going to focus on is the
+51:06
+movement of the direction from left to right there's also traffic moving on the other carriageway on the other side of
+51:12
+the road in the other direction too and I'm going to play this example of a
+51:17
+specific traffic event and shows what that does to our outputs as well so in
+51:24
+this particular example what we've actually got is a two lane by two lane
+51:29
+road and this particular truck here is
+51:34
+carrying some plant material it has a pilot vehicle which is preventing any
+51:41
+vehicles from passing in the in the pass inlay so you can start to see that the
+51:47
+traffic is is backing up so as that traffic backs up on our
+51:52
+schematic what we see is that the green starts to go into orange and then
+51:58
+eventually it will go in into red so we've got free flow traffic conditions in front and we've got this traffic
+52:04
+backing up as well now there comes a point where at this location it's
+52:10
+actually a curve in the road and the visibility is poor but at this location here the traffic starts to speed up a
+52:17
+little bit so the front vehicle is speeding up the the road straightens the visibility is better and at this point
+52:25
+here the pilot vehicle pulls in and allows the traffic to um to pass so
+52:31
+we've had a build up here we've had the reduction of speeds we've had Reds that
+52:37
+have popped up a congestion alarm was generated and now at this point where the truck
+52:43
+starts to drop back into the traffic into the general traffic we return to
+52:48
+normal conditions on on the roadway and then on our output you would see this
+52:54
+return through oranges to yellows and and eventually greens and the congestion
+53:00
+alarm is dismissed so the stream of information of all of the speeds and the
+53:05
+alarms uh would be sent out to the the external and third-party interface as
+53:10
+well okay so now that you have an idea of some of the plots and the technology
+Installation Considerations
+53:17
+let's have a look at some of the installation considerations so as the fiber cable is the sensor its
+53:25
+importance is critical to that overall system as well so I'm going to summarize some of the
+53:31
+installation considerations and then we'll drill down into a little bit more detail about what we found with the
+53:37
+different Canyon installations that were conducted uh UDOT as Paul mentioned um we're part of the
+53:45
+fiber optic sensing Association and myself and Alistair and others um on
+53:51
+this call have helped with the technology primers and also the installation guidelines for Highway
+53:58
+monitoring as well and you can find that on their website too but there's three main silos for
+54:04
+consideration so number one is the Cable Construction itself
+54:09
+so the coupling between the glass core that we are sensing and the exterior of
+54:15
+the cable um that obviously varies for a lot of different cables and it can influence
+54:21
+the the sensitivity so the good news is that the fiber is incred the technology sorry is incredibly sensitive so that
+54:28
+there is a lot of range in terms of what can be acceptable for the cable construction but it also gives the
+54:35
+possibility that you can install a cable that is actually optimized for fiber sensing which gives some exciting
+54:43
+possibilities for future installations too the second Silo is the cable
+54:49
+installation so the the installation method and the depth
+54:54
+um also influence performance as well so you know broadly speaking the deeper that you go the further away from the
+55:01
+asset that you go and the less signal that you receive finally the cable position is important
+55:09
+as well so there's a number of factors which impact the acoustic coupling
+55:14
+one of the most obvious is the distance to the fiber so if you're five miles
+55:20
+away from the road you're not going to pick up any signal but when you're closer to the road and within the right
+55:26
+of way say that you'll be getting signal from uh from the uh the road itself
+55:32
+there's also attenuating structures so if there are any noise canceling walls
+55:38
+or anything like that within urban areas and the fiber optic cable is the other side of that structure then you get a
+55:45
+reduction of the transmission of the acoustic energy from the traffic on the
+55:50
+road as well there's also elevation changes so if the fiber is located either Far Far Below or
+55:58
+far far above the fiber then you will receive a reduction in the amount of signal that you receive and
+56:06
+then finally um Road configuration if you have an elevated section of concrete road and
+56:14
+the fiber cable is buried below then you you won't get any signal for that section too
+56:20
+because the fiber because the technology works at um sensing based on time all of
+56:27
+the different 30 feet sections that we have measurements for um can be configured differently so the
+56:35
+sensitivities of our algorithm can be configured differently to take into account some of these effects however
+56:41
+there are still some uh like particular sort of use cases like the road configuration where despite all of that
+56:47
+flexibility you won't get enough signal to be able to get traffic monitor good traffic monitoring information
+56:54
+so let's have a look to see uh what we found with some of the installations
+57:00
+so Blaine mentioned um the installations that would the permanent installations that were done
+57:06
+in the two Cottonwood Canyons uh big and little and there's also a temporary installation that was done on American
+57:13
+Fork as well so for big Cottonwood Canyon the general sort of installation
+57:19
+comments uh were that within the canyon itself concrete was used to backfill the
+57:24
+conduit now concrete it's used in sort of sound proofing walls uh it's not great in
+57:31
+terms of trying to uh to get a lot of signal it attenuates The Sound uh very well it reflects a lot of it so
+57:38
+generally for this installation um this was the installation which was
+57:44
+least sensitive primarily because of that there were a few exceptions so in a
+57:51
+that we see which Blaine um mentioned there was a different fiber fiber type
+57:56
+which was a 144 count micro cable single mode fiber
+58:02
+and this was jail field um which gave a little bit better uh coupling and this was the only location
+58:09
+in this specific Canyon that we got uh traffic in both directions that we could
+58:14
+see the next best area was at the end of the monitored Canyon um where it was a different standard
+58:22
+single mode cable that was there and then finally there was a different
+58:27
+cable again which was at the the sort of it straddled the um the micro Cable in
+58:34
+the region labeled as C but this was with a single mode 288 uh account so
+58:40
+there was a few sort of factors in play but generally for this one um concrete a concrete that was used to
+58:47
+backfill reduced the sort of sensitivity that we we saw there which had a
+58:52
+knock-on effect you know for some of the sort of applications that could be used at that particular Canyon
+58:58
+if we look at Little Cottonwood Canyon um so straight away you can see in this
+59:04
+waterfall um that there's there's traffic which we could see in both directions for most of
+59:09
+it so it was good for five percents in and the the main difference
+59:15
+um to Big collarwood Canyon was flowable fill was used for uh the backfill and
+59:21
+just sort of broadly it was more uniform too so the fiber type was same there was
+59:27
+fewer variations uh than big Cottonwood Canyon and the fiber as well was
+59:32
+generally close to the edge of the road it was off the edge of the road um but it was it was close and and
+59:39
+uniform too there was a couple of exceptions um where the signal was slightly reduced
+59:44
+but it is easily configurable for our algorithms such as
+59:49
+um an increase in the depth of the fiber cable at section A and there was a
+59:55
+couple of sections where the fiber was far from the road where we got some reduced signal but you could still see
+1:00:01
+some vehicle movements within there and finally the temporary deployment
+1:00:07
+that was done uh within American Fork Canyon so this was done
+1:00:13
+um where a fiber cable had been installed with fiber sensing in mind so I think at that time
+1:00:20
+um you don't knew that this uh project was was happening and this cable was
+1:00:26
+installed uh with our technology in mind so the big difference was that the fiber
+1:00:32
+optic cable so firstly it was uniform again so it used the same cable
+1:00:38
+but also what they did was although it was off the active lanes and it's a narrow Canyon Road but it was still like
+1:00:45
+within the road uh itself so the conduit was was buried at similar sort of depths
+1:00:50
+two and a half feet to the other Canyons it had a similar backfill that was used to Little Cottonwood Canyon but because
+1:00:56
+it was within the uh the roads uh itself the signal was was vastly uh sort of
+1:01:03
+improved certainly from Big Cottonwood Canyon so in terms of variations across the canyon it really was minimal and the
+1:01:10
+main difference was the creek noise in the lower part of the canyon in the
+1:01:16
+standard frequency bands that were used to produce the waterfall you can see a lot of noise from the Creek Canyon but
+1:01:23
+because we can use frequency bands uh different from what we sum up here you can see higher frequency bands where the
+1:01:30
+vehicles are clearly visible and this is um reduced as well or whitened
+1:01:39
+so to summarize the installation comparison
+1:01:45
+American Fork was excellent for fiber sensing primarily born from the fact that it was very uniform it was within
+1:01:51
+the road itself Little Cottonwood Canyon um was very good for five percents in so
+1:01:57
+again you could see traffic in both directions and um there it was relatively close to
+1:02:06
+the to the road but but off the road and um there was little variations uh along
+1:02:12
+it and then finally big Cottonwood Canyon as we see here we only see the
+1:02:17
+traffic movements in some specific locations along the canyon and this was born out in the area where we had the
+1:02:24
+micro duck but it was it was ultimately reduced sensitivity because of the the
+1:02:29
+concrete that was um over the fiber as well which effectively attenuated a lot
+1:02:35
+of signal coming from the roads uh from the big Cottonwood Canyon Road
+1:02:41
+okay so let's have a look at some of the applications of the technology
+1:02:46
+um during the project we touched on but there was some analysis of the existing
+1:02:53
+functionality of the traffic monitoring applications there were some applications
+1:02:59
+um where algorithms were developed during the time of the project which
+1:03:04
+such as avalanches and then finally there was there was also other areas
+1:03:09
+that uh we opportunistically found information into and I'm going to present on just the traffic monitoring
+1:03:16
+applications and an overview before handing over to Michael and Alistair
+1:03:21
+will give more detail about a lot of the other applications too so as discussed there's a number of
+1:03:29
+functionality that can be given so we can output the speed for each travel
+1:03:35
+direction for Any Given Road for each third for every 30 feet along the monitored section and output that every
+1:03:42
+second so for example if we had like a two lane by two lane road or a three line bow three lane road we would output
+1:03:49
+a speed for each of those driving directions an average speed across the lanes every 30 feet
+1:03:55
+and then we use the speed information as well as some other parameters to look
+1:04:01
+for a convoy of slow moving vehicles and a trigger for congestion alarms
+1:04:07
+we can also look for the build up of cues and I've got an example to show you what that looks like and Trigger
+1:04:14
+automated alarms and with the speed Rich speed output that we have travel times can be configured for a lot any given
+1:04:22
+segment of Interest so this could be between intersections it could be between well-known sort of tourist
+1:04:29
+routes from say the start of the canyon up to the end too and also where the fiber crosses the
+1:04:35
+road so any sort of off or on ramp on an interstate but for the canyon roads for
+1:04:41
+any Junction if the fiber is on that side of the uh of the road then we can actually
+1:04:48
+estimate account and volumes at that location too and we can update that you
+1:04:54
+know every second of all of that functionality so there's real low latency in terms of um the generation of
+1:05:00
+alarms so looking at traffic monitoring and how
+1:05:06
+that sensor data is then converted into speeds so if we look at like a plot a
+1:05:12
+waterfall plot of Little Cottonwood Canyon so we're zoomed into a section
+1:05:18
+here and we are looking at about three hours roughly on the y-axis
+1:05:25
+if we split that up so that we can split those up into driving direction what we can do is we can overlay our speeds onto
+1:05:32
+this plot so in this plot gray is low level and white is higher level
+1:05:38
+acoustic intensity so what we're expecting is that these white uh lines
+1:05:43
+that you see are the vehicle trajectories uh moving in up the canyon and down the canyon
+1:05:50
+so when we when we show what the the sorry the output of the the speed output
+1:05:56
+is these are then overlaying onto the plots too so green shows that it's going at a sort
+1:06:03
+of uh free-flowing speed within the canyon in some areas of the canyon it's um it's a lot lower than this but just
+1:06:10
+to give you an idea and then we can also see areas where we have got Vehicles which are moving a lot more slowly so on
+1:06:19
+the up Canyon at the bottom there's a vehicle here which is very large presumably or it's going very slow and
+1:06:25
+it's slowing and then it's moving very slow in this area before sort of speeding up it's a pretty tortuous road
+1:06:33
+so it could be a lot of bends in the road and things that have to be navigated
+1:06:38
+um and then finally if we look at those
+1:06:44
+instantaneous speeds and then how we sort of use that for you know data outputs so for the American Fork Canyon
+1:06:50
+what this video is just showing is uh our user interface but we have our waterfall display that that we see
+1:06:57
+um in the top right we then have our instantaneous speed which would be an
+1:07:02
+output so you can see that they chart their individual vehicle trajectories
+1:07:07
+very nicely I'm only showing the up Canyon Direction so you can also see that there could be toggled uh
+1:07:16
+um the traffic that's moving on down the canyon as well and we could show that
+1:07:21
+but those instantaneous speeds are then averaged into speed outputs that are
+1:07:27
+then presented on the bottom schematic shown on our map but these could be pumped out onto other parties other
+1:07:35
+interfaces as well into and ingested into other software so these are like what the speed outputs
+1:07:42
+look like and to give you an example of a event that occurred
+1:07:48
+an actual traffic event so earlier this year on the 3rd of February within the Little Cottonwood Canyon
+1:07:54
+um we there was a queue that was evident there so this
+1:07:59
+um plot that you see here is for 24 hours of speed outputs so the left hand
+1:08:06
+side here is down Canyon and the right side is up Canyon and there's some black areas here which is just where nighttime
+1:08:13
+conditions and the that you get lower flow and then in the daytime we get it
+1:08:19
+sort of ramped up there as well and what draws the eye is this highlighted area here so it looks almost uh triangular uh
+1:08:27
+here too and this is actually the queue that built up so when we sort of zoom in and look at
+1:08:34
+say four hours in time and six miles then we can see a little bit more
+1:08:40
+granularity so you can start to see in the free flow conditions the individual vehicle traces as such but here there's
+1:08:47
+a very sort of distinctive pattern that we have of slow speeds with no sort of
+1:08:53
+data in the middle of like stationary traffic and we've got like a backward propagating wave of a queue that's
+1:08:59
+building up in this direction so the traffic is Flowing freely in this direction from right to left
+1:09:06
+um before three o'clock and then at 3 22 we see that the queue
+1:09:12
+starts to build at that position and stretch back up the canyon for two miles from marker post 6.7
+1:09:19
+for the next few hours so just under three hours uh the queue sort of remains
+1:09:25
+and the back of the queue varies in place and oscillates uh time uh we have some vehicle movements that are moving
+1:09:32
+through um and coming out but it eventually clears at 1808 as well and then finally
+1:09:39
+we have free flow traffic down the canyon
+1:09:44
+and finally just uh finish off before I hand over to to Michael
+1:09:49
+um just talking about the Integrations for this particular project so the two permanent installations
+1:09:56
+within big Cottonwood Canyon and Little Cottonwood Canyon that we have they fed in traffic monitoring information into
+1:10:04
+the blinksy pulse dashboard so this was done with an interface so that it was
+1:10:09
+available over the cloud and used as part of the tools that um uh are used by
+1:10:15
+by U dot to to be able to see and visualize uh record and analyze
+1:10:21
+different real-time events so this was just the alarms that were coming out for
+1:10:27
+congestion detection travel times for specific areas of interest within the
+1:10:32
+canyon and the speeds were output for every 30 feet along the the monitored sections um too
+1:10:41
+as I mentioned so there was some applications which are emerging where
+1:10:48
+data was looked at and classification algorithms were implemented to Output
+1:10:54
+alarms for specific events and for Avalanche events the Alistair will cover
+1:11:00
+um we interfaced with the relevant UDOT stakeholders by sending emails when uh
+1:11:06
+Avalanches occur detailing the position time Etc and then finally for the this technology
+1:11:14
+it has data recorders on there so some of the plots that you've seen and also just the raw data is recorded in a
+1:11:21
+roll-in recorder which um for the raw data is roughly about one week but could
+1:11:26
+be extended to more and for the waterfall data is a lot more but this is done so that it allows us to extract
+1:11:35
+um data from any events that occurred so there was a lot of other applications that um we uh it was looked at the
+1:11:43
+technology was looked at but there was also opportunistic events which Alistair will cover of really interesting events
+1:11:49
+that we were able to look back into the data and then provide a sort of forecast on the applicability of a classification
+1:11:56
+alarm 2 and in some cases you know configured and set those up so that it could generate alarms to the relevant
+1:12:03
+stakeholders and thanks a lot for for listening and I'll hand it back over to to you more Muriel
+1:12:10
+that's great thank you so much Andrew we'll now turn to Michael Sheffield Michael has been working on pretty much
+1:12:18
+all of these uh deployments over the years and it's quite the subject matter
+1:12:23
+expert in resource for UDOT on their deployments so I'm pleased
+1:12:28
+to introduce Michael Sheffield he is a transportation engineering consultant who specializes in the connected and
+1:12:35
+automated vehicle industry he is passionate about leveraging emerging Technologies to improve and
+1:12:43
+enhance safety and mobility in Utah he's involved with Utah's Vita X planning deployment and evaluation when
+1:12:50
+Michael is not evaluating the impact of connected Vehicles he can be found with his family working on the ranch or
+1:12:56
+playing pickleball which is very popular here in Utah so if you've never been come visit our state and play a little
+1:13:03
+bit of pickleball I'm sure Michael can set you up with that uh go ahead Michael
+1:13:10
+thank you and you're quite right pickleball has kind of taken off and
+1:13:16
+gained in popularity over the years um grateful to to be participating in
+1:13:24
+this webinar it's uh this is a very neat and an exciting deployment
+1:13:31
+using fiber for for situational awareness along roadways
+1:13:37
+um as a reminder with the ATC MTV Grant Advanced
+1:13:43
+Transportation congestion management technology deployment
+1:13:49
+the D is deployment and what we did here was deploy a fiber optic roadway monitoring
+1:13:57
+system with the goal as has been alluded to increase our real-time situational
+1:14:04
+awareness our objective with this is to leverage existing fiber optic cable for real-time
+1:14:12
+roadway monitoring we've talked about some of the canyon
+1:14:19
+conditions and some of these things have been said already but these these
+1:14:25
+canyons are major recreational areas it's winding mountainous terrain
+1:14:32
+and there are significant Transportation challenges here there's congestion
+1:14:38
+limited parking in the canyon limited Transit and there are major
+1:14:46
+detection gaps along segments of the roadway um
+1:14:53
+there are many different kinds of data that
+1:14:58
+UDOT uses um to monitor their their roadway Networks
+1:15:05
+um probe data is an example um that is almost throughout any roadway
+1:15:11
+it's it's a purchase data set um so I did just put one icon at the
+1:15:18
+beginning of each of these Canyons but recognizing that the probe data extends
+1:15:24
+throughout um throughout these Canyons whereas some of the point detection that
+1:15:31
+is deployed um is specific to that part in the roadway
+1:15:38
+similar to point detectors there are also Bluetooth sensors
+1:15:44
+and for these canyons and you can see the locations of many of these devices
+1:15:55
+for ex for the existing traffic monitoring systems each of these has
+1:16:00
+their own strengths and benefits and limitations and I won't go into all of them right now
+1:16:06
+but many of them are purchased some of them
+1:16:11
+only are able to detect a small portion of the roadway some of them are periodic
+1:16:19
+you know data is only collected every every minute or every several minutes
+1:16:25
+um so using multiple data sets
+1:16:31
+um merging them together provides an enhanced understanding of what is
+1:16:36
+actually happening um out there on our transportation system and this is one of the things that that
+1:16:43
+this fiber sensing system ads considerably to are the existing
+1:16:50
+devices and traffic monitoring systems
+1:16:56
+for the for the fiber sensing um the ability to detect Road users
+1:17:05
+is is a critical part of this we're still working on automating uh the
+1:17:12
+total count of roadway users that are detected and
+1:17:17
+that's partially because as was alluded to earlier the strength of the signal
+1:17:24
+that um that a vehicle makes is dependent on many factors and at different parts on
+1:17:31
+the roadway the the fiber cable might be a different
+1:17:36
+distance a different depth even encased in a different material all of which
+1:17:44
+affect its ability um to detect Road users
+1:17:51
+but we went through and and for a portion of this did a manual classification
+1:17:59
+um we did a temporary recording of of a couple of udot's cameras and I'll
+1:18:07
+demonstrate by showing this part of the waterfall diagram and with distance and
+1:18:14
+time and these vehicles that I've indicated
+1:18:20
+with the the Red Arrows um these These detections are are
+1:18:26
+Vehicles they have a deeper brighter red
+1:18:31
+indicating that the vibration is stronger and they're traveling about 45
+1:18:36
+miles an hour along this Canyon Road you can also see some lighter
+1:18:45
+um angled lines kind of behind them these are cyclists I've highlighted two of those blue
+1:18:53
+arrows that correspond to the above pictures
+1:18:58
+um indicating that you know in both these two instances we have three cyclists and one cyclist and you can see
+1:19:07
+the distinct trace or Trail or the ability of the system
+1:19:13
+um to track and monitor them as they travel down the roadway
+1:19:19
+there was also um an exciting instance of some Runners that were
+1:19:27
+detected and they must be running right on top of
+1:19:32
+the fiber you can imagine that at people running wouldn't make that much of a vibration
+1:19:39
+compared to cars or um but but here we can see
+1:19:45
+the the detection of these Runners traveling at about six miles an hour
+1:19:53
+now the classification like I just mentioned is is more challenging
+1:20:00
+um and will likely be augmented by other traffic monitoring data like radar for
+1:20:07
+instance can um can detect the size or width or length of the vehicle
+1:20:16
+um whereas this system would that that's one of the things that
+1:20:21
+it isn't able to do as well as other Technologies
+1:20:28
+but overall the the fiber sensing Effectiveness under ideal conditions
+1:20:34
+which I specify because we've demonstrated that there is a large
+1:20:41
+range of of the capabilities of this system dependent almost entirely on on
+1:20:48
+how it's installed where it is on the roadway but in locations where we have the fiber
+1:20:56
+installed under these ideal conditions we have continuous roadway detection
+1:21:03
+there aren't gaps in the roadway like you see with Point detectors but we're able to continuously detect
+1:21:12
+um Vehicles as they travel the length of the roadway it is also very comparable to the
+1:21:19
+traditional aggregated traffic monitoring systems that that are
+1:21:24
+currently in use and I say aggregated because a lot of
+1:21:30
+these probe data sets and and others you know group
+1:21:36
+data points together and to to provide an average
+1:21:42
+um but this system tracks you know every every vehicle and the speed is is within
+1:21:50
+five miles per hour of these traditional systems that are aggregated
+1:21:56
+um the travel time um is is within one minute recognizing
+1:22:01
+that that those other detection systems have a window where they detect whereas
+1:22:08
+this is as Paul was describing earlier um you know several feet at a time
+1:22:15
+um granularity and the ability to to count vehicles
+1:22:22
+um more than 99 of the vehicles are are detected with limitations that exist for
+1:22:30
+other Technologies if vehicles are traveling too close together
+1:22:35
+um it's difficult for any system to differentiate those two vehicles as
+1:22:42
+separate similarly if if speeds are very slow
+1:22:48
+um you know slow moving vehicle would create less vibration in the roadway
+1:22:54
+so this system as well as as traditional traffic monitoring systems they both
+1:23:01
+struggle with with lower speeds uh with the caveat that that we are able
+1:23:08
+to with this distributed acoustic sensing system
+1:23:13
+see and detect vehicle cyclists and and Runners under these ideal conditions and
+1:23:21
+being able to to have that understanding of all users
+1:23:27
+on the roadway as an enormous safety potential that that we haven't even
+1:23:33
+tapped into yet in addition to these Road users
+1:23:38
+there's the detection of other events affecting the roadway which Alistair
+1:23:44
+after me will will cover more crashes Avalanches landslides
+1:23:50
+um as well as the unique use case that that we discovered of being able to
+1:23:57
+produce turning movement counts at a at simpler intersections
+1:24:04
+um so with that uh thank you and you know we'll turn the time back over to you when you're young
+1:24:12
+fantastic thank you Michael so now we will go to Alistair Alastair
+1:24:20
+Marie obtained a master's degree in physics from the University of Exeter in
+1:24:25
+2010 before completing a PhD with the electromagnetic and acoustic materials
+1:24:31
+group in 2014. he went on to join connects to work in the acoustic stealth
+1:24:36
+materials group in 2018 Alistair moved to opposense which is now part of Luna Innovations
+1:24:42
+where he currently is the technical Authority and provides guidance across the business about what can be done with
+1:24:49
+Das key areas that Alistair is involved in include rail traffic and infrastructure
+1:24:54
+monitoring as well as pipeline leak detection Alistair
+1:25:02
+thank you Muriel let me just share the right screen pleasure to be here with everyone yes it
+1:25:09
+is getting quite late in here in the UK but it's a wet and windy evening so this is a much better way to spend my time
+1:25:17
+okay so this this section is really talking about some of the incidents and events that we saw in the canyon other
+1:25:24
+than uh trapping monitoring and I want to go into a bit more detail about the analysis that we can Undertake and but I
+1:25:31
+would like to stress that ultimately the purpose of the system is about delivering simpler alerts and
+1:25:36
+situational awareness to the user rather than asking The Operators to undertake the type of analysis or investigation
+1:25:43
+that I'm about to show okay so this is a map showing the the
+1:25:51
+three different routes that were covered and a selection of the events that were detected in the canyon this isn't an
+1:25:58
+exhausted list but it's some of the more interesting events that I feel we saw and importantly there's some Grand truth
+1:26:03
+behind each of these that allows us to actually verify what happened um
+1:26:09
+I won't talk through all of them because I'm going to talk through all of them in a second and I'm aware of the time so
+1:26:14
+let me start following on from Michael's talk with looking at turning movement Counting
+1:26:20
+as Michael said uh turning movement counting is an application area that came up during the trial deployment in
+1:26:27
+American Port Canyon and here the idea is to identify how many vehicles are
+1:26:32
+pursuing different routes and intersection in the image that I show on the screen we can see route 92 the American fort
+1:26:40
+Canyon Road running each uh left to right highlighted in red and the road up to the tibble fork
+1:26:46
+Reservoir highlighted in yellow now the fiber itself is the white there's the light white line and runs
+1:26:53
+East along Route 92 and then follows the tibblefork road they're different Vehicles can take different routes
+1:27:00
+um via these three roads which I'll get to on the next slide and importantly for
+1:27:05
+this particular analysis there's a there's a camera at the at the fork that gave us access to brain
+1:27:11
+truth information to do a comparison so Vehicles traveling along the road uh
+1:27:18
+heading East on Route 92 up to the table for Reservoir if we look at the waterfall image on the right hand side
+1:27:24
+they will follow create a line that moves from left to right in time and
+1:27:30
+covers the entire route vehicles that are traveling East on Route 92 and head past the tibblefork
+1:27:36
+junction we'll just we'll start with the same line but then appear to just disappear into the
+1:27:42
+Into The Ether Vehicles heading west on Route 92 we won't pick up until they turn up to turn
+1:27:49
+up the table Fork Road and so they'll appear out of nowhere heading uh left to right
+1:27:55
+Vehicles heading west on Route 92 and going straight past the temple Reservoir will also appear out of
+1:28:01
+nowhere heading right to the left vehicles coming down from the typical Reservoir have been heading west on
+1:28:07
+Route 92 will cover the full full display heading right to the left and those coming down from the timberfall
+1:28:14
+reservoir and then heading East on Route 92 will disappear so we've got six very clear uh
+1:28:20
+distinctions between vehicles uh performing different maneuvers and taking a one-hour section of data
+1:28:27
+we've performed a a manual check um against the the camera information that
+1:28:33
+we had so for the purposes of counting the the Vehicles detected by Dash a visual
+1:28:41
+assessment by was undertaken with a judgment made as to whether a distinct vehicle track could be identified
+1:28:47
+and looking at the each of the potential routes the counts over the one hour period are broadly similar
+1:28:53
+the most notable discrepancy is where the angle of the camera made it impossible to identify Vehicles going uh
+1:28:59
+West on 92 up to the tibble talk Road and a couple of other minor
+1:29:06
+discrepancies the fiber was judged for being unlikely to be able to separate out to uh two vehicles traveling in
+1:29:13
+Tandem and to identify two motorbikes as mentioned this would be a novel
+1:29:18
+capability but it should be noted that this type of analysis could doesn't necessarily need
+1:29:24
+to be undertaken in real time and so it allows us to apply much greater processing than is required for on the
+1:29:30
+edge capability now moving on to something uh one of the
+1:29:36
+original ideas for installing this system in the in the big and little Cottonwood Canyons is the detection of
+1:29:42
+avalanches and the system was installed in late 2021 and we were told that
+1:29:49
+Little Cottonwood Canyon is a renowned hotspot for avalanches and so we waited
+1:29:54
+patiently throughout 2022 for this to come true needless to say we were waiting a long
+1:30:01
+time then in 2023 it seems that everything went a bit crazy in the canyon and in
+1:30:08
+April the Kenya actually ended up closed for nearly a fortnight and I gather that more snow has been seen uh
+1:30:15
+this year than has been seen since 1982. a quote from a UDOT spokesperson
+1:30:22
+suggests that over a period of five days more than 30 slides covered the two-lane road
+1:30:30
+moving on this is a map image showing a section of the Little Cottonwood Canyon
+1:30:35
+route and you can see highlighted by pink and red shapes some of the Avalanche shoots that
+1:30:42
+uh occur on the color along this route I've highlighted four of them in red
+1:30:48
+which are some events that I'm going to share with you
+1:30:54
+this first route this first Avalanche at the cold pit and just to reiterate what
+1:31:00
+the display shows uh we have distance along the horizontal axis and time up the vertical axis and then the color
+1:31:07
+scale is indicating the detected signal energy within the frequency band that we
+1:31:12
+happen to be looking at with blue representing low energy and red representing higher energy
+1:31:17
+well what's clear about this signal is that those are there's a big red splodge that's appeared in the middle of it that
+1:31:23
+is much louder than anything going on around it what we can take away from this is that
+1:31:30
+we can measure the width of the signal affecting around 700 meters of fiber and the signal lasted about 30 seconds
+1:31:38
+moving on to the second event uh this is the least of all shoot where there were
+1:31:45
+actually two Avalanches experienced in quick quick succession the first produced a signal that affected around
+1:31:52
+800 meters of fiber lasting around 30 seconds well the second event they impacted
+1:31:58
+around a thousand meters of the fiber and lasted much longer at 60 Seconds to the bottom right of this image you
+1:32:05
+can see another very large signal which is being generated by one of the snow pliers along the Route
+1:32:11
+now the eagle eyed of you might spot a vehicle narrowly being missed by the first Avalanche don't worry are we going
+1:32:17
+to return to this uh this particular incident to take a look at it in a in a few slides time
+1:32:24
+Now quickly moving through the tanners uh Avalanche which generated the signal
+1:32:31
+around 900 meters and Lasting for about 30 seconds and an event at White Pine
+1:32:36
+which also generated an event covering around 800 meters of fiber and Lasting about 30 seconds
+1:32:43
+the important thing is that for us is that we detected we were able
+1:32:48
+to identify all of these avalanches and that all of them created very similar
+1:32:54
+signals and in terms of configuring a system to detect something it's a lot easier when everything looks the same
+1:33:00
+rather than producing a different signal every time now you might be asking yourself wasn't
+1:33:06
+this project but supposed to be about situational awareness rather than producing a pretty wall up and you'd be
+1:33:11
+correct so while we had uh some ideas when we started the project about what an
+1:33:17
+avalanche would look like on the system and various detectors were implemented these were largely assessed for useless
+1:33:23
+alarm rates uh through 2022 and claim to be deficient
+1:33:29
+but after being able to gain valuable information from the from this Fortnight
+1:33:34
+of uh Avalanches that were experienced we were able to refine the detection algorithms and produce something much
+1:33:41
+more helpful so returning to the police of Falls at lunch uh here we have a grayscale
+1:33:47
+waterfall highlighting some of the alerts being generated by the system as the data that we acquired from
+1:33:55
+from the least Bulls Avalanche was replayed through it so several vehicle alerts are identified
+1:34:01
+this detector was primarily aimed at larger vehicles and which is why some of
+1:34:07
+the smaller signals are smaller vehicles that are quite clear on the waterfall aren't being air detected
+1:34:14
+and then the two Avalanches themselves are also highlighted uh with the red Hubble lamp symbol that we've created
+1:34:19
+and in both instances an avalanche warning is produced well within the well within 30 seconds of the start of the
+1:34:26
+event now the information in these alerts can provide rapid warning with another answers occurred along with the location
+1:34:33
+of that event allowing for a swift reaction and you can imagine that uh unless there
+1:34:39
+happens to be a vehicle in the area at the time or camera footage showing then
+1:34:45
+the fact that these Avalanches has happened may go unnoticed for um
+1:34:50
+yeah a lengthy period of time looking at this historic information
+1:34:55
+that's available we're also able to consider whether there are any vehicles in the vicinity of the
+1:35:02
+Avalanche at the time instance the the vehicle that was narrowly missed by the first Avalanche but perhaps more
+1:35:09
+importantly whether that vehicle got out of the vicinity of the Avalanche
+1:35:15
+as has been alluded to in uh by Andy and the other speakers and the waterfall
+1:35:22
+itself is one snapshot of and what we can see with the with that
+1:35:29
+so if we take a look behind the signal by taking a spectrum analysis of one of
+1:35:36
+the channels through each of these Avalanches we can see the the spectral content that is being generated in the
+1:35:43
+in the optical signal as the Avalanche occurs and we can see considerable low
+1:35:48
+frequency signal between 5 and 35 Hertz for about 30 seconds occurring in the
+1:35:55
+data and similarly for the the second bigger Avalanche we get a much higher
+1:36:01
+uh a greater energy content up to higher frequencies
+1:36:08
+moving on to something slightly different this was a truck crash that happened at the corner of the Tanners uh
+1:36:15
+Avalanche area and in the background of this image you can make out a truck that that's tipped
+1:36:22
+over onto its side I don't know what caused the accident but um was certainly saw what happened
+1:36:28
+so taking a look at the historic data for this image again distance along the
+1:36:33
+horizontal axis and time up vertical there's a few fairly faint vehicles that can be identified moving right to the
+1:36:40
+left on this particular image but the clear the clearest there
+1:36:46
+signal is that of the truck coming through and then a very large impact being generated and you may also notice
+1:36:52
+this vertical signal lasting for several minutes for a random minute after the
+1:36:58
+after the impulse so once again if we take a look at the spectral content behind the signal
+1:37:07
+we can see at the at the time of the event there is a massive impulse that generates a huge
+1:37:13
+amount of energy across a very wide range of frequencies and then after that after the initial impulse which is
+1:37:20
+presumably where the truck has flipped over onto its side we can see this vertical line representing a heart tonal
+1:37:28
+content at around 32 Hertz now this is likely to be the turnover frequency of the engine at 32 Hertz
+1:37:36
+that's roughly 2000 RPM so there's a lot of information that we
+1:37:41
+can pull out from the signal that perhaps isn't particularly interesting but can be can
+1:37:48
+potentially be useful for various different scenarios moving on to a similar event this was
+1:37:55
+another truck crash that this at this time happened in big Cottonwood Canyon and and unfortunately this instrument
+1:38:03
+actually led to several injured parties and the fatality so whilst boss we didn't have any
+1:38:10
+detectors set up to actually detect this event and we can look back and tell the
+1:38:16
+story of what happened which is potentially useful for the Post analysis
+1:38:21
+where sometimes fats on the ground may not be no
+1:38:26
+so on this slide I'm showing on the left hand side a a map image with some key
+1:38:32
+locations highlighted in the center we have a waterfall history of of the event
+1:38:39
+now at 9 22 in the morning the truck travel is traveling down big Covenant Wood Canyon and comes through the
+1:38:45
+Switchback at location one and at this point it's traveling about 22 miles an
+1:38:50
+hour and then we can see as it enters into this downhill section uh marks by
+1:38:56
+section two that accelerates up to around 60 miles an hour the speed limit on this road is I think
+1:39:04
+50 miles an hour if not less difficult speeds are certainly less than 50 miles an hour
+1:39:09
+then at 923 um there's a large impact observed right
+1:39:14
+at the end of this this will tightly cut more highly coupled section
+1:39:20
+now the impact itself doesn't look particularly impressive on this waterfall and that comes down to again
+1:39:25
+this this fact that this is a snapshot of the data and in
+1:39:30
+order to see these vehicles we have to look at lower frequencies if we were to take a spectral content
+1:39:37
+through that through that impact itself we can see uh
+1:39:43
+prior to the prior to the truck coming by there's very little energy even down to the down to the very low frequencies
+1:39:50
+but as soon as that crash happens there is a massive impulse
+1:39:55
+now in in this particular case an alert could certainly have been produced on
+1:40:01
+that event um and it certainly wouldn't have prevented the event and but what we
+1:40:07
+could also have done in this particular scenario is produced of the produced an alert indicating that a
+1:40:13
+vehicle is traveling at an unsafe speed so whilst this wouldn't have prevented the instrument from happening it could
+1:40:19
+potentially allow a faster response to a scenario where every second counts I don't know how this event was reported
+1:40:25
+but it's easy to believe that the call itself was made by one of the vehicles following behind the truck
+1:40:31
+what if they haven't been there what if this was an isolated section of Road and there's no one else all right
+1:40:39
+a smaller incident that happened in the sort of Cottonwood Canyon uh one of the vehicles traveling down the road
+1:40:46
+actually slid off slid off the road during the year yeah presumably on some
+1:40:51
+ice the image on the right shows a truck with a date that you'll be able to make
+1:40:56
+today but there is actually a cable coming out in front of the truck off to the left-hand side of the image where
+1:41:02
+it's presumably attached to this vehicle waiting to pull it up this vehicle would have been traveling
+1:41:07
+downhill on the right hand side of the image so The Far Side relative to what you can see
+1:41:14
+so what did we see on the system taking a an overview of about 10 minutes
+1:41:20
+uh around the event we can see many vehicles heading from right to left down the canyon and a few fainter Vehicles
+1:41:27
+heading from left to right up the canyon within the white square that's like
+1:41:32
+highlighted there's a clear change in the vehicle Behavior where we start seeing some vehicles coming to a stop
+1:41:38
+and the a propagation of these uh the stopping points moving backwards along the canyon
+1:41:45
+and then later on these vehicles stopped up again let's take a look at this in a little
+1:41:50
+more detail by zooming in on the where the event itself occurred so
+1:41:57
+again we can see several vehicles moving right to left a bit more clearly now and
+1:42:02
+and this first vehicle if you follow my mouse comes along and then there is an impact
+1:42:07
+which I'm going to highlight in the section in in a second because it's not particularly clear here which then slows
+1:42:14
+down the gradient of the line changes and the signal disappears the vehicle behind it uh
+1:42:22
+does a similar thing and then as that impact happens that vehicle who presumably could see it slows down
+1:42:29
+and Carries On so let's first take a look at the impact itself
+1:42:35
+and if we change the change the time scale and the colors a little this becomes a little more clearer relative
+1:42:41
+to everything else going on around it and there's the potential for this to be be detected
+1:42:47
+right what follows is a little bit of a speculative story because I don't know what happened in this scenario
+1:42:53
+I've highlighted the two vehicle routes that I'd that I've previously talked about
+1:42:59
+what I didn't mention is that after this vehicle slows down and disappears it it appears that the uh that vehicle
+1:43:06
+actually continues on very shortly later suggesting that this isn't the vehicle that slid off the road
+1:43:13
+now being able to dive in dive into this data in a little more detail I believe that there is actually a third vehicle
+1:43:19
+that started around this point and travels very
+1:43:24
+closely with this second vehicle and this one doesn't make it like the other side of the crash as I say I'm
+1:43:31
+speculating but it is quite interesting I think to be able to go back and analyze these events
+1:43:37
+and potentially see what might have happened and when you don't know what happened
+1:43:45
+so moving on to something else completely different a serious weather event
+1:43:51
+back in August this uh last year there was a vast amount of rain that fell in
+1:43:57
+uh over Utah which led to flooding in the canyon so here in the photos we can
+1:44:02
+see a mixture of rocks and water that we're covering the boat we don't specifically have any detectors
+1:44:08
+set up looking for these things but what we can see in the waterfall is really quite interesting it is certainly highly
+1:44:13
+deductible so the event on the left hand side this actually originates at the location of a
+1:44:19
+culvert running underneath the road uh just to the just at the east of the
+1:44:24
+Little Cottonwood Canyon Boulder and and what I speculate is happening is that
+1:44:29
+given the given the amount sheer amount of rain coming down during this period my suspicion is that this uh cover
+1:44:36
+started overflowing and the water is now flowing down the road which we can see
+1:44:42
+moving along at around two miles an hour generating a very large signal
+1:44:47
+the event on the right is also the result of flooding and we're detecting
+1:44:52
+the the signal being generated by that flow of rocks and water moving down the
+1:44:58
+canyon it's a bit more subtle than the event on the left but also highly detectable
+1:45:05
+the near horizontal stripes that you can see in the background of the waterfall these are vehicles moving along the road
+1:45:10
+but again as I've alluded to in previous um some of the previous events you can
+1:45:16
+imagine that during much quieter periods or on quite a route it could potentially be a long time before anyone is notified
+1:45:22
+about a potentially dangerous scenario that's arising
+1:45:29
+in a similar type of event and extreme weather we have a Mudslide that occurred
+1:45:36
+earlier this year so here's some a couple of photos taken from uh Utah
+1:45:42
+UDOT sources showing uh showing the effects of the mudslide covering both flames of the Little Cottonwood Canyon
+1:45:48
+Road and these were taken later on in the afternoon around 4pm on for the
+1:45:55
+left-hand image and 450 or the right hand image
+1:46:00
+a quote from a newspaper report suggests that the start of the this mudslide
+1:46:06
+actually occurred around heart 2. so let's take a look at what we saw on the system
+1:46:12
+so here again we have a waterfall image first of all looking at around 450 and
+1:46:18
+we can see this red red splodge of data which is
+1:46:24
+affecting quite a large section of fiber and lasts for a couple of minutes
+1:46:32
+there is a slight time discrepancy between the the video and the and the waterfall data that I believe that
+1:46:39
+that's a Time discrepancy rather than uh an error Arena what I'm highlighting
+1:46:45
+if we look earlier on in the day this is where there's no video footage available that I'm aware of you can actually see
+1:46:51
+five earliest earlier mudslides occurring at the same location between around 4 25 and 3 o'clock
+1:46:59
+and so that a story about it reportedly occurring around 2 30. I don't know how
+1:47:05
+it was originally notified but it could well be down to this vehicle that came along and would very much have seen
+1:47:11
+the effects of that that mudslide
+1:47:16
+okay so before I finish off and I think it's appropriate that I'm about to end
+1:47:22
+with this um I want to share a story about a code of fortnight to go about the utility cut
+1:47:28
+on the fiber a rather mean looking machine shown in the shown in the photo accidentally cut
+1:47:34
+straight through a power cable and the cons fiber running up to the Little Cottonwood Canyon Resort
+1:47:40
+cut itself was reported by the system within seconds of the alert being generated
+1:47:46
+and in this instance it actually sent a sent a notification to opt to sensor rather than to UDOT because we were
+1:47:53
+still in the process of configuring those those email alerts
+1:47:58
+and I passed that information straight on to uh straight onto my colleagues
+1:48:05
+on the inspection later revealed expansion inspection later that day revealed the fiber and power cable had
+1:48:11
+been severed by works taking place in the air bit thankfully they were able to repair it by the next day
+1:48:18
+let's take a look at what we saw on the system so here's a waterfall overview
+1:48:24
+and the clearest point is the fiber break that occurs in the top right where
+1:48:30
+we suddenly have a loss of signal you'll also notice these horizontal stripes running off to the side
+1:48:36
+and these are indicative of massive disturbances which are causing polarization changes in the fiber
+1:48:42
+and because we get the polarization change this affects every part of the fiber beyond the that location
+1:48:50
+this signal leaping out to the left hand side is likely to be the being caused by the
+1:48:57
+power cable itself being second so it's great that the system alerted on
+1:49:03
+the event but that's after the effect after the fact and it certainly potentially helped allow a rapid
+1:49:09
+response and but the question is what could what
+1:49:16
+could have been done beforehand so if we take a look at a longer period of time
+1:49:21
+for about 20 minutes prior to this event there is a considerable degree of signal being generated if we look at the
+1:49:27
+respectful content we can see quite a large amount of energy growing over 20
+1:49:33
+minutes and getting stronger and stronger into higher and higher frequencies so while we didn't have anything
+1:49:39
+specifically set up to to take this you can see that one of the detectors we did have set up went off several times
+1:49:45
+throughout this event prior prior to that now 20 minutes is much more likely to be enough time to make some calls and
+1:49:52
+check whether there is any engineering work going on and check that the crew is aware of Utilities in the area
+1:49:59
+so I apologize but we are at 10 to 8 so let me quickly very quickly summarize
+1:50:05
+um as it's been stated before that is a proven technology in other sectors and
+1:50:10
+has seen great success particularly with the protection of assets from third party intrusion by using optical fiber as a passive
+1:50:17
+sensor it allows us to discreetly cover many many miles without any power requirements along the fiber and have
+1:50:24
+the potential to reduce the need for peripheral device density
+1:50:30
+and we can monitor a multitude of parameters with that such as traffic conditions and event detection but one
+1:50:37
+of the important points I wanted to make here is that once the system is installed the capability can be improved
+1:50:43
+and added to Via software developments rather than through the installation of
+1:50:48
+new or additional hardware and sensors and with that I will hand it back to you
+1:50:55
+Muriel so thank you all for listening that sounds great I'll Sarah thank you
+1:51:00
+so much well thank you all for continuing to stick with us we have one more presenter
+1:51:07
+and if we have time after Chuck's presentation we will open it up for Q a I would note that many of our uh
+1:51:13
+presenters have been responding to your questions as we go if we don't get to your question we will follow up with you
+1:51:19
+so with that I'm going to introduce chuck chuck Felice is a project manager
+1:51:26
+over software development projects in GIS at the Utah Department of transportation's Technology Group he's
+1:51:32
+been instrumental in udot's Connected vehicle technology projects specifically
+1:51:37
+with software oversight and standardized message development he is also engaged with connected vehicle standards development
+1:51:46
+of experience working in the software industry in both the public and private sectors he has worked in civil
+1:51:53
+engineering aerial photography and mapping with that Chuck feel free to take it
+1:51:59
+away thank you Imperial and I will try and be very quick here
+1:52:05
+um because I know there's not a lot of time and
+1:52:16
+there we go so the I just wanted to kind of wrap up uh what the other speakers
+1:52:22
+have spoken about and we got a great explanation um from
+1:52:27
+Alistar and Michael and Paul's oversight over overview as uh
+1:52:34
+what he does um in more of an administrator and a strategist what really learning and
+1:52:40
+fiber so what we found out in is fiber replacement the type of fiber and baffle
+1:52:47
+are actually critical to doing your installation if you want to use this technology so has UDOT moved
+1:52:54
+forward if we determined that this technology is something we really like and we want to continue to use as future
+1:53:00
+fiber is being installed we need to be fully aware of how it's being installed
+1:53:06
+and if we're going to be using optusense technology on that fiber then we have to follow the recommendations of
+1:53:13
+the installation so we can get the best data we can um the team spent considerable time
+1:53:19
+tuning the algorithms this whole system of detecting
+1:53:26
+events is really a pattern recognition system as events are are detected in the
+1:53:32
+fiber uh different types of events generate different patterns and that is what Alistair and Andrew and the team
+1:53:39
+adopt descents have been doing is building up a library of these various event types based on the patterns that
+1:53:46
+they see coming back and as you can tell um they vary quite a bit between crashes
+1:53:53
+and it's just Avalanches um Aleister mentioned that we've been waiting
+1:53:58
+for uh two years to get some snow in local Canyon well this past
+1:54:03
+winter there was 903 inches at the top the Canyons of Delta ski resort that's 75 feet of snow that's a huge amount I
+1:54:11
+also have a background in snowpack management and snow hydrology and the amount of water that's sitting up there
+1:54:17
+is just incredible so when these Avalanches occurred they're huge events
+1:54:22
+they're so powerful um the picture that Alistair showed of the
+1:54:28
+the first picture you showed of the Avalanche uh where actually you can see that the track of the Avalanche where I crossed the road
+1:54:33
+and where it took this freeze out I drove the canyon this summer looking at that specific site and the coniferous
+1:54:42
+trees the Evergreens that were there were very large spruce trees they were snapped off like they were
+1:54:47
+toothpicks wooden toothpicks it was amazing no power it was 25 feet of snow that was on that road when the Avalanche
+1:54:53
+occurred so being able to detect these events is uh as soon as they happen is what we
+1:55:00
+need and as Alistar mentioned that we are seeing detecting these events before
+1:55:06
+anyone can observe them and if you're driving in a canyon late at night and an avalanche occurs at two
+1:55:13
+or three in the morning where no one is around if there's not a lot of light in that Canyon you can turn the road and all of
+1:55:19
+a sudden be smack dab and you know looking at a 25 foot ball of snow that you could hit so detecting these things
+1:55:25
+as soon as we can helps us immensely and building up this library is exactly
+1:55:32
+what we need now um data analysis of this site is not
+1:55:39
+trivial based on the information that was presented the waterfall charts
+1:55:44
+understanding the raw information it takes a lot of skill in fact again here's just a
+1:55:50
+reviewing a slide and blinded shown you know looking at this thing when I first
+1:55:55
+saw the waterfall I thought what the heck is this thing it takes experience uh but the whole idea is once we can get
+1:56:04
+this system calibrated we don't need someone to look at this data we want alerts generated the data
+1:56:11
+is there for someone who really wants to get at it but the goal is one crash system when Avalanches have land funds
+1:56:18
+flooding whatever the event might be that we can detect these things and immediately send alerts out that's where
+1:56:24
+this power this system is so powerful for us now integrating uh Das into daily operations
+1:56:32
+you know how do we do this policy needs to be created for what do we do with these generated alerts I saw
+1:56:39
+a question that someone put in there is what is the lag time between invent being detected and want to learn is
+1:56:44
+being sent or received by our traffic operation Senate well this past winter we were still
+1:56:51
+calibrating the system waiting for these events to happen and when they we've
+1:56:56
+also experimented with alerts so alerts at the end of the season were sent to the head of the traffic operations uh
+1:57:04
+Center the The Operators themselves and so we just experimented with getting
+1:57:10
+these alerts working so this next year we're going to set the policy working with the operations group to determine
+1:57:17
+okay who's going to get the alerts what happens when they get the alerts what are they going to do so that aspect is
+1:57:24
+still being determined as we speak uh the next thing is the desk
+1:57:31
+alerts that are generated they need to be verified during early stage employment again that's the calibration
+1:57:36
+of the system is when something comes down how do we know it's a landslide or an avalanche
+1:57:42
+how do we know it's just a crash so building up that pattern Library so that the system can know what it is and
+1:57:48
+sending it to us we can then feel good about the system so over time with operational experience
+1:57:54
+such as Das system and knowing that the when events occur we can verify it
+1:58:02
+through cameras or whatnot you know Alistar show pictures of the mud on the road
+1:58:07
+that we can say great here we have you know photographic evidence and video I wanted for we can correlate that with
+1:58:14
+the Das system and we feel pretty good about this is how this type of data coming through what this event really
+1:58:20
+was so over time you're not will be able to trust the data in the large General generated by this system
+1:58:26
+and it's and I hope everyone has enjoyed this webinar this technology is really
+1:58:33
+amazing what it can do and it's it's been around but it hasn't been around much for transportation or Avalanche
+1:58:39
+detection so we have been very very happy working with uh optusense and seeing what this
+1:58:47
+system can do for us so it's intriguing and we think it'll be useful uh that's it for me Miro
+1:58:55
+perfect thanks Chuck I think you set a record okay thanks for keeping us on track
+1:59:01
+so uh we have one minute remaining unfortunately we are not able to get to
+1:59:06
+uh kind of q a with you all right now but we will follow up with you uh we do
+1:59:13
+just want to note that we have one final webinar in our series it's scheduled for
+1:59:18
+Wednesday October 4th from 11 A.M to 1 pm mountain time we hope you can attend
+1:59:23
+that one it'll be about automated vehicles in Utah and what we've done there with that deployment so definitely
+1:59:28
+worth watching and participating in it with that thank you so much for joining us today and we'll be in touch with all
+1:59:35
+of the webinar materials and the recording within a week take care

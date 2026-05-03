@@ -15,25 +15,13 @@
         <h1>SR-190 Traffic &amp; DAS Lab</h1>
         <span class="subtitle">User-driven traffic microsim &rarr; live synthetic DAS waterfall (SR-190 Big Cottonwood Canyon)</span>
       </div>
-      <div class="header-right">
-        <div class="replay-controls">
-          <button id="btn-play" class="ctrl-btn active" title="Play">&#9654;</button>
-          <button id="btn-pause" class="ctrl-btn" title="Pause">&#9646;&#9646;</button>
-          <label class="speed-label">
-            Speed
-            <select id="speed-select">
-              <option value="0.5">0.5x</option>
-              <option value="1" selected>1x</option>
-              <option value="2">2x</option>
-              <option value="4">4x</option>
-            </select>
-          </label>
-        </div>
-      </div>
     </header>
     <main id="main">
       <div id="left-panel">
         <div id="map-container">
+          <p id="mobile-fleet-hint" class="mobile-fleet-hint">
+            Traffic lab: open the <strong>Fleet</strong> tab in the bar below to add vehicles, load a demo fleet, and edit vehicles.
+          </p>
           <div id="map"></div>
         </div>
         <div id="waterfall-container">

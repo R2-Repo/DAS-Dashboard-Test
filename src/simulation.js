@@ -35,8 +35,6 @@ let vehicles = [];
 let anomalies = [];
 let nextFleetId = 1;
 let tickCount = 0;
-let running = true;
-let speedMultiplier = 1;
 let intervalId = null;
 
 let selectedVehicleId = null;
@@ -98,11 +96,9 @@ export function createSimulation(data, targets) {
   }
 
   function tick() {
-    if (!running) return;
     tickCount++;
 
-    const dtEff = TICK_MS / speedMultiplier;
-    const dtS = dtEff / MS_PER_S;
+    const dtS = TICK_MS / MS_PER_S;
 
     if (roadOk) {
       const ebIdx = [];
@@ -205,7 +201,7 @@ export function createSimulation(data, targets) {
       v.currentMilepost = channels[ci].milepost;
     }
 
-    for (const a of anomalies) a.ttl -= dtEff / TICK_MS;
+    for (const a of anomalies) a.ttl -= 1;
     anomalies = anomalies.filter((a) => a.ttl > 0);
 
     const row = new Float32Array(totalChannels);
@@ -601,36 +597,13 @@ export function createSimulation(data, targets) {
     anomalies = [];
     selectedVehicleId = null;
     dragVehicleId = null;
-    intervalId = setInterval(tick, TICK_MS / speedMultiplier);
+    intervalId = setInterval(tick, TICK_MS);
     targets.ui.updateChannelCount(totalChannels);
-    applyQuickFleet();
     targets.ui.updateStats(vehicles, anomalies, { sampleRateHz: MS_PER_S / TICK_MS, simTimeS: 0 });
-  }
-
-  function play() {
-    running = true;
-    releaseUserLocks();
-    document.getElementById('btn-play')?.classList.add('active');
-    document.getElementById('btn-pause')?.classList.remove('active');
-  }
-
-  function pause() {
-    running = false;
-    document.getElementById('btn-play')?.classList.remove('active');
-    document.getElementById('btn-pause')?.classList.add('active');
-  }
-
-  function setSpeed(mult) {
-    speedMultiplier = mult;
-    if (intervalId) clearInterval(intervalId);
-    intervalId = setInterval(tick, TICK_MS / speedMultiplier);
   }
 
   const api = {
     start,
-    play,
-    pause,
-    setSpeed,
     isRoadOk: () => roadOk,
     getVehicles: () => vehicles,
     getSelectedVehicleId: () => selectedVehicleId,
