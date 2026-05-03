@@ -144,7 +144,7 @@ function buildChannelAlong(points, channels) {
   return along;
 }
 
-/** Bearing from point a to b in radians (0 = east, counter-clockwise from +x). */
+/** Initial bearing from a to b in radians, clockwise from geographic north (WGS84 sphere). */
 function bearingRad(a, b) {
   const φ1 = (a[1] * Math.PI) / 180;
   const φ2 = (b[1] * Math.PI) / 180;
@@ -342,8 +342,8 @@ export function nearestPointOnLanesPrefer(laneEb, laneWb, lon, lat, laneKey) {
 
 export function bearingDegClockwiseFromNorthLonLat(lon0, lat0, lon1, lat1) {
   const br = bearingRad([lon0, lat0], [lon1, lat1]);
-  const degEofN = (br * 180) / Math.PI;
-  return ((90 - degEofN) % 360 + 360) % 360;
+  const deg = (br * 180) / Math.PI;
+  return ((deg % 360) + 360) % 360;
 }
 
 /**
