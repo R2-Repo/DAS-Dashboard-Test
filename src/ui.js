@@ -109,6 +109,8 @@ export function initUI() {
     }
 
     const speedInput = el('fleet-speed-input');
+    const speedSlider = el('fleet-speed-slider');
+    const speedValueEl = el('fleet-speed-value');
     const applyBtn = el('fleet-apply-btn');
     const selected = sel ? list.find((v) => v.id === sel) : null;
 
@@ -118,6 +120,20 @@ export function initUI() {
     if (speedInput) {
       if (selected) speedInput.value = String(Math.round(selected.desiredSpeedMph));
       speedInput.disabled = !selected;
+    }
+    if (speedSlider) {
+      if (selected) {
+        const v = Math.round(selected.desiredSpeedMph);
+        speedSlider.value = String(v);
+        speedSlider.setAttribute('aria-valuetext', `${v} miles per hour`);
+      }
+      speedSlider.disabled = !selected;
+    }
+    if (speedValueEl && selected) {
+      speedValueEl.textContent = String(Math.round(selected.desiredSpeedMph));
+    }
+    if (speedValueEl && !selected) {
+      speedValueEl.textContent = '\u2014';
     }
     if (applyBtn) {
       applyBtn.disabled = !selected;

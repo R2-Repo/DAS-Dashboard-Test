@@ -95,6 +95,14 @@
               </button>
             </div>
             <p id="vehicle-palette-touch-hint" class="vehicle-palette-touch-hint" hidden></p>
+            <div class="placement-lane-group" role="radiogroup" aria-label="Lane for new vehicles">
+              <span class="placement-lane-title">Drop on lane</span>
+              <div class="placement-lane-buttons">
+                <button type="button" class="placement-lane-btn placement-lane-btn-active" data-placement-lane="auto" title="Snap to nearest centerline">Auto</button>
+                <button type="button" class="placement-lane-btn placement-lane-eb" data-placement-lane="eb" title="Eastbound (up canyon)">EB</button>
+                <button type="button" class="placement-lane-btn placement-lane-wb" data-placement-lane="wb" title="Westbound (down canyon)">WB</button>
+              </div>
+            </div>
           </div>
           <div class="traffic-control-actions traffic-control-actions-row">
             <button type="button" id="btn-demo-fleet" class="lab-btn">Demo</button>
@@ -109,10 +117,14 @@
               <button type="button" class="fleet-type-btn" data-set-vehicle-type="truck" title="Truck"><span aria-hidden="true">🚚</span></button>
               <button type="button" class="fleet-type-btn" data-set-vehicle-type="semi_truck" title="Semi"><span aria-hidden="true">🚛</span></button>
             </div>
+            <label class="fleet-speed-slider-row">
+              <span class="fleet-speed-slider-label">Target speed <span id="fleet-speed-value" class="fleet-speed-value">38</span> mph</span>
+              <input type="range" id="fleet-speed-slider" min="0" max="85" step="1" value="38" aria-valuetext="38 miles per hour" />
+            </label>
             <label class="fleet-speed-row">
-              <span class="fleet-speed-label">mph</span>
+              <span class="fleet-speed-label">Exact</span>
               <input type="number" id="fleet-speed-input" min="0" max="85" step="1" value="38" />
-              <button type="button" id="fleet-apply-btn" class="lab-btn lab-btn-inline">Set</button>
+              <button type="button" id="fleet-apply-btn" class="lab-btn lab-btn-inline">Apply</button>
             </label>
           </div>
           <div class="fleet-list-wrap">

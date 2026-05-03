@@ -71,7 +71,10 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
         ev.preventDefault();
         const rect = canvas.getBoundingClientRect();
         const lngLat = map.unproject([ev.clientX - rect.left, ev.clientY - rect.top]);
-        const v = sim.addVehicleNearLngLat(lngLat.lng, lngLat.lat, { vehicleType: raw });
+        const v = sim.addVehicleNearLngLat(lngLat.lng, lngLat.lat, {
+          vehicleType: raw,
+          placementLane: sim.getDefaultPlacementLane?.() ?? 'auto',
+        });
         if (v) {
           sim.setDefaultVehicleType(raw);
           sim.syncFleetPanel?.();
@@ -111,7 +114,10 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
     const raw = e.dataTransfer?.getData(DRAG_MIME) || e.dataTransfer?.getData('text/plain');
     if (!raw) return;
     const lngLat = e.lngLat ?? e;
-    const v = sim.addVehicleNearLngLat(lngLat.lng, lngLat.lat, { vehicleType: raw });
+    const v = sim.addVehicleNearLngLat(lngLat.lng, lngLat.lat, {
+      vehicleType: raw,
+      placementLane: sim.getDefaultPlacementLane?.() ?? 'auto',
+    });
     if (v) {
       sim.setDefaultVehicleType(raw);
       sim.syncFleetPanel?.();
@@ -142,7 +148,10 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
       clearPending();
       return false;
     }
-    const v = sim.addVehicleNearLngLat(e.lngLat.lng, e.lngLat.lat, { vehicleType: pendingPlaceType });
+    const v = sim.addVehicleNearLngLat(e.lngLat.lng, e.lngLat.lat, {
+      vehicleType: pendingPlaceType,
+      placementLane: sim.getDefaultPlacementLane?.() ?? 'auto',
+    });
     clearPending();
     if (v) {
       sim.setDefaultVehicleType(v.vehicleType);

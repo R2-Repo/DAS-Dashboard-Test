@@ -37,4 +37,12 @@ describe('vehicle-model', () => {
     expect(m.heightM).toBeGreaterThanOrEqual(raw.heightM);
     expect(m.widthM).toBeGreaterThanOrEqual(2.5);
   });
+
+  it('mapVehicleFootprintDims userPlaced option enlarges footprint for dropped vehicles', () => {
+    const base = mapVehicleFootprintDims('car');
+    const big = mapVehicleFootprintDims('car', { userPlaced: true });
+    expect(big.lengthM).toBeGreaterThan(base.lengthM);
+    expect(big.widthM).toBeGreaterThanOrEqual(base.widthM);
+    expect(big.heightM).toBeGreaterThanOrEqual(base.heightM);
+  });
 });
