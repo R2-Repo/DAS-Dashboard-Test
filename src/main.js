@@ -142,6 +142,24 @@ async function boot() {
 const MOBILE_TAB_CLASSES = ['mobile-tab-map', 'mobile-tab-stats', 'mobile-tab-feed'];
 
 /**
+ * Move `#traffic-control-panel` under the waterfall on mobile Map tab so it stacks in document
+ * order (avoids overlap with the map canvas). Restore to the sidebar for desktop and other tabs.
+ */
+function syncTrafficPanelHost(mobile, tab) {
+  const panel = document.getElementById('traffic-control-panel');
+  const hostDesktop = document.getElementById('traffic-panel-host-desktop');
+  const hostMobile = document.getElementById('traffic-panel-host-mobile');
+  if (!panel || !hostDesktop || !hostMobile) return;
+
+  const dockUnderWaterfall = mobile && tab === 'map';
+  const target = dockUnderWaterfall ? hostMobile : hostDesktop;
+  if (panel.parentElement !== target) {
+    target.appendChild(panel);
+  }
+  hostMobile.toggleAttribute('aria-hidden', hostMobile.childElementCount === 0);
+}
+
+/**
  * Narrow screens: stack map + waterfall; bottom tab bar switches Map | Stats | Feed.
  * Traffic controls sit on the Map tab under the waterfall (thumb reach).
  */
@@ -166,6 +184,7 @@ function initResponsiveLayout(map, waterfall) {
     tabbar.querySelectorAll('.mobile-tab').forEach((btn) => {
       btn.setAttribute('aria-selected', btn.dataset.mobileTab === t ? 'true' : 'false');
     });
+    syncTrafficPanelHost(mobileMq.matches, t);
     if (t === 'map') {
       window.requestAnimationFrame(() => {
         map.resize();
@@ -186,6 +205,7 @@ function initResponsiveLayout(map, waterfall) {
       if (!['map', 'stats', 'feed'].includes(current)) current = 'map';
       setMobileTab(current);
     } else {
+      syncTrafficPanelHost(false, 'map');
       sidebar.classList.remove(...MOBILE_TAB_CLASSES);
       delete sidebar.dataset.mobileTab;
       tabbar.querySelectorAll('.mobile-tab').forEach((btn) => btn.setAttribute('aria-selected', 'false'));
