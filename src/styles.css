@@ -41,17 +41,20 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.5rem 1rem;
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  height: 48px;
+  min-height: 48px;
 }
 
 .header-left {
   display: flex;
   align-items: baseline;
   gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
 }
 
 #header h1 {
@@ -65,6 +68,10 @@ html, body {
   font-size: 0.75rem;
   color: var(--text-secondary);
   white-space: nowrap;
+}
+
+.header-right {
+  flex-shrink: 0;
 }
 
 .replay-controls {
@@ -164,6 +171,7 @@ html, body {
   flex: 1;
   width: 100%;
   cursor: crosshair;
+  touch-action: none;
 }
 
 /* Sidebar */
@@ -356,4 +364,186 @@ html, body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
+}
+
+/* --- Responsive: tablet / narrow desktop --- */
+@media (max-width: 1100px) {
+  #sidebar {
+    width: min(280px, 32vw);
+  }
+
+  .stat-value {
+    font-size: 1.2rem;
+  }
+}
+
+/* --- Mobile tab bar (shown via JS when narrow) --- */
+.mobile-tabbar {
+  display: none;
+  flex-shrink: 0;
+  align-items: stretch;
+  justify-content: space-around;
+  gap: 0.25rem;
+  padding: 0.35rem 0.5rem calc(0.35rem + env(safe-area-inset-bottom, 0px));
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+}
+
+.mobile-tabbar.is-visible {
+  display: flex;
+}
+
+.mobile-tab {
+  flex: 1;
+  min-height: 44px;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.mobile-tab[aria-selected="true"] {
+  background: var(--accent);
+  color: var(--bg-dark);
+  border-color: var(--accent);
+}
+
+.mobile-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- Mobile / small screens: stacked panels + tabs --- */
+@media (max-width: 768px), (max-width: 900px) and (max-height: 520px) {
+  #app.app-mobile-layout #main {
+    flex-direction: column;
+  }
+
+  #app.app-mobile-layout #left-panel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #app.app-mobile-layout #map-container {
+    min-height: min(42vh, 320px);
+    flex: 1;
+  }
+
+  #app.app-mobile-layout #waterfall-container {
+    height: clamp(160px, 28vh, 240px);
+    flex-shrink: 0;
+  }
+
+  #app.app-mobile-layout #sidebar {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #app.app-mobile-layout #sidebar.mobile-tab-map #sidebar-data-stack,
+  #app.app-mobile-layout #sidebar.mobile-tab-map #event-feed {
+    display: none;
+  }
+
+  #app.app-mobile-layout #sidebar.mobile-tab-data #event-feed {
+    display: none;
+  }
+
+  #app.app-mobile-layout #sidebar.mobile-tab-data #sidebar-data-stack {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  #app.app-mobile-layout #sidebar.mobile-tab-feed #sidebar-data-stack {
+    display: none;
+  }
+
+  #app.app-mobile-layout #sidebar.mobile-tab-feed #event-feed {
+    flex: 1;
+    min-height: 0;
+  }
+
+  #app.app-mobile-layout .waterfall-header {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  #app.app-mobile-layout .waterfall-info {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #app.app-mobile-layout #header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: 0.45rem 0.65rem;
+  }
+
+  #app.app-mobile-layout .header-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+  }
+
+  #app.app-mobile-layout #header h1 {
+    font-size: 1rem;
+    white-space: normal;
+  }
+
+  #app.app-mobile-layout #header .subtitle {
+    white-space: normal;
+    font-size: 0.68rem;
+    line-height: 1.3;
+  }
+
+  #app.app-mobile-layout .header-right {
+    width: 100%;
+    order: 3;
+    margin-top: 0.25rem;
+  }
+
+  #app.app-mobile-layout .replay-controls {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  #app.app-mobile-layout .ctrl-btn {
+    min-width: 44px;
+    min-height: 40px;
+    padding: 0.35rem 0.65rem;
+  }
+
+  #app.app-mobile-layout .speed-label select {
+    min-height: 40px;
+  }
+
+  #app.app-mobile-layout .stat-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  #app.app-mobile-layout .lab-btn {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 420px) {
+  #app.app-mobile-layout .stat-cards {
+    grid-template-columns: 1fr;
+  }
 }

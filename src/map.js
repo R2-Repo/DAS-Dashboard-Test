@@ -17,6 +17,8 @@ const TERRAIN_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}
 
 export function initMap(containerId, data) {
   const bounds = computeBounds(data.road);
+  const coarsePointer = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)')?.matches;
+  const narrowScreen = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 768px)')?.matches;
 
   const map = new maplibregl.Map({
     container: containerId,
@@ -69,8 +71,9 @@ export function initMap(containerId, data) {
     zoom: 12.5,
     pitch: 55,
     bearing: -30,
-    maxPitch: 85,
+    maxPitch: coarsePointer && narrowScreen ? 60 : 85,
     maxZoom: 18,
+    touchPitch: true,
   });
 
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');

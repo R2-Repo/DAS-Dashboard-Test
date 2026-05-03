@@ -65,6 +65,10 @@ export function initWaterfall(canvasId, data) {
   /** Traffic lab: emphasize one channel column (integer index or null). */
   let highlightChannel = null;
 
+  /** One-finger pan / two-finger pinch on the waterfall (touch). */
+  let wfTouchPan = null; // { pointerId, lastClientX }
+  let wfPinch = null; // { idA, idB, dist0, range0, centerCh }
+
   function setHighlightChannel(ch) {
     if (ch === null || ch === undefined) {
       highlightChannel = null;
@@ -151,34 +155,142 @@ export function initWaterfall(canvasId, data) {
     canvas.height = rect.height - headerH;
   }
 
-  resize();
-  window.addEventListener('resize', resize);
+  function channelFromClientX(clientX) {
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const w = canvas.width || rect.width;
+    if (w <= 0) return null;
+    return viewStart + Math.floor((x / w) * (viewEnd - viewStart));
+  }
 
-  canvas.addEventListener('wheel', (e) => {
-    e.preventDefault();
+  function floatChannelFromClientX(clientX) {
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const w = canvas.width || rect.width;
+    if (w <= 0) return null;
+    const ch = viewStart + (x / w) * (viewEnd - viewStart);
+    return Math.max(0, Math.min(totalChannels - 1, ch));
+  }
+
+  const activeTouchX = new Map();
+
+  function applyWheelDelta(deltaY, shiftKey) {
     const range = viewEnd - viewStart;
-    const delta = Math.sign(e.deltaY) * Math.max(5, Math.floor(range * 0.04));
-    if (e.shiftKey) {
-      // Zoom in/out
+    const delta = Math.sign(deltaY) * Math.max(5, Math.floor(range * 0.04));
+    if (shiftKey) {
       const newRange = Math.max(80, Math.min(totalChannels, range + delta * 8));
       const center = (viewStart + viewEnd) / 2;
       viewStart = Math.max(0, Math.floor(center - newRange / 2));
       viewEnd = Math.min(totalChannels, viewStart + newRange);
     } else {
-      // Pan
       viewStart = Math.max(0, viewStart + delta);
       viewEnd = Math.min(totalChannels, viewEnd + delta);
       if (viewEnd - viewStart < 80) viewStart = Math.max(0, viewEnd - 80);
     }
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    applyWheelDelta(e.deltaY, e.shiftKey);
+  }, { passive: false });
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') {
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      activeTouchX.set(e.pointerId, e.clientX);
+
+      if (activeTouchX.size === 2) {
+        wfTouchPan = null;
+        const ids = [...activeTouchX.keys()];
+        const x0 = activeTouchX.get(ids[0]);
+        const x1 = activeTouchX.get(ids[1]);
+        const mid = (x0 + x1) / 2;
+        const dist0 = Math.abs(x1 - x0);
+        if (dist0 > 10) {
+          wfPinch = {
+            idA: ids[0],
+            idB: ids[1],
+            dist0,
+            range0: viewEnd - viewStart,
+            centerCh: floatChannelFromClientX(mid) ?? (viewStart + viewEnd) / 2,
+          };
+        }
+      } else if (activeTouchX.size === 1) {
+        wfPinch = null;
+        wfTouchPan = { pointerId: e.pointerId, lastClientX: e.clientX };
+      }
+    }
+    hoveredChannel = channelFromClientX(e.clientX);
   });
 
-  canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    hoveredChannel = viewStart + Math.floor((x / canvas.width) * (viewEnd - viewStart));
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'touch' && activeTouchX.has(e.pointerId)) {
+      activeTouchX.set(e.pointerId, e.clientX);
+
+      if (wfPinch && activeTouchX.has(wfPinch.idA) && activeTouchX.has(wfPinch.idB)) {
+        const xa = activeTouchX.get(wfPinch.idA);
+        const xb = activeTouchX.get(wfPinch.idB);
+        const dist = Math.abs(xb - xa);
+        if (wfPinch.dist0 > 1 && dist > 1) {
+          let newRange = Math.round(wfPinch.range0 * (wfPinch.dist0 / dist));
+          newRange = Math.max(80, Math.min(totalChannels, newRange));
+          const c = wfPinch.centerCh;
+          viewStart = Math.max(0, Math.floor(c - newRange / 2));
+          viewEnd = Math.min(totalChannels, viewStart + newRange);
+          if (viewEnd - viewStart < newRange) viewStart = Math.max(0, viewEnd - newRange);
+        }
+      } else if (wfTouchPan && e.pointerId === wfTouchPan.pointerId && activeTouchX.size === 1) {
+        const w = canvas.width || canvas.getBoundingClientRect().width;
+        const range = viewEnd - viewStart;
+        if (w > 0 && range > 0) {
+          const dx = e.clientX - wfTouchPan.lastClientX;
+          wfTouchPan.lastClientX = e.clientX;
+          const deltaCh = Math.round(-dx * (range / w));
+          if (deltaCh !== 0) {
+            viewStart = Math.max(0, viewStart + deltaCh);
+            viewEnd = Math.min(totalChannels, viewEnd + deltaCh);
+            if (viewEnd - viewStart < range) {
+              if (viewStart === 0) viewEnd = Math.min(totalChannels, viewStart + range);
+              else if (viewEnd === totalChannels) viewStart = Math.max(0, viewEnd - range);
+            }
+          }
+        }
+      }
+    }
+
+    if (e.pointerType === 'mouse' && e.buttons === 0) {
+      hoveredChannel = channelFromClientX(e.clientX);
+    } else if (e.pointerType === 'touch' && activeTouchX.size === 1) {
+      hoveredChannel = channelFromClientX(e.clientX);
+    }
   });
 
-  canvas.addEventListener('mouseleave', () => { hoveredChannel = null; });
+  canvas.addEventListener('pointerup', (e) => {
+    activeTouchX.delete(e.pointerId);
+    if (wfTouchPan && wfTouchPan.pointerId === e.pointerId) wfTouchPan = null;
+    if (wfPinch && (e.pointerId === wfPinch.idA || e.pointerId === wfPinch.idB)) wfPinch = null;
+    if (e.pointerType === 'touch' && activeTouchX.size === 0) {
+      hoveredChannel = null;
+    }
+  });
+
+  canvas.addEventListener('pointercancel', (e) => {
+    activeTouchX.delete(e.pointerId);
+    if (wfTouchPan && wfTouchPan.pointerId === e.pointerId) wfTouchPan = null;
+    if (wfPinch && (e.pointerId === wfPinch.idA || e.pointerId === wfPinch.idB)) wfPinch = null;
+    hoveredChannel = null;
+  });
+
+  canvas.addEventListener('pointerleave', (e) => {
+    if (e.pointerType === 'mouse') hoveredChannel = null;
+  });
 
   function pushRow(values) {
     const offset = currentRow * totalChannels;
@@ -278,5 +390,5 @@ export function initWaterfall(canvasId, data) {
     }
   }
 
-  return { pushRow, render, channelBias, getViewRange: () => [viewStart, viewEnd], setHighlightChannel, scrollChannelIntoView };
+  return { pushRow, render, channelBias, getViewRange: () => [viewStart, viewEnd], setHighlightChannel, scrollChannelIntoView, resize };
 }
