@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   bearingDegClockwiseFromNorthLonLat,
+  roadForwardSignForDirection,
   travelBearingDegAtRoadDistance,
 } from '../src/road-geometry.js';
 
@@ -30,6 +31,20 @@ describe('bearingDegClockwiseFromNorthLonLat', () => {
   });
 });
 
+describe('roadForwardSignForDirection', () => {
+  it('ties up_canyon to increasing milepost along the resampled polyline', () => {
+    const lane = { forwardIncreasesMilepost: true };
+    expect(roadForwardSignForDirection(lane, 'up_canyon')).toBe(1);
+    expect(roadForwardSignForDirection(lane, 'down_canyon')).toBe(-1);
+  });
+
+  it('reverses when the centerline runs toward decreasing milepost', () => {
+    const lane = { forwardIncreasesMilepost: false };
+    expect(roadForwardSignForDirection(lane, 'up_canyon')).toBe(-1);
+    expect(roadForwardSignForDirection(lane, 'down_canyon')).toBe(1);
+  });
+});
+
 describe('travelBearingDegAtRoadDistance', () => {
   const laneEast = {
     points: [
@@ -37,13 +52,13 @@ describe('travelBearingDegAtRoadDistance', () => {
       [-111.79, 40.6],
     ],
     cumDistM: [0, 800],
-    forwardIncreasesChannel: true,
+    forwardIncreasesMilepost: true,
     channelAlong: new Float32Array([0, 1]),
     curvature: new Float32Array([0, 0]),
     totalM: 800,
   };
 
-  it('matches segment bearing for up_canyon when polyline increases channel', () => {
+  it('matches segment bearing for up_canyon when polyline increases milepost', () => {
     const b = travelBearingDegAtRoadDistance(laneEast, 400, 'up_canyon');
     expect(b).toBeGreaterThan(89);
     expect(b).toBeLessThan(91);
