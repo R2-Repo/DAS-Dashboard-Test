@@ -37,7 +37,7 @@ const MPH_TO_MS = 0.44704;
 const WATERFALL_DIAGONAL_SKEW = 0.78;
 
 /** Lookahead distance (m) for curve speed — slow before the bend. */
-const CURVE_LOOKAHEAD_M = 70;
+const CURVE_LOOKAHEAD_M = 45;
 
 function mphToChannelsPerTick(mph) {
   const metersPerSec = mph * MPH_TO_MS;
@@ -46,36 +46,36 @@ function mphToChannelsPerTick(mph) {
 }
 
 /**
- * Speed cap (mph) from path curvature (1/m). Tight bends ~15–20 mph, moderate ~25–35,
- * gentle curves merge into a lateral-acceleration comfort model.
+ * Speed cap (mph) from path curvature (1/m). Tight bends are capped; gentle and moderate
+ * curves follow a lateral-acceleration comfort model (relaxed vs. early strict piecewise caps).
  */
 function curveSpeedCapMph(curvaturePerM) {
   const κ = Math.max(0, curvaturePerM);
   if (κ < 3e-6) return 120;
   const r = 1 / κ;
-  const ay = 2.45;
-  const vComfortMph = (Math.sqrt(ay * Math.max(8, r)) / MPH_TO_MS) * 0.9;
+  const ay = 2.85;
+  const vComfortMph = (Math.sqrt(ay * Math.max(8, r)) / MPH_TO_MS) * 0.95;
 
   if (κ >= 0.03) {
-    return Math.min(vComfortMph, 17);
+    return Math.min(vComfortMph, 22);
   }
   if (κ >= 0.018) {
     const t = (κ - 0.018) / (0.03 - 0.018);
-    return Math.min(vComfortMph, 19 + (1 - t) * 2);
+    return Math.min(vComfortMph, 26 + (1 - t) * 4);
   }
   if (κ >= 0.01) {
     const t = (κ - 0.01) / (0.018 - 0.01);
-    return Math.min(vComfortMph, 27 + (1 - t) * 6);
+    return Math.min(vComfortMph, 36 + (1 - t) * 8);
   }
   if (κ >= 0.0055) {
     const t = (κ - 0.0055) / (0.01 - 0.0055);
-    return Math.min(vComfortMph, 34 + (1 - t) * 8);
+    return Math.min(vComfortMph, 48 + (1 - t) * 10);
   }
   if (κ >= 0.0025) {
     const t = (κ - 0.0025) / (0.0055 - 0.0025);
-    return Math.min(vComfortMph, 48 + (1 - t) * 12);
+    return Math.min(vComfortMph, 62 + (1 - t) * 14);
   }
-  return Math.min(120, Math.max(35, vComfortMph));
+  return Math.min(120, Math.max(42, vComfortMph));
 }
 
 const LAB_SNAP_MAX_M = 650;
