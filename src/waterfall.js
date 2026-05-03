@@ -10,11 +10,10 @@
  *   - 2m channel spacing
  *   - 10 Hz sample rate (100ms per row)
  *   - 256 rows visible = 25.6 seconds of history
- *   - Vehicle at 45 mph ≈ 1 channel/tick → diagonal crosses ~256 channels in view
+ *   - Vehicle at 45 mph ≈ 1 channel/tick → diagonal slope depends on horizontal zoom
  */
 
 const HISTORY_ROWS = 256;
-const INITIAL_VIEW_CHANNELS = 600;
 
 // Precomputed jet colormap LUT — 512 entries for smooth gradients
 const LUT_SIZE = 512;
@@ -60,7 +59,7 @@ export function initWaterfall(canvasId, data) {
   const totalChannels = data.channels.length;
 
   let viewStart = 0;
-  let viewEnd = Math.min(INITIAL_VIEW_CHANNELS, totalChannels);
+  let viewEnd = totalChannels;
   const buffer = new Float32Array(totalChannels * HISTORY_ROWS);
   let currentRow = 0;
   let hoveredChannel = null;
