@@ -45,6 +45,7 @@
         </div>
       </div>
       <aside id="sidebar">
+        <div id="sidebar-data-stack" class="sidebar-data-stack">
         <section id="stats-panel">
           <h2>Live Stats</h2>
           <div class="stat-cards">
@@ -96,12 +97,24 @@
             </p>
           </div>
         </section>
+        </div>
         <section id="event-feed">
           <h2>Event Feed</h2>
           <ul id="event-list"></ul>
         </section>
       </aside>
     </main>
+    <nav id="mobile-tabbar" class="mobile-tabbar" aria-label="Switch panel" hidden>
+      <button type="button" class="mobile-tab" data-mobile-tab="map" aria-selected="true">
+        <span class="mobile-tab-label">Map</span>
+      </button>
+      <button type="button" class="mobile-tab" data-mobile-tab="data" aria-selected="false">
+        <span class="mobile-tab-label">Data</span>
+      </button>
+      <button type="button" class="mobile-tab" data-mobile-tab="feed" aria-selected="false">
+        <span class="mobile-tab-label">Feed</span>
+      </button>
+    </nav>
   </div>
   <script type="module" src="./src/main.js"></script>
 </body>
