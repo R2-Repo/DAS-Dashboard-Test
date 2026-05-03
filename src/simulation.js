@@ -488,7 +488,6 @@ export function createSimulation(data, targets) {
     updateMapAnomalies(targets.map, anomalyFeatures);
 
     targets.ui.updateStats(vehicles, anomalies, {
-      sampleRateHz: MS_PER_S / TICK_MS,
       simTimeS: tickCount * (TICK_MS / MS_PER_S),
     });
 
@@ -684,7 +683,7 @@ export function createSimulation(data, targets) {
     clearVehicleCallouts(targets.map);
     updateMapVehicles(targets.map, []);
     updateMapAnomalies(targets.map, []);
-    targets.ui.updateStats(vehicles, anomalies, { sampleRateHz: MS_PER_S / TICK_MS, simTimeS: 0 });
+    targets.ui.updateStats(vehicles, anomalies, { simTimeS: 0 });
   }
 
   function applyQuickFleet() {
@@ -739,7 +738,7 @@ export function createSimulation(data, targets) {
     plotFocusChannel = null;
     intervalId = setInterval(tick, TICK_MS);
     targets.ui.updateChannelCount(totalChannels);
-    targets.ui.updateStats(vehicles, anomalies, { sampleRateHz: MS_PER_S / TICK_MS, simTimeS: 0 });
+    targets.ui.updateStats(vehicles, anomalies, { simTimeS: 0 });
   }
 
   const api = {

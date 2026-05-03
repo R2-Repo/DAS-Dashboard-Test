@@ -8,10 +8,10 @@
  * Display levels adapt per frame from the newest row (min–max stretch) so
  * background noise stays in cool colors while vehicles use the warm end of the scale.
  *
- * Real DAS physics:
+ * Sim / display (not interrogator PRF):
  *   - 2m channel spacing
- *   - 10 Hz sample rate (100ms per row)
- *   - 256 rows visible = 25.6 seconds of history
+ *   - One waterfall row per sim tick (TICK_MS in simulation.js, currently 100ms)
+ *   - 256 rows visible = 25.6s of history at that tick
  *   - Vehicle at 45 mph ≈ 1 channel/tick → diagonal slope depends on horizontal zoom
  */
 

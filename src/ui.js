@@ -34,8 +34,6 @@ export function initUI() {
     el('stat-down').textContent = wbCount;
     el('stat-anomalies').textContent = anomalies.length;
 
-    const hz = meta.sampleRateHz ?? 10;
-    el('stat-sample-rate').textContent = `${hz} Hz`;
     el('stat-sim-time').textContent = formatSimTime(meta.simTimeS ?? 0);
   }
 

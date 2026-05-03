@@ -81,13 +81,13 @@ The preprocessing script will:
 
 ## DAS Physics Model
 
-The simulation is calibrated to real-world DAS parameters:
+The simulation uses **2 m** channel spacing and a **100 ms** sim tick (one waterfall row per tick — a browser-lab choice, not interrogator PRF):
 
 | Parameter | Value |
 |-----------|-------|
 | Channel spacing | 2 m |
-| Sample rate | 10 Hz (100ms per waterfall row) |
-| Waterfall history | 256 rows (25.6 seconds) |
+| Sim tick / waterfall row | 100 ms (`TICK_MS` in `src/simulation.js`) |
+| Waterfall history | 256 rows (25.6 s at 100 ms/tick) |
 | Speed → slope | 45 mph ≈ 1 channel/tick |
 | Vehicle signal width | 1–3 channels (car) / 2–4 channels (truck) |
 | Default view | 600 channels (~1.2 km) |
