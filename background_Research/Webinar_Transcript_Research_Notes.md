@@ -153,13 +153,34 @@ The transcript repeatedly ties **interpretation and amplitude** to **install phy
 
 ---
 
-## 10. Glossary (transcript-aligned)
+## 10. Implementation backlog (action items for this app)
+
+Prioritized ideas derived from the webinar and from how operators actually read DAS UIs. Use as a roadmap; not all items require real DAS data.
+
+| Priority | Action | Why (webinar lesson) | Likely touchpoints |
+|----------|--------|----------------------|-------------------|
+| P0 | **Label axes and convention** — fiber distance vs time, scroll direction | Mixed conventions confused interpretation; experts still need explicit axes | `waterfall.js`, `index.html` / `styles.css`, tooltip copy |
+| P0 | **Copy / help: “X = distance along fiber”** and **direction = signed motion in channel order** | Stakeholders intuit road chainage; fiber zigzags and jumps at junctions | `ui.js`, README or in-app help only if you already have a help surface |
+| P1 | **Vertical markers at fiber crossings** on waterfall (and optional map highlight) | Junctions are where tracks “appear” / “vanish”; marks the honest discontinuity | `fiber_crossings.geojson`, `waterfall.js`, `map.js`, `data-loader.js` |
+| P1 | **Vehicle-class styling** — thicker / higher-contrast traces for heavy vehicles, lighter for cars | Operators read trucks vs cars from line weight as much as from speed | `simulation.js`, waterfall draw path |
+| P1 | **Coupling variation along channel** from preprocess metadata (side-of-road, offset, optional “poor segment” flags) | Amplitude and clarity varied by cover, depth, lateral distance — not flat noise | `preprocess_fiber.py` output, `fiber_channels.json` schema, `simulation.js` |
+| P2 | **Optional “energy emphasis” preset** (e.g. traffic band vs stronger low-frequency emphasis) | Waterfall is band-summed; different events dominate different bands | `simulation.js` or row-generation params; small UI control if desired |
+| P2 | **Congestion / queue patterns** in sim — bunching, backward stop-wave, stationary gaps | Distinctive real-world queue signatures, not only globally slower vehicles | `simulation.js` |
+| P2 | **Alert / threshold UX** — if you add alarms, state that **visible ≠ detected** | Small vehicles visible on plot were missed by large-event tuned detectors | `ui.js`, any future alert module |
+| P3 | **Non-vehicle event shapes** for demos (avalanche-style blob, fixed-location vertical smear for idling) | Forensics use different shapes than diagonal vehicles | `simulation.js`, anomaly paths |
+| P3 | **Clock / replay sync note** when pairing external video or logs | Presenters noted small time skew vs video | docs or replay UI |
+
+**Out of scope for a first pass (unless requirements change):** full automatic lane assignment from DAS alone; perfect map orthorectification everywhere.
+
+---
+
+## 11. Glossary (transcript-aligned)
 
 | Term | Meaning in the webinar |
 |------|-------------------------|
 | **DAS** | Distributed acoustic sensing; vibration-sensitive dynamic strain read along fiber via coherent backscatter. |
 | **Interrogator** | Hut equipment that launches pulses and receives backscatter. |
-| **Waterfall** | Time–distance image of **band-summed** acoustic intensity; new time at top, scrolling down. |
+| **Waterfall** | Time–distance image of **band-summed** acoustic intensity; scrolling time convention varies by UI; see §5. |
 | **Spectrum / slice** | Higher-dimensional views used for detector design and forensics. |
 
 ---
