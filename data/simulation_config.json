@@ -1,12 +1,12 @@
 {
   "route_id": "SR-190",
   "route_name": "Big Cottonwood Canyon",
-  "channel_count": 8676,
+  "channel_count": 10296,
   "channel_spacing_m": 2.0,
-  "fiber_length_m": 17351.2,
-  "milepost_start": 8.0,
-  "milepost_end": 14.49,
-  "crossing_count": 5,
+  "fiber_length_m": 20591.0,
+  "milepost_start": 1.91,
+  "milepost_end": 14.47,
+  "crossing_count": 140,
   "simulation_tick_ms": 500,
   "vehicle_spawn_interval_ticks": 6,
   "max_vehicles": 10
