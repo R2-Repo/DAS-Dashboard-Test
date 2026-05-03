@@ -85,25 +85,24 @@
         </section>
         <section id="traffic-control-panel" class="traffic-control-panel">
           <h2>Fleet &amp; map</h2>
-          <p class="traffic-control-intro" id="traffic-map-hint">
-            Double-click the map to add a vehicle (snapped to road). Click a vehicle to select; drag the marker to reposition. Pan: right-drag or two fingers.
-          </p>
+          <p class="traffic-control-intro" id="traffic-map-hint"></p>
+          <div id="vehicle-palette" class="vehicle-palette" aria-label="Add vehicles to the map">
+            <span class="vehicle-palette-title">Add vehicle</span>
+            <div class="vehicle-palette-chips" role="group" aria-label="Vehicle types">
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="bicycle" title="Bicycle">Bike</button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="motorcycle" title="Motorcycle">Moto</button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="car" title="Car">Car</button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="truck" title="Truck">Truck</button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="semi_truck" title="Semi truck">Semi</button>
+            </div>
+            <p id="vehicle-palette-touch-hint" class="vehicle-palette-touch-hint" hidden></p>
+          </div>
           <div class="traffic-control-actions">
             <button type="button" id="btn-demo-fleet" class="lab-btn">Load demo fleet</button>
             <button type="button" id="btn-clear-fleet" class="lab-btn lab-btn-muted">Clear all</button>
             <button type="button" id="btn-rockslide" class="lab-btn lab-btn-hazard">Simulate rock slide</button>
           </div>
           <div class="fleet-editor">
-            <label class="fleet-field">
-              <span>Add on map (double-click)</span>
-              <select id="fleet-add-type-select">
-                <option value="bicycle">Bicycle</option>
-                <option value="motorcycle">Motorcycle</option>
-                <option value="car" selected>Car</option>
-                <option value="truck">Truck</option>
-                <option value="semi_truck">Semi truck</option>
-              </select>
-            </label>
             <label class="fleet-field">
               <span>Desired speed (mph)</span>
               <input type="number" id="fleet-speed-input" min="0" max="85" step="1" value="38" disabled />

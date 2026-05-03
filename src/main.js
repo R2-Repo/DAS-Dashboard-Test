@@ -8,6 +8,7 @@ import { initWaterfall } from './waterfall.js';
 import { createSimulation } from './simulation.js';
 import { initUI } from './ui.js';
 import { loadData } from './data-loader.js';
+import { createVehiclePalette } from './vehicle-palette.js';
 
 registerSW({ immediate: true });
 
@@ -24,14 +25,18 @@ async function boot() {
   sim.syncFleetPanel();
 
   map.on('load', () => {
-    setupTrafficSimulatorMapInteractions(map, sim);
+    const paletteRoot = document.getElementById('vehicle-palette');
+    const palette = createVehiclePalette({ map, sim, paletteRoot });
+    setupTrafficSimulatorMapInteractions(map, sim, {
+      tryConsumeMapClick: (e) => palette.tryConsumeMapClick(e),
+    });
   });
 
   const mapHint = document.getElementById('traffic-map-hint');
   if (mapHint) {
     mapHint.textContent = sim.isRoadOk()
-      ? 'Double-click the map to add a vehicle (snapped to SR-190). Click a marker to select; drag the marker to reposition. Pan: right-drag or two fingers.'
-      : 'Road centerlines are unavailable: vehicles follow fiber index. Double-click map to add; drag markers to move along the fiber.';
+      ? 'Drag a vehicle type from the palette onto the map — it snaps to the nearest SR-190 lane. On touch: tap a type, then tap the map. Click a 3D block to select; drag to move. Pan: right-drag or two fingers.'
+      : 'Drag a type onto the map (snaps to fiber). On touch: tap a type, then tap the map. Click a block to select; drag to move.';
   }
 
   document.getElementById('btn-demo-fleet')?.addEventListener('click', () => {
@@ -54,10 +59,6 @@ async function boot() {
     if (Number.isFinite(mph)) sim.setVehicleDesiredSpeed(id, mph);
     sim.setVehicleType(id, type);
     sim.syncFleetPanel();
-  });
-
-  document.getElementById('fleet-add-type-select')?.addEventListener('change', (e) => {
-    sim.setDefaultVehicleType(e.target.value);
   });
 
   document.getElementById('fleet-table-body')?.addEventListener('click', (e) => {

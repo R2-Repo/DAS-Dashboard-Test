@@ -103,11 +103,6 @@ export function initUI() {
       typeSelect.disabled = !selected;
       if (selected) typeSelect.value = selected.vehicleType;
     }
-
-    const addType = el('fleet-add-type-select');
-    if (addType && sim.getDefaultVehicleType) {
-      addType.value = sim.getDefaultVehicleType();
-    }
     if (applyBtn) applyBtn.disabled = !selected;
   }
 

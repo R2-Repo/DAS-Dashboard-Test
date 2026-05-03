@@ -14,10 +14,9 @@
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { vehicleSpec } from './vehicle-model.js';
+import { VEHICLE_HIT_LAYERS } from './map-constants.js';
 
 const TERRAIN_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
-
-const VEHICLE_HIT_LAYERS = ['vehicle-blocks-fill', 'vehicle-blocks-outline'];
 
 function vehicleTypeLabel(type) {
   const s = vehicleSpec(type);
@@ -202,11 +201,12 @@ function addVehicleLayers(map) {
 }
 
 /**
- * Map interaction for the traffic simulator: click vehicle to select, double-click empty
- * road to add, drag selected vehicle (left button / one finger). Pan with right/middle
- * mouse or two-finger touch.
+ * Map interaction: click vehicle to select; drag vehicle to reposition (pan: right-drag / two fingers).
+ * Adding vehicles is done via the sidebar palette (drag-drop or touch place mode).
  */
-export function setupTrafficSimulatorMapInteractions(map, sim) {
+export function setupTrafficSimulatorMapInteractions(map, sim, options = {}) {
+  const { tryConsumeMapClick } = options;
+
   let dragging = false;
 
   function vehicleFeatureAtPoint(e) {
@@ -215,6 +215,8 @@ export function setupTrafficSimulatorMapInteractions(map, sim) {
   }
 
   map.on('click', (e) => {
+    if (tryConsumeMapClick?.(e)) return;
+
     const feat = vehicleFeatureAtPoint(e);
     if (feat) {
       sim.setSelectedVehicleId(feat.properties.id);
@@ -223,12 +225,6 @@ export function setupTrafficSimulatorMapInteractions(map, sim) {
     }
     sim.setSelectedVehicleId(null);
     sim.syncFleetPanel?.();
-  });
-
-  map.on('dblclick', (e) => {
-    e.preventDefault();
-    const v = sim.addVehicleNearLngLat(e.lngLat.lng, e.lngLat.lat);
-    if (v) sim.syncFleetPanel?.();
   });
 
   map.on('mousedown', (e) => {

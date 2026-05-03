@@ -251,6 +251,65 @@ html, body {
   padding: 0 0.75rem 0.5rem;
 }
 
+.vehicle-palette {
+  padding: 0 0.75rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.vehicle-palette-title {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.vehicle-palette-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.palette-chip {
+  flex: 1 1 auto;
+  min-width: 3.2rem;
+  padding: 0.4rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: grab;
+  user-select: none;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.palette-chip:hover {
+  border-color: var(--accent);
+  background: var(--bg-card-hover);
+}
+
+.palette-chip:active {
+  cursor: grabbing;
+  transform: scale(0.98);
+}
+
+.palette-chip-pending {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.vehicle-palette-touch-hint {
+  font-size: 0.65rem;
+  color: var(--accent);
+  margin-top: 0.45rem;
+  line-height: 1.35;
+}
+
 .traffic-control-actions {
   display: flex;
   flex-direction: column;
