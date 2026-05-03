@@ -180,6 +180,26 @@ function buildCurvaturePerM(points) {
   return curv;
 }
 
+/** Reduce single-point curvature spikes from coarse vertices on a 2 m resample. */
+function smoothCurvatureMovingAverage(curv, radius) {
+  const n = curv.length;
+  if (n < 1 || radius < 1) return;
+  const tmp = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let sum = 0;
+    let cnt = 0;
+    for (let j = -radius; j <= radius; j++) {
+      const k = i + j;
+      if (k >= 0 && k < n) {
+        sum += curv[k];
+        cnt++;
+      }
+    }
+    tmp[i] = cnt > 0 ? sum / cnt : curv[i];
+  }
+  curv.set(tmp);
+}
+
 export function buildRoadMotionModel(roadGeojson, channels) {
   const lanes = lanePolylinesFromRoad(roadGeojson);
   const out = {};
@@ -194,6 +214,7 @@ export function buildRoadMotionModel(roadGeojson, channels) {
     const { points, cumDistM } = resamplePolyline(coords, SAMPLE_SPACING_M);
     const channelAlong = buildChannelAlong(points, channels);
     const curvature = buildCurvaturePerM(points);
+    smoothCurvatureMovingAverage(curvature, 3);
     const totalM = cumDistM[cumDistM.length - 1];
 
     const nCh = channels.length;
