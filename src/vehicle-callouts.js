@@ -1,16 +1,16 @@
 /**
  * User-placed vehicle callouts: MapLibre markers with viewport pitch/rotation (upright on screen),
- * screen-space offsets to reduce overlap, pole length scales with zoom and terrain clearance hints.
+ * screen-space offsets to reduce overlap, pole from flag down to vehicle scales with zoom.
  */
 import maplibregl from 'maplibre-gl';
 import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
 
 const MARKERS = new Map();
 
-/** Base pole length in CSS px before zoom scaling. */
-const BASE_POLE_PX = 56;
+/** Base pole length in CSS px before zoom scaling (flag sits above the vehicle). */
+const BASE_POLE_PX = 92;
 /** Extra pole length per zoom level below reference (px). */
-const POLE_ZOOM_EXTRA_PX = 8;
+const POLE_ZOOM_EXTRA_PX = 10;
 const POLE_ZOOM_REF = 12.5;
 const RIDGE_EXTRA_POLE_PX = 32;
 /** When terrain between vehicle and flag rises this much above chord (m), add pole pixels. */
@@ -48,7 +48,7 @@ function buildEl(id, laneKey, speedMph) {
   line2.textContent = `${dir} · ${Math.round(speedMph)} mph`;
 
   flag.append(line1, line2);
-  root.append(pole, flag);
+  root.append(flag, pole);
   return root;
 }
 
@@ -74,18 +74,6 @@ function terrainRidgeExtraPx(map, vehicleLng, vehicleLat, flagLng, flagLat) {
   if (gm != null && Number.isFinite(gm)) ridge = Math.max(0, gm - chord);
   if (ridge <= RIDGE_LIFT_THRESHOLD_M) return 0;
   return Math.min(RIDGE_EXTRA_POLE_PX, Math.round((ridge - RIDGE_LIFT_THRESHOLD_M) * 0.55));
-}
-
-function flagAnchorLngLat(vehicleLng, vehicleLat, bearingDeg, offsetM) {
-  const br = ((bearingDeg % 360) + 360) % 360;
-  const rad = (br * Math.PI) / 180;
-  const cosφ = Math.cos((vehicleLat * Math.PI) / 180);
-  const dLon = (offsetM * Math.sin(rad)) / (111320 * Math.max(0.25, Math.abs(cosφ)));
-  const dLat = (offsetM * Math.cos(rad)) / 111320;
-  return {
-    lng: vehicleLng + dLon,
-    lat: vehicleLat + dLat,
-  };
 }
 
 function measureFlagBox(el) {
@@ -209,14 +197,8 @@ export function syncVehicleCallouts(map, vehicles) {
     }
 
     const el = m.getElement();
-    const bearing = typeof v.mapBearingDeg === 'number' && Number.isFinite(v.mapBearingDeg)
-      ? v.mapBearingDeg
-      : 0;
-    const zoom = map.getZoom();
-    const alongM = 48 + Math.max(0, 12 - zoom) * 12;
-    const anchor = flagAnchorLngLat(v.lon, v.lat, bearing, alongM);
-    const ridgePx = terrainRidgeExtraPx(map, v.lon, v.lat, anchor.lng, anchor.lat);
-    m.setLngLat([anchor.lng, anchor.lat]);
+    const ridgePx = terrainRidgeExtraPx(map, v.lon, v.lat, v.lon, v.lat);
+    m.setLngLat([v.lon, v.lat]);
 
     const polePx = poleLengthPx(map, ridgePx);
     layoutItems.push({ id: v.id, el, polePx });
