@@ -292,6 +292,27 @@ export function curvatureAtRoadDistance(lane, roadDistM) {
 }
 
 /**
+ * Maximum curvature (1/m) along the lane within `lookAheadM` meters ahead in travel direction.
+ * Used to slow vehicles before sharp bends (lookahead), not only at the vehicle centroid.
+ */
+export function maxCurvatureAhead(lane, roadDistM, lookAheadM, fwd) {
+  if (!lane?.curvature?.length || !lane?.cumDistM?.length) return 0;
+  const maxS = lane.cumDistM[lane.cumDistM.length - 1];
+  const s0 = Math.max(0, Math.min(maxS, roadDistM));
+  const s1 = Math.max(0, Math.min(maxS, s0 + fwd * lookAheadM));
+  const lo = Math.min(s0, s1);
+  const hi = Math.max(s0, s1);
+  const i0 = Math.max(0, Math.floor(roadDistanceToSampleIndex(lane, lo)));
+  const i1 = Math.min(lane.curvature.length - 1, Math.ceil(roadDistanceToSampleIndex(lane, hi)));
+  let maxK = 0;
+  for (let i = i0; i <= i1; i++) {
+    const k = lane.curvature[i];
+    if (k > maxK) maxK = k;
+  }
+  return maxK;
+}
+
+/**
  * Closest point on one resampled lane polyline to (lon, lat), in WGS84 and along-road meters.
  */
 export function nearestPointOnLane(lane, lon, lat) {

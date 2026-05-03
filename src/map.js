@@ -14,7 +14,6 @@
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
-import { vehicleSpec } from './vehicle-model.js';
 import { VEHICLE_HIT_LAYERS } from './map-constants.js';
 
 const TERRAIN_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
@@ -32,11 +31,6 @@ const ESRI_ATTRIBUTION =
   + '(<a href="https://goto.arcgisonline.com/maps/World_Imagery" target="_blank" rel="noopener">World Imagery</a>, '
   + '<a href="https://goto.arcgisonline.com/maps/Reference/World_Transportation" target="_blank" rel="noopener">Transportation</a>, '
   + '<a href="https://goto.arcgisonline.com/maps/Reference/World_Boundaries_and_Places" target="_blank" rel="noopener">Boundaries</a>)';
-
-function vehicleTypeLabel(type) {
-  const s = vehicleSpec(type);
-  return s.label;
-}
 
 export function initMap(containerId, data) {
   const bounds = unionBounds([
@@ -300,30 +294,12 @@ function addVehicleLayers(map) {
     },
   });
 
-  const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false });
-
-  function bindHover(layerId) {
-    map.on('mouseenter', layerId, (e) => {
-      map.getCanvas().style.cursor = 'pointer';
-      const props = e.features[0].properties;
-      const laneLabel = props.lane === 'eb' ? 'EB (up canyon)' : props.lane === 'wb' ? 'WB (down canyon)' : '';
-      const typeLabel = vehicleTypeLabel(props.type);
-      popup
-        .setLngLat(e.lngLat)
-        .setHTML(`
-        <strong>${typeLabel}</strong> ${props.id}<br/>
-        ${laneLabel} &bull; ${props.speed} mph<br/>
-        MP ${props.milepost}
-      `)
-        .addTo(map);
-    });
-    map.on('mouseleave', layerId, () => {
-      map.getCanvas().style.cursor = '';
-      popup.remove();
-    });
-  }
-
-  bindHover('vehicle-blocks-fill');
+  map.on('mouseenter', 'vehicle-blocks-fill', () => {
+    map.getCanvas().style.cursor = 'pointer';
+  });
+  map.on('mouseleave', 'vehicle-blocks-fill', () => {
+    map.getCanvas().style.cursor = '';
+  });
 }
 
 /**

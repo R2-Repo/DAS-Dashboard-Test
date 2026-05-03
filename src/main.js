@@ -18,6 +18,9 @@ async function boot() {
   const waterfall = initWaterfall('waterfall-canvas', data);
   const ui = initUI();
   const sim = createSimulation(data, { map, waterfall, ui });
+  waterfall.setPlotChannelPickCallback?.((channelIndex) => {
+    sim.focusMapOnChannel(channelIndex);
+  });
 
   initResponsiveLayout(map, waterfall);
 

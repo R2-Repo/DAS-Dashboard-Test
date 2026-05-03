@@ -5,11 +5,11 @@
 
 export const DEFAULT_IDM = {
   maxAccelMps2: 1.8,
-  comfortableDecelMps2: 2.0,
-  jamDistanceM: 3.0,
-  timeHeadwayS: 1.3,
+  comfortableDecelMps2: 2.4,
+  jamDistanceM: 4.5,
+  timeHeadwayS: 1.55,
   deltaExponent: 4,
-  minBumperGapM: 0.5,
+  minBumperGapM: 0.6,
 };
 
 import { vehicleLengthM } from './vehicle-model.js';
