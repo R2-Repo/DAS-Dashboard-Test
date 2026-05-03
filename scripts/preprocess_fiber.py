@@ -5,7 +5,9 @@ Input (data/raw/; auto-filled from UDOT files in data/ when present):
   - fiber.geojson    — fiber optic cable segments (may be disconnected/unordered)
   - road.geojson     — road centerline(s); WB+EB lines merged when both UDOT exports exist
   - mileposts.geojson — milepost points; `milepost` added from `Measure` when needed
-  - crossings.geojson — (optional) known fiber-road crossing points
+  - crossings.geojson — (optional) authoritative fiber-road crossing points; when this
+    file exists and has Point features, those are used instead of auto-detected
+    side-of-road crossings (avoids inflated counts from noisy centerline geometry)
 
 Output (data/):
   - fiber_route.geojson   — single continuous ordered fiber LineString
@@ -275,6 +277,70 @@ def interpolate_milepost(point_lon, point_lat, mp_features):
     return round(mp1 * (d2 / total) + mp2 * (d1 / total), 2)
 
 
+def nearest_channel_index(lon, lat, channel_records):
+    """Index of the channel sample closest to (lon, lat), and distance in meters."""
+    best_i = 0
+    best_d = float("inf")
+    for i, ch in enumerate(channel_records):
+        d = haversine(lon, lat, ch["lon"], ch["lat"])
+        if d < best_d:
+            best_d = d
+            best_i = i
+    return best_i, best_d
+
+
+def _mark_crossing_channels(channel_records, center_i, crossing_id_str):
+    """Tag a short span of channels around a crossing (matches auto-detect behavior)."""
+    for j in range(max(0, center_i - 2), min(len(channel_records), center_i + 3)):
+        channel_records[j]["crossing_flag"] = True
+        channel_records[j]["crossing_id"] = crossing_id_str
+
+
+def crossings_from_reference_points(ref_features, channel_records):
+    """Build crossing records from curated Point features; snap each to nearest channel."""
+    crossings = []
+    for feat in ref_features:
+        geom = feat.get("geometry") or {}
+        if geom.get("type") != "Point":
+            continue
+        coord = geom["coordinates"]
+        plon, plat = float(coord[0]), float(coord[1])
+        props = feat.get("properties") or {}
+
+        ch_i, _dist = nearest_channel_index(plon, plat, channel_records)
+        ch = channel_records[ch_i]
+
+        crossing_id = props.get("crossing_id") or props.get("id") or props.get("OBJECTID")
+        if crossing_id is not None:
+            crossing_id = str(crossing_id)
+        else:
+            crossing_id = f"xing_{len(crossings) + 1:03d}"
+
+        mp = ch["milepost"]
+        for key in ("milepost", "Measure", "MEASURE", "measure", "MILEPOST", "Milepost"):
+            if key in props and props[key] is not None:
+                try:
+                    mp = float(props[key])
+                except (TypeError, ValueError):
+                    pass
+                break
+
+        rec = {
+            "crossing_id": crossing_id,
+            "channel_id": ch["channel_id"],
+            "lon": plon,
+            "lat": plat,
+            "milepost": mp,
+        }
+        for k, v in props.items():
+            if k not in rec and v is not None:
+                rec[k] = v
+        crossings.append(rec)
+        _mark_crossing_channels(channel_records, ch_i, crossing_id)
+
+    return crossings
+
+
 def detect_crossings(channel_records, threshold_m=CROSSING_THRESHOLD_M):
     """Detect fiber-road crossings where side-of-road changes."""
     crossings = []
@@ -284,19 +350,18 @@ def detect_crossings(channel_records, threshold_m=CROSSING_THRESHOLD_M):
         curr_side = channel_records[i]["side_of_road"]
         if prev_side != curr_side and prev_side != "on_road" and curr_side != "on_road":
             crossing_id += 1
+            xing_id = f"xing_{crossing_id:03d}"
             mid_lon = (channel_records[i - 1]["lon"] + channel_records[i]["lon"]) / 2
             mid_lat = (channel_records[i - 1]["lat"] + channel_records[i]["lat"]) / 2
             crossings.append({
-                "crossing_id": f"xing_{crossing_id:03d}",
+                "crossing_id": xing_id,
                 "channel_id": channel_records[i]["channel_id"],
                 "lon": mid_lon,
                 "lat": mid_lat,
                 "milepost": channel_records[i]["milepost"],
             })
 
-            for j in range(max(0, i - 2), min(len(channel_records), i + 3)):
-                channel_records[j]["crossing_flag"] = True
-                channel_records[j]["crossing_id"] = f"xing_{crossing_id:03d}"
+            _mark_crossing_channels(channel_records, i, xing_id)
 
     return crossings
 
@@ -362,9 +427,24 @@ def main():
             "road_segment_id": f"seg_{seg_idx:04d}",
         })
 
-    # Step 4: Detect crossings
-    print("Detecting fiber-road crossings...")
-    crossings = detect_crossings(channel_records)
+    # Step 4: Crossings — prefer curated `data/raw/crossings.geojson` when it has points
+    crossings_path = os.path.join(RAW_DIR, "crossings.geojson")
+    ref_point_features = []
+    if os.path.isfile(crossings_path):
+        try:
+            xing_raw = load_geojson(crossings_path)
+            for feat in xing_raw.get("features", []):
+                if (feat.get("geometry") or {}).get("type") == "Point":
+                    ref_point_features.append(feat)
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"WARNING: could not read crossings.geojson ({e}); falling back to auto-detect")
+
+    if ref_point_features:
+        print(f"Using {len(ref_point_features)} curated crossing(s) from crossings.geojson (skipping auto-detect)")
+        crossings = crossings_from_reference_points(ref_point_features, channel_records)
+    else:
+        print("Detecting fiber-road crossings from side-of-road changes...")
+        crossings = detect_crossings(channel_records)
     print(f"Found {len(crossings)} crossings")
 
     # Write outputs
