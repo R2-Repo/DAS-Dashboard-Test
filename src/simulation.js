@@ -11,7 +11,7 @@ import {
   curvatureAtRoadDistance,
   roadForwardSignForDirection,
   lonLatAtRoadDistance,
-  nearestPointOnLanes,
+  nearestPointOnLanesPrefer,
   travelBearingDegAtRoadDistance,
   bearingDegClockwiseFromNorthLonLat,
   clampChannelPosToFiber,
@@ -109,6 +109,7 @@ export function createSimulation(data, targets) {
   const noiseState = new Float32Array(totalChannels);
   let noiseSeed = Math.random() * 1000;
   let defaultVehicleType = 'car';
+  let defaultPlacementLane = 'auto';
 
   function vehicleById(id) {
     return vehicles.find((v) => v.id === id) ?? null;
@@ -325,7 +326,7 @@ export function createSimulation(data, targets) {
         }
 
         const spec = vehicleSpec(v.vehicleType);
-        const mapDims = mapVehicleFootprintDims(spec);
+        const mapDims = mapVehicleFootprintDims(spec, { userPlaced: v.userPlaced });
         const geom = buildVehicleFootprintPolygon(
           lon,
           lat,
@@ -336,7 +337,8 @@ export function createSimulation(data, targets) {
         const sel = v.id === selectedVehicleId;
         const laneTint =
           v.laneKey === 'eb' ? LANE_ROUTE_COLOR_HEX.eb : LANE_ROUTE_COLOR_HEX.wb;
-        const baseFillHex = mixRgbWithHex(spec.color, laneTint, roadOk ? 0.38 : 0);
+        const laneMix = roadOk ? (v.userPlaced ? 0.72 : 0.38) : 0;
+        const baseFillHex = mixRgbWithHex(spec.color, laneTint, laneMix);
         const fillColor = rgbaFromHex(baseFillHex, sel ? 0.96 : 0.82);
         const outlineColor = sel ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.42)';
 
@@ -417,6 +419,7 @@ export function createSimulation(data, targets) {
       currentMilepost: 0,
       dead: false,
       userLock: false,
+      userPlaced: Boolean(opts.userPlaced),
     };
     vehicles.push(v);
     targets.waterfall.scrollChannelIntoView(channelPos);
@@ -444,6 +447,7 @@ export function createSimulation(data, targets) {
       currentMilepost: 0,
       dead: false,
       userLock: false,
+      userPlaced: Boolean(opts.userPlaced),
     };
     vehicles.push(v);
     targets.waterfall.scrollChannelIntoView(cp);
@@ -452,7 +456,8 @@ export function createSimulation(data, targets) {
 
   function placeVehicleAtLngLat(lng, lat, opts = {}) {
     if (!roadOk) return false;
-    const snap = nearestPointOnLanes(laneEb, laneWb, lng, lat);
+    const prefer = opts.placementLane ?? 'auto';
+    const snap = nearestPointOnLanesPrefer(laneEb, laneWb, lng, lat, prefer);
     if (!snap || snap.distanceM > LAB_SNAP_MAX_M) return false;
     const id = opts.vehicleId;
     const existing = id ? vehicleById(id) : null;
@@ -481,6 +486,7 @@ export function createSimulation(data, targets) {
     const v = spawnUserVehicleAtRoad(snap.laneKey, roadM, {
       forceSpeed: speed,
       vehicleType: vtype,
+      userPlaced: true,
     });
     return !!v;
   }
@@ -518,9 +524,10 @@ export function createSimulation(data, targets) {
       vehicleType: normalizeVehicleType(opts.vehicleType ?? defaultVehicleType),
     };
     if (roadOk) {
-      const snap = nearestPointOnLanes(laneEb, laneWb, lng, lat);
+      const prefer = merged.placementLane ?? 'auto';
+      const snap = nearestPointOnLanesPrefer(laneEb, laneWb, lng, lat, prefer);
       if (!snap || snap.distanceM > LAB_SNAP_MAX_M) return null;
-      const v = spawnUserVehicleAtRoad(snap.laneKey, snap.roadDistM, merged);
+      const v = spawnUserVehicleAtRoad(snap.laneKey, snap.roadDistM, { ...merged, userPlaced: true });
       if (v) setSelectedVehicleId(v.id);
       return v;
     }
@@ -538,7 +545,7 @@ export function createSimulation(data, targets) {
     }
     if (best < 0) return null;
     const dir = merged.direction || (Math.random() > 0.5 ? 'up_canyon' : 'down_canyon');
-    const v = spawnUserVehicleLegacy(best, dir, merged);
+    const v = spawnUserVehicleLegacy(best, dir, { ...merged, userPlaced: true });
     if (v) setSelectedVehicleId(v.id);
     return v;
   }
@@ -579,7 +586,10 @@ export function createSimulation(data, targets) {
   function setVehicleDesiredSpeed(id, mph) {
     const v = vehicleById(id);
     if (!v) return false;
-    v.desiredSpeedMph = Math.max(0, Math.min(85, mph));
+    const clamped = Math.max(0, Math.min(85, mph));
+    v.desiredSpeedMph = clamped;
+    v.speedMph = clamped;
+    v.channelsPerTick = mphToChannelsPerTick(clamped);
     return true;
   }
 
@@ -629,9 +639,20 @@ export function createSimulation(data, targets) {
     setDefaultVehicleType: (t) => {
       defaultVehicleType = normalizeVehicleType(t);
     },
+    getDefaultPlacementLane: () => defaultPlacementLane,
+    setDefaultPlacementLane: (lane) => {
+      if (lane === 'eb' || lane === 'wb' || lane === 'auto') defaultPlacementLane = lane;
+    },
     getDragVehicleId: () => dragVehicleId,
     setDragVehicleId: (id) => {
+      for (const v of vehicles) {
+        v.userLock = false;
+      }
       dragVehicleId = id;
+      if (id) {
+        const v = vehicleById(id);
+        if (v) v.userLock = true;
+      }
     },
     moveVehicleToLngLat,
     releaseDragLocks,

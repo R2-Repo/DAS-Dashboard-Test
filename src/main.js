@@ -32,12 +32,28 @@ async function boot() {
   sim.start();
   sim.syncFleetPanel();
 
+  const defaultLane = sim.getDefaultPlacementLane?.() ?? 'auto';
+  document.querySelectorAll('[data-placement-lane]').forEach((b) => {
+    b.classList.toggle('placement-lane-btn-active', b.getAttribute('data-placement-lane') === defaultLane);
+  });
+
   const mapHint = document.getElementById('traffic-map-hint');
   if (mapHint) {
     mapHint.textContent = sim.isRoadOk()
-      ? 'Drag an icon onto the map (snaps to SR-190). Touch: tap an icon, then tap the map. Select a vehicle on the map to edit speed; drag to move.'
+      ? 'Choose Auto, EB, or WB for drops, then drag a vehicle onto the map (or touch: pick type, tap map). Dropped vehicles are larger and color-coded by lane. Select a vehicle to set target speed; drag to reposition.'
       : 'Drag an icon onto the map (snaps to fiber). Touch: tap an icon, then tap the map.';
   }
+
+  document.querySelector('.placement-lane-group')?.addEventListener('click', (e) => {
+    const btn = e.target.closest?.('[data-placement-lane]');
+    if (!btn) return;
+    const lane = btn.getAttribute('data-placement-lane');
+    if (lane !== 'auto' && lane !== 'eb' && lane !== 'wb') return;
+    sim.setDefaultPlacementLane(lane);
+    document.querySelectorAll('[data-placement-lane]').forEach((b) => {
+      b.classList.toggle('placement-lane-btn-active', b.getAttribute('data-placement-lane') === lane);
+    });
+  });
 
   document.getElementById('btn-demo-fleet')?.addEventListener('click', () => {
     sim.applyQuickFleet();
@@ -48,12 +64,48 @@ async function boot() {
     sim.syncFleetPanel();
   });
 
-  document.getElementById('fleet-apply-btn')?.addEventListener('click', () => {
+  function applySelectedVehicleSpeed() {
     const id = sim.getSelectedVehicleId();
     if (!id) return;
     const mph = parseFloat(document.getElementById('fleet-speed-input')?.value ?? '38');
     if (Number.isFinite(mph)) sim.setVehicleDesiredSpeed(id, mph);
     sim.syncFleetPanel();
+  }
+
+  document.getElementById('fleet-apply-btn')?.addEventListener('click', () => {
+    applySelectedVehicleSpeed();
+  });
+
+  const speedSlider = document.getElementById('fleet-speed-slider');
+  const speedValueEl = document.getElementById('fleet-speed-value');
+  const speedInput = document.getElementById('fleet-speed-input');
+
+  speedSlider?.addEventListener('input', () => {
+    const id = sim.getSelectedVehicleId();
+    if (!id) return;
+    const mph = Number(speedSlider.value);
+    if (!Number.isFinite(mph)) return;
+    if (speedInput) speedInput.value = String(Math.round(mph));
+    if (speedValueEl) speedValueEl.textContent = String(Math.round(mph));
+    speedSlider.setAttribute('aria-valuetext', `${Math.round(mph)} miles per hour`);
+    sim.setVehicleDesiredSpeed(id, mph);
+    sim.syncFleetPanel();
+  });
+
+  speedInput?.addEventListener('change', () => {
+    applySelectedVehicleSpeed();
+  });
+
+  speedInput?.addEventListener('input', () => {
+    const id = sim.getSelectedVehicleId();
+    if (!id) return;
+    const mph = parseFloat(speedInput.value);
+    if (!Number.isFinite(mph)) return;
+    if (speedSlider) {
+      speedSlider.value = String(Math.max(0, Math.min(85, Math.round(mph))));
+      speedSlider.setAttribute('aria-valuetext', `${Math.round(mph)} miles per hour`);
+    }
+    if (speedValueEl) speedValueEl.textContent = String(Math.round(Math.max(0, Math.min(85, mph))));
   });
 
   document.getElementById('fleet-type-inline')?.addEventListener('click', (e) => {

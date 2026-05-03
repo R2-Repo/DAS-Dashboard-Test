@@ -324,6 +324,22 @@ export function nearestPointOnLanes(laneEb, laneWb, lon, lat) {
   return { laneKey: 'wb', ...b };
 }
 
+/**
+ * Snap to a specific lane, or whichever centerline is closer when `laneKey` is `auto`.
+ * @param {'auto' | 'eb' | 'wb'} laneKey
+ */
+export function nearestPointOnLanesPrefer(laneEb, laneWb, lon, lat, laneKey) {
+  if (laneKey === 'eb') {
+    const a = nearestPointOnLane(laneEb, lon, lat);
+    return a ? { laneKey: 'eb', ...a } : null;
+  }
+  if (laneKey === 'wb') {
+    const b = nearestPointOnLane(laneWb, lon, lat);
+    return b ? { laneKey: 'wb', ...b } : null;
+  }
+  return nearestPointOnLanes(laneEb, laneWb, lon, lat);
+}
+
 export function bearingDegClockwiseFromNorthLonLat(lon0, lat0, lon1, lat1) {
   const br = bearingRad([lon0, lat0], [lon1, lat1]);
   const degEofN = (br * 180) / Math.PI;
