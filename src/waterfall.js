@@ -13,6 +13,8 @@
  *   - One waterfall row per sim tick (TICK_MS in simulation.js, currently 100ms)
  *   - 256 rows visible = 25.6s of history at that tick
  *   - Vehicle at 45 mph ≈ 1 channel/tick → diagonal slope depends on horizontal zoom
+ *   - Zoom: mouse wheel (focal zoom); Shift+wheel / Ctrl+wheel widen or narrow the window.
+ *     Double-click does not change zoom (avoids accidental extreme zoom + loss of contrast).
  */
 
 const HISTORY_ROWS = 256;
@@ -115,7 +117,7 @@ export function initWaterfall(canvasId, data, options = {}) {
   let wfTouchPan = null; // { pointerId, lastClientX }
   let wfPinch = null; // { idA, idB, dist0, range0, centerCh }
 
-  /** Defer single-click so double-click zoom does not also trigger map focus. */
+  /** Defer single-click so a quick second click does not move the map twice. */
   let plotPickTimer = null;
 
   function setHighlightChannel(ch) {
@@ -283,28 +285,6 @@ export function initWaterfall(canvasId, data, options = {}) {
     }
   }
 
-  /** Double-click: zoom in around pointer (repeatable). */
-  function zoomIntoClientX(clientX) {
-    const range = viewEnd - viewStart;
-    if (range <= 0) return;
-    const focal = floatChannelFromClientX(clientX);
-    if (focal === null) return;
-    const newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(range, Math.round(range * 0.42)));
-    const frac = (viewEnd - 1 - focal) / range;
-    let newEnd = focal + 1 + frac * newRange;
-    let newStart = newEnd - newRange;
-    if (newStart < 0) {
-      newStart = 0;
-      newEnd = Math.min(totalChannels, newStart + newRange);
-    }
-    if (newEnd > totalChannels) {
-      newEnd = totalChannels;
-      newStart = Math.max(0, newEnd - newRange);
-    }
-    viewStart = newStart;
-    viewEnd = newEnd;
-  }
-
   function schedulePlotChannelPick(clientX) {
     if (!plotChannelPickCallback) return;
     if (plotPickTimer) window.clearTimeout(plotPickTimer);
@@ -337,13 +317,6 @@ export function initWaterfall(canvasId, data, options = {}) {
       applyWheelZoomAtClientX(e.clientX, e.deltaY, e.shiftKey);
     }
   }, { passive: false });
-
-  canvas.addEventListener('dblclick', (e) => {
-    e.preventDefault();
-    cancelScheduledPlotPick();
-    wfPanPickSuppressed = true;
-    zoomIntoClientX(e.clientX);
-  });
 
   canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button === 0) {
@@ -510,18 +483,24 @@ export function initWaterfall(canvasId, data, options = {}) {
     const chanRange = viewEnd - viewStart;
     const rowH = height / HISTORY_ROWS;
 
-    // Autoscale from the *visible* channel window only. Global min/max would crush
-    // contrast when zoomed in if a vehicle sits just outside the view (plot looked black).
+    // Autoscale from the visible channel window and full visible history (all rows).
+    // Using only the newest row made extreme zoom (few channels) look black when that row
+    // was flat noise while older rows still had vehicle diagonals.
     let vmin = Infinity;
     let vmax = -Infinity;
-    const newestBufRow = (currentRow - 1 + HISTORY_ROWS * 2) % HISTORY_ROWS;
-    const newestOff = newestBufRow * totalChannels;
     const ch0 = Math.max(0, viewStart);
     const ch1 = Math.min(totalChannels, viewEnd);
-    for (let i = ch0; i < ch1; i++) {
-      const v = buffer[newestOff + i];
-      if (v < vmin) vmin = v;
-      if (v > vmax) vmax = v;
+    const chSpan = ch1 - ch0;
+    // When zoomed far out, subsample channels so render stays light (~O(rows × ~800)).
+    const chStride = chSpan * HISTORY_ROWS > 450_000 ? Math.max(1, Math.ceil(chSpan / 800)) : 1;
+    for (let row = 0; row < HISTORY_ROWS; row++) {
+      const bufRow = (currentRow - 1 - row + HISTORY_ROWS * 2) % HISTORY_ROWS;
+      const rowOff = bufRow * totalChannels;
+      for (let i = ch0; i < ch1; i += chStride) {
+        const v = buffer[rowOff + i];
+        if (v < vmin) vmin = v;
+        if (v > vmax) vmax = v;
+      }
     }
     if (!Number.isFinite(vmin) || !Number.isFinite(vmax) || vmax <= vmin + 1e-8) {
       vmin = 0;
