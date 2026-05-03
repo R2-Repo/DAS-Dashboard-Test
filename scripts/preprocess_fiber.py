@@ -1,16 +1,16 @@
 """
 Preprocess raw GIS data into clean datasets for the DAS Canyon Dashboard.
 
-Input (data/raw/; auto-filled from UDOT files in data/ when present):
-  - fiber.geojson    — fiber optic cable segments (may be disconnected/unordered)
-  - road.geojson     — road centerline(s); WB+EB lines merged when both UDOT exports exist
-  - mileposts.geojson — milepost points; `milepost` added from `Measure` when needed
-  - crossings.geojson — authoritative fiber–road crossing locations (centerline points); when present, automation is skipped
+Input (canonical filenames in data/):
+  - SR-190 Fiber.geojson — fiber path (may be disconnected/unordered)
+  - SR-190 Centerline WB Down Cyn.geojson / SR-190 Centerline EB Up Cyn.geojson — at least one required; both merged for analysis
+  - Milepost Linear Measure (LM) Tenth.geojson — `Measure` → `milepost` at preprocess time
+  - Fiber Road Crossings.geojson — optional authoritative crossing Points (skips heuristic detection)
 
 Output (data/):
   - fiber_route.geojson   — single continuous ordered fiber LineString
   - fiber_channels.json   — channel lookup table
-  - fiber_crossings.geojson — crossing points (from crossings.geojson when present; else side-of-road heuristic)
+  - fiber_crossings.geojson — crossing points (from Fiber Road Crossings.geojson when present; else side-of-road heuristic)
   - road.geojson          — road centerline (copied)
   - mileposts.geojson     — mileposts (copied)
   - simulation_config.json — config derived from the data extents
@@ -19,7 +19,6 @@ Output (data/):
 import json
 import math
 import os
-import shutil
 import sys
 
 CHANNEL_SPACING_M = 2.0
@@ -27,11 +26,10 @@ CHANNEL_SPACING_M = 2.0
 CHANNEL_CROSSING_RADIUS_M = 15.0
 EARTH_RADIUS_M = 6371000
 
-RAW_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 DATA_DIR = OUT_DIR
 
-# Final UDOT exports in `data/` are synced into `data/raw/` under the names this script expects.
+# Canonical UDOT deliverables (single source of truth under data/).
 REAL_GIS_FILES = {
     "fiber": "SR-190 Fiber.geojson",
     "mileposts": "Milepost Linear Measure (LM) Tenth.geojson",
@@ -104,38 +102,46 @@ def ensure_milepost_on_features(geojson):
             props["milepost"] = 0.0
 
 
-def sync_udot_sources_into_raw():
-    """Copy UDOT deliverables from `data/` into `data/raw/` when those files exist."""
-    os.makedirs(RAW_DIR, exist_ok=True)
-    copied = []
-
-    def copy_if_exists(src_name, dest_name):
-        src = os.path.join(DATA_DIR, src_name)
-        if not os.path.isfile(src):
-            return
-        dest = os.path.join(RAW_DIR, dest_name)
-        shutil.copy2(src, dest)
-        copied.append(dest_name)
-
-    copy_if_exists(REAL_GIS_FILES["fiber"], "fiber.geojson")
-    copy_if_exists(REAL_GIS_FILES["mileposts"], "mileposts.geojson")
-    copy_if_exists(REAL_GIS_FILES["crossings"], "crossings.geojson")
-
+def load_udot_inputs():
+    """Load fiber, mileposts, merged road centerlines, and optional crossings from data/."""
+    fiber_path = os.path.join(DATA_DIR, REAL_GIS_FILES["fiber"])
+    mp_path = os.path.join(DATA_DIR, REAL_GIS_FILES["mileposts"])
+    xing_path = os.path.join(DATA_DIR, REAL_GIS_FILES["crossings"])
     wb = os.path.join(DATA_DIR, REAL_GIS_FILES["road_wb"])
     eb = os.path.join(DATA_DIR, REAL_GIS_FILES["road_eb"])
+
+    for p, label in [(fiber_path, "fiber"), (mp_path, "mileposts")]:
+        if not os.path.isfile(p):
+            print(f"ERROR: Missing {label} file:\n  {p}")
+            sys.exit(1)
+
+    fiber_data = load_geojson(fiber_path)
+    mp_data = load_geojson(mp_path)
+
     road_features = []
     for p in (wb, eb):
         if os.path.isfile(p):
-            data = load_geojson(p)
-            road_features.extend(data.get("features", []))
-    if road_features:
-        merged = {"type": "FeatureCollection", "features": road_features}
-        with open(os.path.join(RAW_DIR, "road.geojson"), "w") as f:
-            json.dump(merged, f)
-        copied.append("road.geojson")
+            road_features.extend(load_geojson(p).get("features", []))
+    if not road_features:
+        print("ERROR: Need at least one road centerline GeoJSON:")
+        print(f"  {wb}")
+        print(f"  {eb}")
+        sys.exit(1)
+    road_data = {"type": "FeatureCollection", "features": road_features}
 
-    if copied:
-        print(f"Synced UDOT GIS into {RAW_DIR}: {', '.join(copied)}")
+    xing_data = None
+    if os.path.isfile(xing_path):
+        xing_data = load_geojson(xing_path)
+
+    print(f"Fiber: {fiber_path}")
+    print(f"Mileposts: {mp_path}")
+    print(f"Road centerlines: {[p for p in (wb, eb) if os.path.isfile(p)]}")
+    if xing_data is not None:
+        print(f"Crossings: {xing_path} ({len(extract_crossing_points(xing_data))} point(s))")
+    else:
+        print(f"Crossings: (none at {xing_path}; will use heuristic if applicable)")
+
+    return fiber_data, road_data, mp_data, xing_data
 
 
 def stitch_segments(segments):
@@ -378,20 +384,7 @@ def detect_crossings(channel_records):
 def main():
     print("=== DAS Canyon Dashboard — Fiber Preprocessing ===\n")
 
-    sync_udot_sources_into_raw()
-
-    fiber_path = os.path.join(RAW_DIR, "fiber.geojson")
-    road_path = os.path.join(RAW_DIR, "road.geojson")
-    mp_path = os.path.join(RAW_DIR, "mileposts.geojson")
-
-    for p, name in [(fiber_path, "fiber"), (road_path, "road"), (mp_path, "mileposts")]:
-        if not os.path.exists(p):
-            print(f"ERROR: {name} file not found at {p}")
-            sys.exit(1)
-
-    fiber_data = load_geojson(fiber_path)
-    road_data = load_geojson(road_path)
-    mp_data = load_geojson(mp_path)
+    fiber_data, road_data, mp_data, xing_data = load_udot_inputs()
     ensure_milepost_on_features(mp_data)
 
     print(f"Loaded {len(fiber_data['features'])} fiber segments")
@@ -437,9 +430,7 @@ def main():
         })
 
     # Step 4: Crossings — use authoritative GeoJSON points when available
-    crossings_path = os.path.join(RAW_DIR, "crossings.geojson")
-    if os.path.isfile(crossings_path):
-        xing_data = load_geojson(crossings_path)
+    if xing_data is not None:
         crossing_pts = extract_crossing_points(xing_data)
         if crossing_pts:
             print(
@@ -451,11 +442,11 @@ def main():
             )
             print(f"Defined {len(crossings)} crossing location(s) for map + sim")
         else:
-            print("crossings.geojson has no Point features; falling back to side-of-road detection...")
+            print("Crossings file has no Point features; falling back to side-of-road detection...")
             crossings = detect_crossings(channel_records)
             print(f"Found {len(crossings)} crossings (heuristic)")
     else:
-        print("No crossings.geojson; detecting fiber-road crossings from geometry...")
+        print("No crossings file; detecting fiber-road crossings from geometry...")
         crossings = detect_crossings(channel_records)
         print(f"Found {len(crossings)} crossings (heuristic)")
 

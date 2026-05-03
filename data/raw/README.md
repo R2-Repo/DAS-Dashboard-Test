@@ -1,25 +1,15 @@
-# Raw GIS Data
+# GIS inputs (optional scratch)
 
-Place your raw GIS datasets here. The preprocessing script (`scripts/preprocess_fiber.py`) expects:
+The app and `scripts/preprocess_fiber.py` read **only** the canonical UDOT filenames in **`data/`** (see that folder). Nothing in this directory is required for a normal build.
 
-| File | Description | Format |
-|------|-------------|--------|
-| `fiber.geojson` | Fiber optic cable path (may be multiple disconnected segments) | GeoJSON LineString/MultiLineString |
-| `road.geojson` | SR-190 road centerline(s); may contain multiple LineStrings (WB + EB) | GeoJSON LineString |
-| `mileposts.geojson` | Milepost point features | GeoJSON Point with `milepost`, or UDOT `Measure` (copied to `milepost` at preprocess time) |
-| `crossings.geojson` | **Authoritative** fiber–road crossing locations (points on the centerline where the fiber crosses). When this file has Point features, the preprocessor uses them only and does **not** infer crossings from GIS geometry. | GeoJSON Point |
+| Path | Purpose |
+|------|---------|
+| `../sample_generated/` | Output of `python3 scripts/generate_sample_data.py` (gitignored). Copy files into `data/` only if you want to experiment with synthetic geometry. |
 
-When the final UDOT exports live in `data/` (`SR-190 Fiber.geojson`, both centerline files, `Milepost Linear Measure (LM) Tenth.geojson`, `Fiber Road Crossings.geojson`), running the script copies them into this folder and merges the two centerlines into `road.geojson` before processing.
-
-Run the preprocessing script from the project root:
+To regenerate processed assets after changing GIS under `data/`:
 
 ```bash
 python3 scripts/preprocess_fiber.py
 ```
 
-This will produce processed files in `data/`:
-- `fiber_route.geojson` — single continuous ordered fiber line
-- `fiber_channels.json` — channel lookup table
-- `fiber_crossings.geojson` — crossing points (your `crossings.geojson` when present; otherwise inferred from side-of-road changes)
-- `road.geojson` — copy of road centerline
-- `mileposts.geojson` — copy of mileposts
+Outputs: `fiber_route.geojson`, `fiber_channels.json`, `fiber_crossings.geojson`, `road.geojson`, `mileposts.geojson`, `simulation_config.json` in `data/`.

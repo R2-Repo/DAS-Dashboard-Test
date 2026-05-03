@@ -6,7 +6,7 @@
 
 DAS (Distributed Acoustic Sensing) Canyon Dashboard for **SR-190 Big Cottonwood Canyon, Utah**. Front-end-only prototype that simulates real-world DAS monitoring of a fiber optic cable along a canyon roadway. The full design specification is in `Scope/Scope.md` — read it for domain context, data model definitions, and acceptance criteria.
 
-**Current state**: Working prototype with synthetic sample data. Real GIS data (fiber path, road centerline, mileposts) has not been added yet — the owner will push those to `data/raw/` as GeoJSON files.
+**Current state**: UDOT source GeoJSON lives in `data/`; `python3 scripts/preprocess_fiber.py` writes processed assets there. Optional synthetic data can be generated to `data/sample_generated/` (gitignored) for local experiments only.
 
 ### Tech stack
 
@@ -18,7 +18,7 @@ DAS (Distributed Acoustic Sensing) Canyon Dashboard for **SR-190 Big Cottonwood 
 | Map | MapLibre GL JS | 3D terrain via AWS Terrarium tiles (no API key) |
 | Linting | ESLint 10 | flat config in `eslint.config.js` |
 | Testing | Vitest 4 | test files in `test/` |
-| Preprocessing | Python 3.12 | stdlib only (`json`, `math`, `os`) — no pip dependencies |
+| Preprocessing | Python 3.12 | stdlib only (`json`, `math`, `os`, `sys`) — no pip dependencies |
 | Backend / DB | None | purely static frontend with simulated data |
 
 ### Repository structure
@@ -41,23 +41,20 @@ DAS (Distributed Acoustic Sensing) Canyon Dashboard for **SR-190 Big Cottonwood 
 │   ├── ui.js               ← Sidebar: stats cards, event feed
 │   └── styles.css          ← Dark theme CSS (CSS custom properties)
 ├── test/
-│   └── simulation.test.js  ← 12 tests: data integrity, waterfall logic, milepost interpolation
-├── data/                   ← Processed data (served by Vite as publicDir)
+│   └── simulation.test.js  ← Data integrity, waterfall logic, milepost checks
+├── data/                   ← Vite publicDir: UDOT source GeoJSON + processed outputs
 │   ├── icons/              ← PWA manifest icons (PNG + SVG source); copied to dist root
-│   ├── fiber_route.geojson ← Stitched continuous fiber line
-│   ├── fiber_channels.json ← Channel lookup table (8676 channels @ 2m spacing)
+│   ├── SR-190 Fiber.geojson, SR-190 Centerline *.geojson, Milepost *.geojson, Fiber Road Crossings.geojson ← inputs
+│   ├── fiber_route.geojson ← Stitched continuous fiber line (generated)
+│   ├── fiber_channels.json ← Channel lookup table (generated; size varies with fiber length)
 │   ├── fiber_crossings.geojson
 │   ├── road.geojson
 │   ├── mileposts.geojson
 │   └── simulation_config.json
-├── data/raw/               ← Raw GIS input files (sample data currently; real data TBD)
-│   ├── fiber.geojson
-│   ├── road.geojson
-│   ├── mileposts.geojson
-│   └── crossings.geojson
+├── data/raw/               ← Optional README only (no GeoJSON required)
 ├── scripts/
-│   ├── preprocess_fiber.py  ← Stitch fiber segments → channel table → crossings → side-of-road
-│   └── generate_sample_data.py ← Generate sample Big Cottonwood Canyon GeoJSON
+│   ├── preprocess_fiber.py  ← Stitch fiber → channel table → crossings → side-of-road
+│   └── generate_sample_data.py ← Optional synthetic GeoJSON → data/sample_generated/ (gitignored)
 └── Scope/
     └── Scope.md            ← Full design spec and domain research (850 lines)
 ```
@@ -73,21 +70,21 @@ DAS (Distributed Acoustic Sensing) Canyon Dashboard for **SR-190 Big Cottonwood 
 | Tests (watch) | `npm run test:watch` |
 | Build | `npm run build` |
 | Preview prod build | `npm run preview` |
-| Generate sample data | `python3 scripts/generate_sample_data.py` |
+| Generate sample data (gitignored scratch) | `python3 scripts/generate_sample_data.py` |
 | Preprocess GIS data | `python3 scripts/preprocess_fiber.py` |
 
 ### Data pipeline
 
 ```
-data/raw/*.geojson  →  python3 scripts/preprocess_fiber.py  →  data/*.json / data/*.geojson
+UDOT GeoJSON in data/  →  python3 scripts/preprocess_fiber.py  →  data/*.json / data/*.geojson (processed)
                                                                       ↓
                                                                Vite serves as publicDir
                                                                       ↓
                                                             src/data-loader.js fetches at /filename
 ```
 
-1. Raw GIS files go in `data/raw/` (fiber.geojson, road.geojson, mileposts.geojson, crossings.geojson)
-2. Run `python3 scripts/preprocess_fiber.py` to produce processed files in `data/`
+1. Keep source files in `data/` using the names `preprocess_fiber.py` expects (SR-190 Fiber, both centerlines as available, milepost LM file, optional Fiber Road Crossings).
+2. Run `python3 scripts/preprocess_fiber.py` to produce or refresh processed files in `data/`.
 3. Vite's `publicDir` is set to `data/` so JSON/GeoJSON are emitted at the site root of `dist/` (URLs are `BASE_URL + filename`, e.g. `/fiber_channels.json` locally or `/repo-name/fiber_channels.json` on project Pages).
 4. `src/data-loader.js` fetches these on page load using URLs prefixed with `getBaseUrl()` so paths stay correct when the app is hosted under a subpath (for example `https://owner.github.io/repo-name/`).
 
@@ -139,15 +136,15 @@ Vehicle speed → channels/tick: `speedMph × 0.44704 × 0.1 / 2.0`
 - **Vite host binding**: Dev server binds to `0.0.0.0:5173` so the Desktop pane browser can access it. This is configured in `vite.config.js`.
 - **Network required**: 3D terrain tiles come from AWS Terrarium (`s3.amazonaws.com/elevation-tiles-prod`), map tiles from OpenStreetMap. No API keys, but network access is required.
 - **Python preprocessing has zero pip dependencies**: It uses only `json`, `math`, `os`, `sys` from stdlib. No need to install geopandas/shapely.
-- **Sample data vs real data**: `data/raw/` currently contains **sample** GeoJSON generated by `scripts/generate_sample_data.py`. These approximate Big Cottonwood Canyon but are not real GIS data. When the owner pushes real UDOT data, re-run preprocessing.
-- **Waterfall view vs fiber length**: The fiber is ~17 km (8676 channels). The default waterfall view shows 600 channels (~1.2 km). Users can scroll (mouse wheel) and zoom (Shift + scroll) on the waterfall. If the view is too wide, diagonals appear nearly vertical.
+- **Sample data**: `python3 scripts/generate_sample_data.py` writes to `data/sample_generated/` (gitignored). Copy into `data/` only for local experiments; production uses UDOT filenames in `data/`.
+- **Waterfall view vs fiber length**: The fiber is on the order of tens of km (thousands of channels at 2 m spacing). The default waterfall view shows 600 channels (~1.2 km). Users can scroll (mouse wheel) and zoom (Shift + scroll) on the waterfall. If the view is too wide, diagonals appear nearly vertical.
 - **Waterfall pre-fill**: The buffer is pre-filled with per-channel noise at startup so the waterfall isn't blank. Pre-seeded vehicles produce immediate diagonal tracks.
 - **The `data/` directory is in `.gitignore`'s exclusion**: Processed data files ARE committed. If you regenerate them, commit the updated files.
 - **GitHub Pages base path**: Local preview of a subpath build: `GITHUB_PAGES=true GITHUB_REPOSITORY=owner/repo-name npm run build && npm run preview` (or set `VITE_BASE_URL` explicitly).
 
 ### What to work on next (from Scope.md)
 
-1. **Real GIS data integration**: Owner will push real fiber/road/milepost GeoJSON to `data/raw/`. Re-run preprocessing.
+1. **GIS updates**: Replace UDOT GeoJSON under `data/` and re-run preprocessing.
 2. **Waterfall polish**: Synchronized hover/click between map and waterfall (highlight corresponding channel/location).
 3. **Replay controls**: The play/pause/speed controls exist but replay history (last 5/15/60 min) is not yet implemented.
 4. **Layer toggles**: Road/fiber/channel/crossing visibility toggles are not yet in the UI.

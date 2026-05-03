@@ -24,8 +24,7 @@ npm run dev                            # open http://localhost:5173
 ## Architecture
 
 ```
-data/raw/        → Raw GIS inputs (fiber, road, mileposts, crossings)
-data/            → Processed data served by Vite (fiber_channels.json, etc.)
+data/            → UDOT GeoJSON sources + processed outputs (Vite publicDir)
 scripts/         → Python preprocessing (no pip deps — stdlib only)
 src/             → Frontend modules (map, waterfall, simulation, UI)
 test/            → Vitest test suite
@@ -48,25 +47,26 @@ Scope/           → Full design spec and domain research
 | Script | Purpose |
 |--------|---------|
 | `scripts/preprocess_fiber.py` | Stitch fiber segments → channel lookup table → crossings → side-of-road |
-| `scripts/generate_sample_data.py` | Generate sample Big Cottonwood Canyon GeoJSON for development |
+| `scripts/generate_sample_data.py` | Optional synthetic GeoJSON into `data/sample_generated/` (gitignored) |
 
-## Adding Real GIS Data
+## GIS inputs
 
-1. Place your GeoJSON files in `data/raw/`:
+Place UDOT exports in **`data/`** with these names (then run preprocessing):
 
-   | File | Description | Geometry |
-   |------|-------------|----------|
-   | `fiber.geojson` | Fiber optic cable path (may be disconnected segments) | LineString / MultiLineString |
-   | `road.geojson` | UDOT SR-190 road centerline | LineString |
-   | `mileposts.geojson` | Milepost points with `milepost` property (to tenths) | Point |
-   | `crossings.geojson` | (Optional) Known fiber-road crossing points | Point |
+| File | Description | Geometry |
+|------|-------------|----------|
+| `SR-190 Fiber.geojson` | Fiber path (may be disconnected segments) | LineString / MultiLineString |
+| `SR-190 Centerline WB Down Cyn.geojson` | Westbound centerline | LineString |
+| `SR-190 Centerline EB Up Cyn.geojson` | Eastbound centerline (optional but recommended) | LineString |
+| `Milepost Linear Measure (LM) Tenth.geojson` | Milepost points (`Measure` → milepost in preprocess) | Point |
+| `Fiber Road Crossings.geojson` | Optional authoritative crossing points on the centerline | Point |
 
-2. Run preprocessing:
+1. Run preprocessing:
    ```bash
    python3 scripts/preprocess_fiber.py
    ```
 
-3. Start the dashboard:
+2. Start the dashboard:
    ```bash
    npm run dev
    ```
@@ -75,9 +75,9 @@ The preprocessing script will:
 - Stitch disconnected fiber segments into a single continuous line (nearest-endpoint greedy algorithm)
 - Generate channel points every 2 meters along the fiber
 - Interpolate milepost values from your milepost point dataset
-- Compute side-of-road (north/south) relative to the road centerline
-- Detect fiber-road crossings and label nearby channels
-- Output `fiber_route.geojson`, `fiber_channels.json`, `fiber_crossings.geojson`, and `simulation_config.json`
+- Compute side-of-road (north/south) relative to the road centerline(s)
+- Use crossing Points from `Fiber Road Crossings.geojson` when present; otherwise infer crossings from geometry
+- Output `fiber_route.geojson`, `fiber_channels.json`, `fiber_crossings.geojson`, `road.geojson`, `mileposts.geojson`, and `simulation_config.json`
 
 ## DAS Physics Model
 

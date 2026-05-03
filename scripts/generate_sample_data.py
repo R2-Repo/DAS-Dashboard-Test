@@ -1,6 +1,9 @@
 """
-Generate sample GeoJSON data for Big Cottonwood Canyon (SR-190) development.
-This creates plausible sample data so the dashboard works before real GIS data is added.
+Generate synthetic GeoJSON for local experiments only.
+
+Writes to data/sample_generated/ (gitignored) using the same filenames as
+preprocess_fiber.py expects under data/. The dashboard does not read these
+files until you copy them into data/ (replacing real UDOT exports).
 """
 
 import json
@@ -146,7 +149,8 @@ def find_crossings(fiber_coords, road_coords):
 
 
 def main():
-    out_dir = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
+    # Gitignored scratch output — copy/rename into data/ only for local experiments (see data/raw/README.md).
+    out_dir = os.path.join(os.path.dirname(__file__), "..", "data", "sample_generated")
     os.makedirs(out_dir, exist_ok=True)
 
     road_geojson = {
@@ -162,7 +166,7 @@ def main():
             }
         ],
     }
-    with open(os.path.join(out_dir, "road.geojson"), "w") as f:
+    with open(os.path.join(out_dir, "SR-190 Centerline WB Down Cyn.geojson"), "w") as f:
         json.dump(road_geojson, f, indent=2)
 
     fiber_coords = offset_coords(ROAD_COORDS)
@@ -178,21 +182,21 @@ def main():
             },
         })
     fiber_geojson = {"type": "FeatureCollection", "features": fiber_features}
-    with open(os.path.join(out_dir, "fiber.geojson"), "w") as f:
+    with open(os.path.join(out_dir, "SR-190 Fiber.geojson"), "w") as f:
         json.dump(fiber_geojson, f, indent=2)
 
     mileposts_geojson = generate_mileposts(ROAD_COORDS)
-    with open(os.path.join(out_dir, "mileposts.geojson"), "w") as f:
+    with open(os.path.join(out_dir, "Milepost Linear Measure (LM) Tenth.geojson"), "w") as f:
         json.dump(mileposts_geojson, f, indent=2)
 
     crossings_geojson = find_crossings(fiber_coords, ROAD_COORDS)
-    with open(os.path.join(out_dir, "crossings.geojson"), "w") as f:
+    with open(os.path.join(out_dir, "Fiber Road Crossings.geojson"), "w") as f:
         json.dump(crossings_geojson, f, indent=2)
 
     print(f"Generated {len(fiber_features)} fiber segments")
     print(f"Generated {len(mileposts_geojson['features'])} milepost points")
     print(f"Generated {len(crossings_geojson['features'])} crossing points")
-    print(f"Files written to {out_dir}")
+    print(f"Files written to {out_dir} (gitignored; not used by the app until copied into data/)")
 
 
 if __name__ == "__main__":
