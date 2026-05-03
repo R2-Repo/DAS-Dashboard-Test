@@ -89,8 +89,13 @@ export function initWaterfall(canvasId, data, options = {}) {
 
   const crossingChannels = collectCrossingChannelIndices(data);
 
+  /** Horizontal window in channel index space (half-open [viewStart, viewEnd)). */
   let viewStart = 0;
   let viewEnd = totalChannels;
+  const defaultViewChannels = Math.min(600, totalChannels);
+  if (totalChannels > defaultViewChannels) {
+    viewEnd = defaultViewChannels;
+  }
   const buffer = new Float32Array(totalChannels * HISTORY_ROWS);
   let currentRow = 0;
   let hoveredChannel = null;
@@ -505,11 +510,15 @@ export function initWaterfall(canvasId, data, options = {}) {
     const chanRange = viewEnd - viewStart;
     const rowH = height / HISTORY_ROWS;
 
+    // Autoscale from the *visible* channel window only. Global min/max would crush
+    // contrast when zoomed in if a vehicle sits just outside the view (plot looked black).
     let vmin = Infinity;
     let vmax = -Infinity;
     const newestBufRow = (currentRow - 1 + HISTORY_ROWS * 2) % HISTORY_ROWS;
     const newestOff = newestBufRow * totalChannels;
-    for (let i = 0; i < totalChannels; i++) {
+    const ch0 = Math.max(0, viewStart);
+    const ch1 = Math.min(totalChannels, viewEnd);
+    for (let i = ch0; i < ch1; i++) {
       const v = buffer[newestOff + i];
       if (v < vmin) vmin = v;
       if (v > vmax) vmax = v;
@@ -518,7 +527,7 @@ export function initWaterfall(canvasId, data, options = {}) {
       vmin = 0;
       vmax = 0.35;
     }
-    const span = vmax - vmin;
+    const span = Math.max(vmax - vmin, 1e-8);
     const gamma = 0.58;
 
     for (let row = 0; row < HISTORY_ROWS; row++) {
