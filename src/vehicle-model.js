@@ -21,12 +21,29 @@ export const MAP_VEHICLE_MIN_WIDTH_M = 2.8;
 export const MAP_VEHICLE_MIN_HEIGHT_M = 7;
 
 /**
+ * Extra footprint scale when the map is zoomed out (small vehicles on screen otherwise).
+ * `zoom` is MapLibre zoom; reference ~12 matches default canyon overview.
+ */
+export function mapVehicleExtentBoostFromZoom(zoom) {
+  const z = Number(zoom);
+  if (!Number.isFinite(z)) return 1;
+  const ref = 12;
+  const span = 5.5;
+  const t = Math.min(1, Math.max(0, (ref - z) / span));
+  const minK = 0.88;
+  const maxK = 2.35;
+  return minK + t * (maxK - minK);
+}
+
+/**
  * @param {string | { lengthM: number; widthM: number; heightM: number }} typeOrSpec — vehicle type key or spec-like object
- * @param {{ userPlaced?: boolean }} [opts]
+ * @param {{ userPlaced?: boolean; mapExtentBoost?: number }} [opts]
  */
 export function mapVehicleFootprintDims(typeOrSpec, opts = {}) {
   const s = typeof typeOrSpec === 'string' ? vehicleSpec(typeOrSpec) : typeOrSpec;
-  const k = MAP_VEHICLE_FOOTPRINT_SCALE * (opts.userPlaced ? MAP_VEHICLE_USER_DROP_SCALE : 1);
+  const extentBoost = Number(opts.mapExtentBoost);
+  const boost = Number.isFinite(extentBoost) && extentBoost > 0 ? extentBoost : 1;
+  const k = MAP_VEHICLE_FOOTPRINT_SCALE * (opts.userPlaced ? MAP_VEHICLE_USER_DROP_SCALE : 1) * boost;
   return {
     lengthM: s.lengthM * k,
     widthM: Math.max(MAP_VEHICLE_MIN_WIDTH_M, s.widthM * k),

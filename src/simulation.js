@@ -19,6 +19,7 @@ import {
 import { stepVehicleIdm, DEFAULT_IDM } from './traffic-follow.js';
 import {
   buildVehicleFootprintPolygon,
+  mapVehicleExtentBoostFromZoom,
   mapVehicleFootprintDims,
   normalizeVehicleType,
   vehicleDasFootprint,
@@ -326,8 +327,13 @@ export function createSimulation(data, targets) {
           if (v.direction === 'down_canyon') bearingDeg = (bearingDeg + 180) % 360;
         }
 
+        v.mapBearingDeg = bearingDeg;
+
         const spec = vehicleSpec(v.vehicleType);
-        const mapDims = mapVehicleFootprintDims(spec, { userPlaced: v.userPlaced });
+        const mapDims = mapVehicleFootprintDims(spec, {
+          userPlaced: v.userPlaced,
+          mapExtentBoost: mapVehicleExtentBoostFromZoom(targets.map.getZoom()),
+        });
         const geom = buildVehicleFootprintPolygon(
           lon,
           lat,
@@ -582,7 +588,7 @@ export function createSimulation(data, targets) {
     anomalies = [];
     setSelectedVehicleId(null);
     dragVehicleId = null;
-    clearVehicleCallouts();
+    clearVehicleCallouts(targets.map);
     updateMapVehicles(targets.map, []);
     updateMapAnomalies(targets.map, []);
     targets.ui.updateStats(vehicles, anomalies, { sampleRateHz: MS_PER_S / TICK_MS, simTimeS: 0 });

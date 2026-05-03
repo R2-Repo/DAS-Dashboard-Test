@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   normalizeVehicleType,
   buildVehicleFootprintPolygon,
+  mapVehicleExtentBoostFromZoom,
   mapVehicleFootprintDims,
   vehicleLengthM,
   vehicleSpec,
@@ -44,5 +45,12 @@ describe('vehicle-model', () => {
     expect(big.lengthM).toBeGreaterThan(base.lengthM);
     expect(big.widthM).toBeGreaterThanOrEqual(base.widthM);
     expect(big.heightM).toBeGreaterThanOrEqual(base.heightM);
+  });
+
+  it('mapVehicleExtentBoostFromZoom increases footprint when zoomed out', () => {
+    const near = mapVehicleFootprintDims('car', { mapExtentBoost: mapVehicleExtentBoostFromZoom(14) });
+    const far = mapVehicleFootprintDims('car', { mapExtentBoost: mapVehicleExtentBoostFromZoom(10) });
+    expect(mapVehicleExtentBoostFromZoom(14)).toBeLessThan(mapVehicleExtentBoostFromZoom(10));
+    expect(far.lengthM).toBeGreaterThan(near.lengthM);
   });
 });
