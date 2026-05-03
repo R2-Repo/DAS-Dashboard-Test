@@ -83,10 +83,10 @@
 
 ## 5. Speed and slope on the waterfall
 
-**Convention in the webinar (Alistair’s forensic slides):** **Distance horizontal, time vertical.**
+**Convention:** Different slides use **distance horizontal** and **time vertical**; another demo described **latest data at the top** with older rows pushed down. Physics is the same either way: compare **Δdistance along fiber** to **Δtime**.
 
-- **Higher speed** → vehicle covers **more fiber distance per second** → trace moves **faster left/right** as time steps downward → visually **shallower angle** (described as **near-horizontal** for typical vehicles when a slow flood feature is contrasted).
-- **Lower speed** → **less distance per second** → **steeper** trace (more vertical-ish component relative to fast traffic).
+- **Higher speed** → **more fiber distance per unit time** → in a distance–time image this reads as a **shallower** trace relative to the time axis (the webinar literally calls fast vehicle backgrounds **“near horizontal stripes”** when contrasted with a **~2 mph** flood feature moving along the road).
+- **Lower speed** → **smaller Δdistance per Δtime** → **steeper** trace (more aligned with the time axis than fast traffic).
 - **Stopping / queue dynamics:** Traces **bend** (slope changes), **pile up**, or leave **gaps** (“stationary traffic” regions with distinctive **queue** shapes in speed-output plots). **Backward-propagating stop waves** were described in congestion.
 
 **Important:** Exact angles depend on **axis scaling** (miles per inch vs seconds per inch), chosen **frequency band**, and **coupling**. The **qualitative** rule is: **speed ↔ slope in the distance–time image**.
