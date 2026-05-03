@@ -5,6 +5,31 @@
 
 export const VEHICLE_TYPES = ['bicycle', 'motorcycle', 'car', 'truck', 'semi_truck'];
 
+/**
+ * Real vehicles are only a few meters long; at canyon overview zoom they are invisible
+ * as fill-extrusion footprints. Map rendering uses this scale (physics still uses true meters).
+ */
+export const MAP_VEHICLE_FOOTPRINT_SCALE = 2.85;
+
+/** Minimum ground footprint width (m) so narrow classes stay clickable at overview zoom. */
+export const MAP_VEHICLE_MIN_WIDTH_M = 2.8;
+
+/** Minimum extrusion height (m) so blocks read clearly against terrain and satellite. */
+export const MAP_VEHICLE_MIN_HEIGHT_M = 7;
+
+/**
+ * @param {string | { lengthM: number; widthM: number; heightM: number }} typeOrSpec — vehicle type key or spec-like object
+ */
+export function mapVehicleFootprintDims(typeOrSpec) {
+  const s = typeof typeOrSpec === 'string' ? vehicleSpec(typeOrSpec) : typeOrSpec;
+  const k = MAP_VEHICLE_FOOTPRINT_SCALE;
+  return {
+    lengthM: s.lengthM * k,
+    widthM: Math.max(MAP_VEHICLE_MIN_WIDTH_M, s.widthM * k),
+    heightM: Math.max(MAP_VEHICLE_MIN_HEIGHT_M, s.heightM * k * 1.05),
+  };
+}
+
 /** @type {Record<string, { lengthM: number; widthM: number; heightM: number; color: string; label: string; dasHalfWidthCh: number; dasStrength: number }>} */
 export const VEHICLE_SPECS = {
   bicycle: {
