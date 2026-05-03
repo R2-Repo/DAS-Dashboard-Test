@@ -133,7 +133,12 @@ function addVehicleLayer(map) {
     type: 'circle',
     source: 'vehicles',
     paint: {
-      'circle-radius': 10,
+      'circle-radius': [
+        'case',
+        ['==', ['get', 'lab'], 1],
+        14,
+        10,
+      ],
       'circle-color': [
         'match',
         ['get', 'lane'],
@@ -150,7 +155,12 @@ function addVehicleLayer(map) {
     type: 'circle',
     source: 'vehicles',
     paint: {
-      'circle-radius': 5,
+      'circle-radius': [
+        'case',
+        ['==', ['get', 'lab'], 1],
+        8,
+        5,
+      ],
       'circle-color': [
         'match',
         ['get', 'lane'],
@@ -158,7 +168,12 @@ function addVehicleLayer(map) {
         'wb', '#ffa726',
         '#bdbdbd',
       ],
-      'circle-stroke-width': 1.5,
+      'circle-stroke-width': [
+        'case',
+        ['==', ['get', 'lab'], 1],
+        2.5,
+        1.5,
+      ],
       'circle-stroke-color': '#fff',
     },
   });
@@ -181,6 +196,57 @@ function addVehicleLayer(map) {
     map.getCanvas().style.cursor = '';
     popup.remove();
   });
+}
+
+/**
+ * While `isDemoMode()` is true and `isRoadOk()` is true, drag on the map moves the lab vehicle
+ * (snap to nearest EB/WB centerline). Map pan uses two-finger touch or right/middle mouse.
+ */
+export function setupTrafficLabMapDrag(map, { isDemoMode, isRoadOk, placeDemoVehicleAtLngLat }) {
+  let dragging = false;
+
+  function isLabDragAllowed() {
+    return isDemoMode() && isRoadOk();
+  }
+
+  map.on('mousedown', (e) => {
+    if (!isLabDragAllowed()) return;
+    if (e.originalEvent.button !== 0) return;
+    dragging = true;
+    map.dragPan.disable();
+    placeDemoVehicleAtLngLat(e.lngLat.lng, e.lngLat.lat);
+    e.preventDefault();
+  });
+
+  map.on('mousemove', (e) => {
+    if (!dragging) return;
+    placeDemoVehicleAtLngLat(e.lngLat.lng, e.lngLat.lat);
+  });
+
+  function endDrag() {
+    if (!dragging) return;
+    dragging = false;
+    map.dragPan.enable();
+  }
+
+  map.on('mouseup', endDrag);
+  map.on('mouseleave', endDrag);
+
+  map.on('touchstart', (e) => {
+    if (!isLabDragAllowed()) return;
+    if (e.points.length !== 1) return;
+    dragging = true;
+    map.dragPan.disable();
+    placeDemoVehicleAtLngLat(e.lngLat.lng, e.lngLat.lat);
+  });
+
+  map.on('touchmove', (e) => {
+    if (!dragging || e.points.length !== 1) return;
+    placeDemoVehicleAtLngLat(e.lngLat.lng, e.lngLat.lat);
+  });
+
+  map.on('touchend', endDrag);
+  map.on('touchcancel', endDrag);
 }
 
 function addAnomalyLayer(map) {

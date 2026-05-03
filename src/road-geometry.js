@@ -272,3 +272,47 @@ export function curvatureAtRoadDistance(lane, roadDistM) {
   const i = Math.min(lane.curvature.length - 1, Math.max(0, Math.round(idx)));
   return lane.curvature[i];
 }
+
+/**
+ * Closest point on one resampled lane polyline to (lon, lat), in WGS84 and along-road meters.
+ */
+export function nearestPointOnLane(lane, lon, lat) {
+  if (!lane || lane.points.length < 2) return null;
+  const pts = lane.points;
+  const { cumDistM } = lane;
+  let bestDist = Infinity;
+  let bestRoadM = 0;
+  let bestLon = lon;
+  let bestLat = lat;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const den = dx * dx + dy * dy + 1e-24;
+    let t = ((lon - a[0]) * dx + (lat - a[1]) * dy) / den;
+    t = Math.max(0, Math.min(1, t));
+    const px = a[0] + t * dx;
+    const py = a[1] + t * dy;
+    const d = haversine(lon, lat, px, py);
+    if (d < bestDist) {
+      bestDist = d;
+      const segLen = segmentLengthM(a, b);
+      bestRoadM = cumDistM[i] + t * segLen;
+      bestLon = px;
+      bestLat = py;
+    }
+  }
+  return { roadDistM: bestRoadM, distanceM: bestDist, lon: bestLon, lat: bestLat };
+}
+
+/** Pick EB or WB lane whose centerline is closer to the query point. */
+export function nearestPointOnLanes(laneEb, laneWb, lon, lat) {
+  const a = nearestPointOnLane(laneEb, lon, lat);
+  const b = nearestPointOnLane(laneWb, lon, lat);
+  if (!a && !b) return null;
+  if (!a) return { laneKey: 'wb', ...b };
+  if (!b) return { laneKey: 'eb', ...a };
+  if (a.distanceM <= b.distanceM) return { laneKey: 'eb', ...a };
+  return { laneKey: 'wb', ...b };
+}
