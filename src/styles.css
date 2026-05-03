@@ -81,6 +81,16 @@ html, body {
   touch-action: none;
 }
 
+/* Wrapper for `#traffic-control-panel` in the sidebar (desktop + mobile Stats/Feed). */
+.traffic-panel-host-desktop {
+  display: block;
+}
+
+/* Mobile-only slot under the waterfall; panel is moved here in JS on the Map tab. */
+.traffic-panel-host-mobile {
+  display: none;
+}
+
 /* Sidebar */
 #sidebar {
   width: 300px;
@@ -686,7 +696,23 @@ html, body {
     display: none;
   }
 
-  #app.app-mobile-layout #sidebar.mobile-tab-map #traffic-control-panel {
+  /* Map tab: traffic lives under the waterfall in `#left-panel`; sidebar is empty. */
+  #app.app-mobile-layout #sidebar.mobile-tab-map {
+    display: none;
+  }
+
+  #app.app-mobile-layout #traffic-panel-host-mobile:not(:empty) {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  #app.app-mobile-layout #traffic-panel-host-desktop {
+    display: contents;
+  }
+
+  #app.app-mobile-layout #left-panel #traffic-control-panel {
     flex: 1 1 auto;
     min-height: 0;
     max-height: min(42vh, 300px);
@@ -760,11 +786,11 @@ html, body {
     max-height: min(42vh, 320px);
   }
 
-  #app.app-mobile-layout #sidebar.mobile-tab-map .fleet-list-wrap {
+  #app.app-mobile-layout #left-panel #traffic-control-panel .fleet-list-wrap {
     max-height: min(22vh, 180px);
   }
 
-  #app.app-mobile-layout #sidebar.mobile-tab-map .fleet-selected-panel {
+  #app.app-mobile-layout #left-panel #traffic-control-panel .fleet-selected-panel {
     flex-shrink: 0;
   }
 
