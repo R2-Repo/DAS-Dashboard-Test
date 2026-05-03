@@ -60,7 +60,7 @@ describe('traffic-follow', () => {
     };
     stepVehicleIdm(v, null, 50, 80, 1, 0.1);
     expect(v.roadDistM).toBe(500);
-    expect(v.speedMph).toBe(0);
+    expect(v.speedMph).toBe(40);
   });
 
   it('stepVehicleIdm accelerates toward free speed with no leader', () => {

@@ -188,12 +188,8 @@ function addVehicleLayers(map) {
       'fill-extrusion-height': ['get', 'height_m'],
       'fill-extrusion-base': 0,
       'fill-extrusion-color': ['get', 'fill_color'],
-      'fill-extrusion-opacity': [
-        'case',
-        ['==', ['get', 'selected'], 1],
-        0.95,
-        0.82,
-      ],
+      // Per-feature opacity is not supported on fill-extrusion (data-constant only).
+      'fill-extrusion-opacity': 0.92,
     },
   });
 
@@ -205,12 +201,7 @@ function addVehicleLayers(map) {
       'fill-extrusion-height': ['+', ['get', 'height_m'], 0.25],
       'fill-extrusion-base': ['get', 'height_m'],
       'fill-extrusion-color': ['get', 'outline_color'],
-      'fill-extrusion-opacity': [
-        'case',
-        ['==', ['get', 'selected'], 1],
-        1,
-        0.55,
-      ],
+      'fill-extrusion-opacity': 0.88,
     },
   });
 

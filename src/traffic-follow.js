@@ -126,7 +126,6 @@ export function stepVehicleIdm(
   idmParams = DEFAULT_IDM,
 ) {
   if (vehicle.userLock) {
-    vehicle.speedMph = 0;
     return;
   }
 
