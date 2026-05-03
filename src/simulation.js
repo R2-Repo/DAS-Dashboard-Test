@@ -1,6 +1,6 @@
 /**
- * DAS simulation engine — vehicles follow road centerlines (EB/WB); DAS coupling uses
- * nearest fiber channel so waterfall axes stay fiber-indexed.
+ * DAS simulation engine — vehicles follow road centerlines (EB = up canyon, WB = down canyon);
+ * nearest fiber channel couples motion to the waterfall.
  */
 
 import { updateMapVehicles, updateMapAnomalies } from './map.js';
@@ -49,6 +49,11 @@ function pickLaneKey() {
   return Math.random() > 0.5 ? 'eb' : 'wb';
 }
 
+/** Two-lane road: eastbound lane only carries up-canyon traffic; westbound only down-canyon. */
+function directionForLane(laneKey) {
+  return laneKey === 'eb' ? 'up_canyon' : 'down_canyon';
+}
+
 export function createSimulation(data, targets) {
   const { channels, road } = data;
   const totalChannels = channels.length;
@@ -80,8 +85,8 @@ export function createSimulation(data, targets) {
         const platoonSize = randomInt(2, 5);
         const laneKey = pickLaneKey();
         const lane = laneKey === 'eb' ? laneEb : laneWb;
-        const dir = Math.random() > 0.5 ? 'up_canyon' : 'down_canyon';
-        const fwd = roadForwardSignForDirection(lane, dir);
+        const direction = directionForLane(laneKey);
+        const fwd = roadForwardSignForDirection(lane, direction);
         const leadSpeed = randomInt(25, 35);
         const leaderS =
           fwd > 0
@@ -91,7 +96,6 @@ export function createSimulation(data, targets) {
           const spacingM = p * randomInt(25, 60);
           spawnVehicle(totalChannels, {
             forceLane: laneKey,
-            forceDirection: dir,
             forceSpeed: leadSpeed + (p === 0 ? 0 : randomInt(-2, 3)),
             startRoadM: Math.max(0, Math.min(lane.totalM, leaderS - spacingM * fwd)),
           });
@@ -224,7 +228,6 @@ export function createSimulation(data, targets) {
             id: v.id,
             lane: v.laneKey,
             direction: v.direction,
-            travel: v.travelClass,
             speed: Math.round(v.speedMph),
             type: v.vehicleType,
             milepost: ch.milepost.toFixed(1),
@@ -269,7 +272,7 @@ export function createSimulation(data, targets) {
 
     const laneKey = opts.forceLane || pickLaneKey();
     const lane = laneKey === 'eb' ? laneEb : laneWb;
-    const direction = opts.forceDirection || (Math.random() > 0.5 ? 'up_canyon' : 'down_canyon');
+    const direction = directionForLane(laneKey);
     const fwd = roadForwardSignForDirection(lane, direction);
 
     let speedMph;
@@ -297,9 +300,6 @@ export function createSimulation(data, targets) {
     const channelPos = roadDistanceToChannelPos(lane, roadDistM);
     const [lon, lat] = lonLatAtRoadDistance(lane, roadDistM);
 
-    const travelClass =
-      `${laneKey}_${direction === 'up_canyon' ? 'up' : 'down'}`;
-
     let signalStrength;
     if (vehicleType === 'truck') {
       signalStrength = 0.55 + Math.random() * 0.4;
@@ -311,7 +311,6 @@ export function createSimulation(data, targets) {
       id: `VEH-${String(nextVehicleId++).padStart(4, '0')}`,
       laneKey,
       direction,
-      travelClass,
       roadDistM,
       channelPos,
       lon,
@@ -350,7 +349,6 @@ export function createSimulation(data, targets) {
       id: `VEH-${String(nextVehicleId++).padStart(4, '0')}`,
       laneKey: 'eb',
       direction,
-      travelClass: `eb_${direction === 'up_canyon' ? 'up' : 'down'}`,
       channelPos: startPos,
       channelsPerTick,
       desiredSpeedMph: speedMph,
@@ -363,16 +361,15 @@ export function createSimulation(data, targets) {
 
   function start() {
     if (roadOk) {
-      for (let i = 0; i < 4; i++) {
-        const laneKey = i % 2 === 0 ? 'eb' : 'wb';
+      for (const laneKey of ['eb', 'wb']) {
         const lane = laneKey === 'eb' ? laneEb : laneWb;
-        const direction = i < 2 ? 'up_canyon' : 'down_canyon';
+        const direction = directionForLane(laneKey);
         const fwd = roadForwardSignForDirection(lane, direction);
         const roadDistM =
           fwd > 0
             ? randomInt(0, Math.floor(lane.totalM * 0.25))
             : randomInt(Math.floor(lane.totalM * 0.75), Math.floor(lane.totalM));
-        spawnVehicle(totalChannels, { forceLane: laneKey, forceDirection: direction, startRoadM: roadDistM });
+        spawnVehicle(totalChannels, { forceLane: laneKey, startRoadM: roadDistM });
       }
       for (let i = 0; i < 10; i++) {
         spawnVehicle(totalChannels);

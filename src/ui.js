@@ -33,17 +33,14 @@ export function initUI() {
     const time = new Date().toLocaleTimeString();
 
     if (type === 'vehicle') {
-      const lane = data.laneKey === 'wb' ? 'WB' : 'EB';
-      const dirLabel =
-        data.direction === 'up_canyon' ? 'up canyon \u25B2' : 'down canyon \u25BC';
-      const dirClass =
-        data.direction === 'up_canyon' ? 'up-canyon' : 'down-canyon';
+      const lane = data.laneKey === 'wb' ? 'WB (down canyon)' : 'EB (up canyon)';
+      const dirClass = data.laneKey === 'eb' ? 'up-canyon' : 'down-canyon';
       const typeLabel = data.vehicleType === 'truck' ? 'Truck' : 'Vehicle';
       li.className = dirClass;
       li.innerHTML = `
         <span class="event-time">${time}</span>
         <span class="event-type vehicle">${typeLabel}</span> ${data.id}<br/>
-        SR-190 MP ${data.currentMilepost.toFixed(1)} &bull; ${lane} &bull; ${dirLabel} &bull; ${Math.round(data.speedMph)} mph
+        SR-190 MP ${data.currentMilepost.toFixed(1)} &bull; ${lane} &bull; ${Math.round(data.speedMph)} mph
       `;
     } else if (type === 'anomaly') {
       li.className = 'anomaly';

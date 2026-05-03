@@ -6,7 +6,7 @@
  *   - Terrain: AWS Terrarium RGB elevation tiles (for 3D + hillshade)
  *
  * GIS layers on load: fiber route only (road centerline, mileposts, crossings hidden).
- * Dynamic layers updated by simulation: vehicle markers, anomaly markers.
+ * Dynamic layers updated by simulation: vehicle markers (EB = up canyon, WB = down canyon),
  *
  * Exports: initMap(), updateMapVehicles(), updateMapAnomalies()
  */
@@ -136,11 +136,9 @@ function addVehicleLayer(map) {
       'circle-radius': 10,
       'circle-color': [
         'match',
-        ['get', 'travel'],
-        'eb_up', '#66bb6a',
-        'eb_down', '#ffa726',
-        'wb_up', '#42a5f5',
-        'wb_down', '#ec407a',
+        ['get', 'lane'],
+        'eb', '#66bb6a',
+        'wb', '#ffa726',
         '#bdbdbd',
       ],
       'circle-opacity': 0.25,
@@ -155,11 +153,9 @@ function addVehicleLayer(map) {
       'circle-radius': 5,
       'circle-color': [
         'match',
-        ['get', 'travel'],
-        'eb_up', '#66bb6a',
-        'eb_down', '#ffa726',
-        'wb_up', '#42a5f5',
-        'wb_down', '#ec407a',
+        ['get', 'lane'],
+        'eb', '#66bb6a',
+        'wb', '#ffa726',
         '#bdbdbd',
       ],
       'circle-stroke-width': 1.5,
@@ -171,13 +167,12 @@ function addVehicleLayer(map) {
   map.on('mouseenter', 'vehicle-markers', (e) => {
     map.getCanvas().style.cursor = 'pointer';
     const props = e.features[0].properties;
-    const laneLabel = props.lane === 'eb' ? 'EB' : props.lane === 'wb' ? 'WB' : '';
-    const dirShort = props.direction === 'up_canyon' ? 'up' : 'down';
+    const laneLabel = props.lane === 'eb' ? 'EB (up canyon)' : props.lane === 'wb' ? 'WB (down canyon)' : '';
     popup
       .setLngLat(e.lngLat)
       .setHTML(`
         <strong>${props.type === 'truck' ? 'Truck' : 'Vehicle'}</strong> ${props.id}<br/>
-        ${laneLabel} ${dirShort} canyon &bull; ${props.speed} mph<br/>
+        ${laneLabel} &bull; ${props.speed} mph<br/>
         MP ${props.milepost}
       `)
       .addTo(map);
