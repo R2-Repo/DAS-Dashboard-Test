@@ -19,6 +19,7 @@ import {
 import { stepVehicleIdm, DEFAULT_IDM } from './traffic-follow.js';
 import {
   buildVehicleFootprintPolygon,
+  mapVehicleFootprintDims,
   normalizeVehicleType,
   vehicleDasFootprint,
   vehicleSpec,
@@ -289,7 +290,14 @@ export function createSimulation(data, targets) {
         }
 
         const spec = vehicleSpec(v.vehicleType);
-        const geom = buildVehicleFootprintPolygon(lon, lat, spec.lengthM, spec.widthM, bearingDeg);
+        const mapDims = mapVehicleFootprintDims(spec);
+        const geom = buildVehicleFootprintPolygon(
+          lon,
+          lat,
+          mapDims.lengthM,
+          mapDims.widthM,
+          bearingDeg,
+        );
         const outline = v.id === selectedVehicleId ? '#ffffff' : 'rgba(0,0,0,0.35)';
 
         return {
@@ -302,7 +310,7 @@ export function createSimulation(data, targets) {
             type: v.vehicleType,
             milepost: ch.milepost.toFixed(1),
             selected: v.id === selectedVehicleId ? 1 : 0,
-            height_m: spec.heightM,
+            height_m: mapDims.heightM,
             fill_color: spec.color,
             outline_color: outline,
           },

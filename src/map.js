@@ -6,8 +6,8 @@
  *   - Terrain: AWS Terrarium RGB elevation tiles (for 3D + hillshade)
  *
  * GIS layers on load: fiber route only (road centerline, mileposts, crossings hidden).
- * Dynamic layers: vehicles as fill-extrusion blocks (oriented rectangles on terrain),
- * anomalies as circles.
+ * Dynamic layers: anomaly pulses (below), then vehicles as fill-extrusion blocks on terrain
+ * so markers do not obscure vehicles.
  *
  * Exports: initMap(), updateMapVehicles(), updateMapAnomalies()
  */
@@ -129,8 +129,8 @@ export function initMap(containerId, data) {
 
   map.on('load', () => {
     addFiberLayer(map, data.fiberRoute);
-    addVehicleLayers(map);
     addAnomalyLayer(map);
+    addVehicleLayers(map);
   });
 
   return map;

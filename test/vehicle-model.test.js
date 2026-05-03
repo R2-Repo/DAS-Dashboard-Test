@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   normalizeVehicleType,
   buildVehicleFootprintPolygon,
+  mapVehicleFootprintDims,
   vehicleLengthM,
+  vehicleSpec,
 } from '../src/vehicle-model.js';
 
 describe('vehicle-model', () => {
@@ -25,5 +27,14 @@ describe('vehicle-model', () => {
     expect(ring.length).toBeGreaterThanOrEqual(5);
     expect(ring[0][0]).toBeCloseTo(ring[ring.length - 1][0], 8);
     expect(ring[0][1]).toBeCloseTo(ring[ring.length - 1][1], 8);
+  });
+
+  it('mapVehicleFootprintDims scales for map visibility without shrinking physics spec', () => {
+    const raw = vehicleSpec('car');
+    const m = mapVehicleFootprintDims('car');
+    expect(m.lengthM).toBeGreaterThan(raw.lengthM);
+    expect(m.widthM).toBeGreaterThanOrEqual(raw.widthM);
+    expect(m.heightM).toBeGreaterThanOrEqual(raw.heightM);
+    expect(m.widthM).toBeGreaterThanOrEqual(2.5);
   });
 });
