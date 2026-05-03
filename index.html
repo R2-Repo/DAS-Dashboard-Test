@@ -74,6 +74,28 @@
             </div>
           </div>
         </section>
+        <section id="traffic-lab-panel" class="traffic-lab-panel">
+          <h2>Traffic lab</h2>
+          <p class="traffic-lab-intro">
+            Synthetic single-vehicle runs to learn how time (vertical) and fiber channel (horizontal) relate on the waterfall. Not live DAS data.
+          </p>
+          <label class="traffic-lab-toggle">
+            <input type="checkbox" id="traffic-lab-enable" />
+            <span>Enable traffic lab</span>
+          </label>
+          <div id="traffic-lab-controls" class="traffic-lab-controls" hidden>
+            <div class="traffic-lab-presets">
+              <button type="button" id="lab-preset-eb" class="lab-btn">EB: mouth → up canyon</button>
+              <button type="button" id="lab-preset-wb" class="lab-btn">WB: top → down canyon</button>
+            </div>
+            <p id="traffic-lab-drag-hint" class="traffic-lab-hint">
+              Drag on the map to move the vehicle along the road (snapped to SR-190 centerline). Use two fingers or right-drag to pan the map.
+            </p>
+            <p id="traffic-lab-legacy-hint" class="traffic-lab-hint" hidden>
+              Road lanes are unavailable; presets use fiber-index motion. Map drag placement is disabled.
+            </p>
+          </div>
+        </section>
         <section id="event-feed">
           <h2>Event Feed</h2>
           <ul id="event-list"></ul>

@@ -1,6 +1,8 @@
 /**
  * DAS simulation engine — vehicles follow road centerlines (EB = up canyon, WB = down canyon);
  * nearest fiber channel couples motion to the waterfall.
+ *
+ * Demo (traffic lab) mode: single synthetic vehicle, optional presets, drag-to-place on the map.
  */
 
 import { updateMapVehicles, updateMapAnomalies } from './map.js';
@@ -10,6 +12,7 @@ import {
   curvatureAtRoadDistance,
   roadForwardSignForDirection,
   lonLatAtRoadDistance,
+  nearestPointOnLanes,
 } from './road-geometry.js';
 
 const CHANNEL_SPACING_M = 2.0;
@@ -20,6 +23,9 @@ const MPH_TO_MS = 0.44704;
 /** Minimum realistic speed when curvature caps velocity (mph). */
 const MIN_CURVE_SPEED_MPH = 18;
 
+/** Max distance from click to road centerline to accept drag placement (m). */
+const LAB_SNAP_MAX_M = 150;
+
 let vehicles = [];
 let anomalies = [];
 let nextVehicleId = 1;
@@ -28,6 +34,11 @@ let tickCount = 0;
 let running = true;
 let speedMultiplier = 1;
 let intervalId = null;
+
+/** When true: one lab vehicle only, no random spawns or anomalies. */
+let demoMode = false;
+/** Reference to the single vehicle in demo mode (same object as in `vehicles`). */
+let labVehicle = null;
 
 function mphToChannelsPerTick(mph) {
   const metersPerSec = mph * MPH_TO_MS;
@@ -70,11 +81,23 @@ export function createSimulation(data, targets) {
     return v.laneKey === 'eb' ? laneEb : laneWb;
   }
 
+  function syncLabVehicleList() {
+    if (!demoMode) return;
+    if (labVehicle && !labVehicle.dead) {
+      vehicles = [labVehicle];
+    } else {
+      vehicles = [];
+    }
+    anomalies = [];
+  }
+
   function tick() {
     if (!running) return;
     tickCount++;
 
-    if (roadOk) {
+    if (demoMode) {
+      syncLabVehicleList();
+    } else if (roadOk) {
       if (tickCount % randomInt(24, 48) === 0) {
         spawnVehicle(totalChannels);
       }
@@ -106,7 +129,7 @@ export function createSimulation(data, targets) {
       if (tickCount <= 50 && tickCount % 5 === 0) spawnVehicleLegacyFiber(totalChannels);
     }
 
-    if (tickCount % randomInt(300, 600) === 0 && anomalies.length < 2) {
+    if (!demoMode && tickCount % randomInt(300, 600) === 0 && anomalies.length < 2) {
       spawnAnomaly(totalChannels);
     }
 
@@ -125,7 +148,9 @@ export function createSimulation(data, targets) {
       const curv = curvatureAtRoadDistance(lane, v.roadDistM);
       const cap = curveSpeedCapMph(curv);
       let speed = Math.min(v.desiredSpeedMph, cap);
-      speed *= 0.97 + Math.random() * 0.06;
+      if (!demoMode) {
+        speed *= 0.97 + Math.random() * 0.06;
+      }
       speed = Math.max(MIN_CURVE_SPEED_MPH * 0.85, speed);
 
       v.speedMph = speed;
@@ -151,9 +176,14 @@ export function createSimulation(data, targets) {
       const ci = Math.floor(v.channelPos);
       return ci >= -10 && ci < totalChannels + 10;
     });
+    if (demoMode) {
+      labVehicle = vehicles[0] === labVehicle ? labVehicle : vehicles[0] ?? null;
+    }
 
-    for (const a of anomalies) a.ttl--;
-    anomalies = anomalies.filter((a) => a.ttl > 0);
+    if (!demoMode) {
+      for (const a of anomalies) a.ttl--;
+      anomalies = anomalies.filter((a) => a.ttl > 0);
+    }
 
     const row = new Float32Array(totalChannels);
     noiseSeed += 0.1;
@@ -190,24 +220,34 @@ export function createSimulation(data, targets) {
         } else {
           continue;
         }
-        amplitude *= 0.85 + Math.random() * 0.3;
+        if (!demoMode) {
+          amplitude *= 0.85 + Math.random() * 0.3;
+        }
         row[idx] = Math.min(1.0, row[idx] + amplitude);
       }
     }
 
-    for (const a of anomalies) {
-      const decay = Math.min(1, a.ttl / a.initialTtl);
-      const baseIntensity = a.intensity * decay;
-      for (let i = a.startChannel; i <= a.endChannel && i < totalChannels; i++) {
-        if (i < 0) continue;
-        const spatialVar = 0.3 + 0.7 * Math.abs(Math.sin(i * 0.15 + a.phase));
-        const temporalVar = 0.5 + 0.5 * Math.random();
-        row[i] = Math.min(1.0, row[i] + baseIntensity * spatialVar * temporalVar * 0.5);
+    if (!demoMode) {
+      for (const a of anomalies) {
+        const decay = Math.min(1, a.ttl / a.initialTtl);
+        const baseIntensity = a.intensity * decay;
+        for (let i = a.startChannel; i <= a.endChannel && i < totalChannels; i++) {
+          if (i < 0) continue;
+          const spatialVar = 0.3 + 0.7 * Math.abs(Math.sin(i * 0.15 + a.phase));
+          const temporalVar = 0.5 + 0.5 * Math.random();
+          row[i] = Math.min(1.0, row[i] + baseIntensity * spatialVar * temporalVar * 0.5);
+        }
       }
     }
 
     targets.waterfall.pushRow(row);
     targets.waterfall.render();
+
+    let highlightCh = null;
+    if (demoMode && labVehicle && vehicles.includes(labVehicle)) {
+      highlightCh = Math.min(Math.max(0, Math.floor(labVehicle.channelPos)), totalChannels - 1);
+    }
+    targets.waterfall.setHighlightChannel(highlightCh);
 
     const vehicleFeatures = vehicles
       .filter((v) => {
@@ -231,6 +271,7 @@ export function createSimulation(data, targets) {
             speed: Math.round(v.speedMph),
             type: v.vehicleType,
             milepost: ch.milepost.toFixed(1),
+            lab: demoMode && v === labVehicle ? 1 : 0,
           },
           geometry: { type: 'Point', coordinates: lonLat },
         };
@@ -253,11 +294,11 @@ export function createSimulation(data, targets) {
     updateMapAnomalies(targets.map, anomalyFeatures);
 
     targets.ui.updateStats(vehicles, anomalies);
-    if (tickCount % 20 === 0 && vehicles.length > 0) {
+    if (!demoMode && tickCount % 20 === 0 && vehicles.length > 0) {
       const v = vehicles[Math.floor(Math.random() * vehicles.length)];
       targets.ui.addEvent('vehicle', v);
     }
-    if (anomalies.length > 0 && tickCount % 50 === 0) {
+    if (!demoMode && anomalies.length > 0 && tickCount % 50 === 0) {
       const a = anomalies[0];
       const midCh = channels[Math.min(Math.floor((a.startChannel + a.endChannel) / 2), totalChannels - 1)];
       targets.ui.addEvent('anomaly', { ...a, milepost: midCh.milepost });
@@ -359,7 +400,101 @@ export function createSimulation(data, targets) {
     });
   }
 
-  function start() {
+  function setLabVehicleFromRoad(laneKey, roadDistM, opts = {}) {
+    const lane = laneKey === 'eb' ? laneEb : laneWb;
+    if (!lane) return false;
+    const direction = directionForLane(laneKey);
+    const speedMph = opts.forceSpeed ?? 38;
+    const vehicleType = opts.vehicleType || 'car';
+    const roadM = Math.max(0, Math.min(lane.totalM, roadDistM));
+    const channelPos = roadDistanceToChannelPos(lane, roadM);
+    const [lon, lat] = lonLatAtRoadDistance(lane, roadM);
+    const signalStrength = opts.signalStrength ?? 0.55;
+
+    labVehicle = {
+      id: `LAB-${String(nextVehicleId++).padStart(4, '0')}`,
+      laneKey,
+      direction,
+      roadDistM: roadM,
+      channelPos,
+      lon,
+      lat,
+      channelsPerTick: mphToChannelsPerTick(speedMph),
+      desiredSpeedMph: speedMph,
+      speedMph,
+      vehicleType,
+      signalStrength,
+      currentMilepost: 0,
+      dead: false,
+    };
+    vehicles = [labVehicle];
+    anomalies = [];
+    targets.waterfall.scrollChannelIntoView(channelPos);
+    return true;
+  }
+
+  /** Preset: one vehicle EB from canyon mouth, or WB from top (road-based). */
+  function applyLabPreset(preset) {
+    if (!demoMode) return false;
+    anomalies = [];
+    if (roadOk) {
+      if (preset === 'eb_up') {
+        const lane = laneEb;
+        const startM = Math.min(lane.totalM * 0.02, 80);
+        setLabVehicleFromRoad('eb', startM, { forceSpeed: 36, vehicleType: 'car', signalStrength: 0.62 });
+      } else if (preset === 'wb_down') {
+        const lane = laneWb;
+        const startM = Math.min(lane.totalM * 0.98, Math.max(0, lane.totalM - 80));
+        setLabVehicleFromRoad('wb', startM, { forceSpeed: 36, vehicleType: 'car', signalStrength: 0.62 });
+      } else {
+        return false;
+      }
+    } else {
+      labVehicle = null;
+      vehicles = [];
+      if (preset === 'eb_up') {
+        spawnVehicleLegacyFiber(totalChannels, {
+          forceDirection: 'up_canyon',
+          startAt: 0,
+          forceSpeed: 36,
+        });
+      } else if (preset === 'wb_down') {
+        spawnVehicleLegacyFiber(totalChannels, {
+          forceDirection: 'down_canyon',
+          startAt: totalChannels - 1,
+          forceSpeed: 36,
+        });
+      } else {
+        return false;
+      }
+      const v = vehicles[vehicles.length - 1];
+      v.vehicleType = 'car';
+      v.signalStrength = 0.62;
+      v.id = `LAB-${String(nextVehicleId - 1).padStart(4, '0')}`;
+      labVehicle = v;
+      vehicles = [labVehicle];
+      targets.waterfall.scrollChannelIntoView(labVehicle.channelPos);
+    }
+    return true;
+  }
+
+  /** Snap (lng, lat) to nearest lane and place the lab vehicle (demo mode, road geometry only). */
+  function placeDemoVehicleAtLngLat(lng, lat) {
+    if (!demoMode || !roadOk) return false;
+    const snap = nearestPointOnLanes(laneEb, laneWb, lng, lat);
+    if (!snap || snap.distanceM > LAB_SNAP_MAX_M) return false;
+    const prev = labVehicle;
+    const keepSpeed = prev && prev.laneKey === snap.laneKey ? prev.desiredSpeedMph : 38;
+    return setLabVehicleFromRoad(snap.laneKey, snap.roadDistM, {
+      forceSpeed: keepSpeed,
+      vehicleType: 'car',
+      signalStrength: 0.62,
+    });
+  }
+
+  function repopulateLiveTraffic() {
+    vehicles = [];
+    anomalies = [];
     if (roadOk) {
       for (const laneKey of ['eb', 'wb']) {
         const lane = laneKey === 'eb' ? laneEb : laneWb;
@@ -379,10 +514,35 @@ export function createSimulation(data, targets) {
         const dir = i % 2 === 0 ? 'up_canyon' : 'down_canyon';
         spawnVehicleLegacyFiber(totalChannels, {
           forceDirection: dir,
-          startAt: Math.floor(Math.random() * totalChannels * 0.3) + (dir === 'down_canyon' ? totalChannels * 0.5 : 0),
+          startAt:
+            Math.floor(Math.random() * totalChannels * 0.3) + (dir === 'down_canyon' ? totalChannels * 0.5 : 0),
         });
       }
     }
+  }
+
+  function setDemoMode(enabled) {
+    const next = !!enabled;
+    if (next === demoMode) return;
+    demoMode = next;
+    labVehicle = null;
+    vehicles = [];
+    anomalies = [];
+    targets.waterfall.setHighlightChannel(null);
+    if (!demoMode) {
+      repopulateLiveTraffic();
+    }
+    updateMapVehicles(targets.map, []);
+    updateMapAnomalies(targets.map, []);
+    targets.ui.updateStats(vehicles, anomalies);
+  }
+
+  function start() {
+    if (intervalId) clearInterval(intervalId);
+    demoMode = false;
+    labVehicle = null;
+    tickCount = 0;
+    repopulateLiveTraffic();
     intervalId = setInterval(tick, TICK_MS / speedMultiplier);
     targets.ui.updateChannelCount(totalChannels);
   }
@@ -405,7 +565,17 @@ export function createSimulation(data, targets) {
     intervalId = setInterval(tick, TICK_MS / speedMultiplier);
   }
 
-  return { start, play, pause, setSpeed };
+  return {
+    start,
+    play,
+    pause,
+    setSpeed,
+    setDemoMode,
+    applyLabPreset,
+    placeDemoVehicleAtLngLat,
+    isDemoMode: () => demoMode,
+    isRoadOk: () => roadOk,
+  };
 }
 
 function spawnAnomaly(totalChannels) {

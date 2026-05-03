@@ -62,6 +62,28 @@ export function initWaterfall(canvasId, data) {
   const buffer = new Float32Array(totalChannels * HISTORY_ROWS);
   let currentRow = 0;
   let hoveredChannel = null;
+  /** Traffic lab: emphasize one channel column (integer index or null). */
+  let highlightChannel = null;
+
+  function setHighlightChannel(ch) {
+    if (ch === null || ch === undefined) {
+      highlightChannel = null;
+      return;
+    }
+    const n = Math.floor(Number(ch));
+    highlightChannel = Number.isFinite(n) ? Math.max(0, Math.min(totalChannels - 1, n)) : null;
+  }
+
+  /** Pan horizontal view so channel `ch` is visible (used when lab vehicle jumps). */
+  function scrollChannelIntoView(ch) {
+    if (!Number.isFinite(ch)) return;
+    const ci = Math.max(0, Math.min(totalChannels - 1, Math.floor(ch)));
+    const range = viewEnd - viewStart;
+    if (ci >= viewStart && ci < viewEnd) return;
+    viewStart = Math.max(0, ci - Math.floor(range / 2));
+    viewEnd = Math.min(totalChannels, viewStart + range);
+    if (viewEnd - viewStart < range) viewStart = Math.max(0, viewEnd - range);
+  }
 
   // === Per-channel static noise profile ===
   // Real fiber has coupling variations, micro-bends, splice points, etc.
@@ -201,6 +223,30 @@ export function initWaterfall(canvasId, data) {
 
     ctx.putImageData(imageData, 0, 0);
 
+    // Traffic lab: dim off-channel area and draw a band at the vehicle channel
+    if (highlightChannel !== null && highlightChannel >= viewStart && highlightChannel < viewEnd) {
+      const chanRange = viewEnd - viewStart;
+      const xCenter = ((highlightChannel - viewStart) / chanRange) * width;
+      const bandPx = Math.max(14, width * 0.04);
+      const xLeft = xCenter - bandPx / 2;
+      const xRight = xCenter + bandPx / 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.42)';
+      ctx.fillRect(0, 0, Math.max(0, xLeft), height);
+      ctx.fillRect(xRight, 0, Math.max(0, width - xRight), height);
+      const grd = ctx.createLinearGradient(xCenter - bandPx / 2, 0, xCenter + bandPx / 2, 0);
+      grd.addColorStop(0, 'rgba(79,195,247,0)');
+      grd.addColorStop(0.5, 'rgba(79,195,247,0.18)');
+      grd.addColorStop(1, 'rgba(79,195,247,0)');
+      ctx.fillStyle = grd;
+      ctx.fillRect(xCenter - bandPx / 2, 0, bandPx, height);
+      ctx.strokeStyle = 'rgba(79,195,247,0.65)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(xCenter, 0);
+      ctx.lineTo(xCenter, height);
+      ctx.stroke();
+    }
+
     // Crosshair
     if (hoveredChannel !== null && hoveredChannel >= viewStart && hoveredChannel < viewEnd) {
       const x = ((hoveredChannel - viewStart) / chanRange) * width;
@@ -232,5 +278,5 @@ export function initWaterfall(canvasId, data) {
     }
   }
 
-  return { pushRow, render, channelBias, getViewRange: () => [viewStart, viewEnd] };
+  return { pushRow, render, channelBias, getViewRange: () => [viewStart, viewEnd], setHighlightChannel, scrollChannelIntoView };
 }
