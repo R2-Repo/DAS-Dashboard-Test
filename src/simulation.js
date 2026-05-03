@@ -653,14 +653,14 @@ export function createSimulation(data, targets) {
   function applyQuickFleet() {
     clearFleet();
     if (roadOk) {
-      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.08, { forceSpeed: 28, vehicleType: 'bicycle' });
-      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.065, { forceSpeed: 38, vehicleType: 'motorcycle' });
-      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.05, { forceSpeed: 34, vehicleType: 'car' });
-      spawnUserVehicleAtRoad('wb', laneWb.totalM * 0.92, { forceSpeed: 35, vehicleType: 'truck' });
-      spawnUserVehicleAtRoad('wb', laneWb.totalM * 0.88, { forceSpeed: 40, vehicleType: 'semi_truck' });
+      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.08, { forceSpeed: 28, vehicleType: 'bicycle', userPlaced: true });
+      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.065, { forceSpeed: 38, vehicleType: 'motorcycle', userPlaced: true });
+      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.05, { forceSpeed: 34, vehicleType: 'car', userPlaced: true });
+      spawnUserVehicleAtRoad('wb', laneWb.totalM * 0.92, { forceSpeed: 35, vehicleType: 'truck', userPlaced: true });
+      spawnUserVehicleAtRoad('wb', laneWb.totalM * 0.88, { forceSpeed: 40, vehicleType: 'semi_truck', userPlaced: true });
     } else {
-      spawnUserVehicleLegacy(totalChannels * 0.1, 'up_canyon', { forceSpeed: 32 });
-      spawnUserVehicleLegacy(totalChannels * 0.08, 'up_canyon', { forceSpeed: 40 });
+      spawnUserVehicleLegacy(totalChannels * 0.1, 'up_canyon', { forceSpeed: 32, vehicleType: 'car', userPlaced: true });
+      spawnUserVehicleLegacy(totalChannels * 0.08, 'up_canyon', { forceSpeed: 40, vehicleType: 'motorcycle', userPlaced: true });
     }
     setSelectedVehicleId(vehicles[0]?.id ?? null);
   }

@@ -687,8 +687,9 @@ html, body {
   }
 
   #app.app-mobile-layout #sidebar.mobile-tab-map #traffic-control-panel {
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
+    max-height: min(42vh, 300px);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     border-top: 1px solid var(--border);
@@ -732,8 +733,7 @@ html, body {
   }
 
   #app.app-mobile-layout .traffic-control-intro {
-    font-size: 0.74rem;
-    line-height: 1.45;
+    display: none;
   }
 
   #app.app-mobile-layout .vehicle-palette-chips {
@@ -758,6 +758,14 @@ html, body {
 
   #app.app-mobile-layout .fleet-list-wrap {
     max-height: min(42vh, 320px);
+  }
+
+  #app.app-mobile-layout #sidebar.mobile-tab-map .fleet-list-wrap {
+    max-height: min(22vh, 180px);
+  }
+
+  #app.app-mobile-layout #sidebar.mobile-tab-map .fleet-selected-panel {
+    flex-shrink: 0;
   }
 
   #app.app-mobile-layout .fleet-type-btn {
