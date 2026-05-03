@@ -5,6 +5,8 @@
  *   so the horizontal axis is mirrored: low milepost on the left, high on the right).
  *   Y = time (vertical, newest at top flowing downward — matches common DAS waterfall plots).
  * Colormap: standard jet — deep blue → cyan → green → yellow → orange → red.
+ * Display levels adapt per frame from the newest row (min–max stretch) so
+ * background noise stays in cool colors while vehicles use the warm end of the scale.
  *
  * Real DAS physics:
  *   - 2m channel spacing
@@ -57,6 +59,24 @@ export function initWaterfall(canvasId, data, options = {}) {
   const canvas = document.getElementById(canvasId);
   const ctx = canvas.getContext('2d');
   const totalChannels = data.channels.length;
+
+  /** Unique channel indices at fiber–road crossings (for vertical markers). */
+  const crossingChannelSet = new Set();
+  if (data.crossings && Array.isArray(data.crossings.features)) {
+    for (const f of data.crossings.features) {
+      const id = f?.properties?.channel_id;
+      if (typeof id === 'number' && Number.isFinite(id)) {
+        const ci = Math.floor(id);
+        if (ci >= 0 && ci < totalChannels) crossingChannelSet.add(ci);
+      }
+    }
+  }
+  for (const ch of data.channels) {
+    if (ch.crossing_flag && typeof ch.channel_id === 'number') {
+      crossingChannelSet.add(Math.max(0, Math.min(totalChannels - 1, ch.channel_id)));
+    }
+  }
+  const crossingChannels = [...crossingChannelSet].sort((a, b) => a - b);
 
   let viewStart = 0;
   let viewEnd = totalChannels;
@@ -128,11 +148,11 @@ export function initWaterfall(canvasId, data, options = {}) {
     }
   }
 
-  // Persistent horizontal bands (visible in all reference images)
-  for (let b = 0; b < 20; b++) {
+  // Sparse horizontal bands (coupling quirks) — keep subtle vs real vehicle diagonals
+  for (let b = 0; b < 8; b++) {
     const center = Math.floor(Math.random() * totalChannels);
     const halfWidth = 1 + Math.floor(Math.random() * 6);
-    const strength = 0.05 + Math.random() * 0.15;
+    const strength = 0.03 + Math.random() * 0.06;
     for (let d = -halfWidth; d <= halfWidth; d++) {
       const idx = center + d;
       if (idx >= 0 && idx < totalChannels) {
@@ -162,7 +182,8 @@ export function initWaterfall(canvasId, data, options = {}) {
   }
 
   function resize() {
-    const rect = canvas.parentElement.getBoundingClientRect();
+    const panel = canvas.parentElement;
+    const rect = panel?.getBoundingClientRect?.() ?? canvas.getBoundingClientRect();
     canvas.width = rect.width;
     canvas.height = rect.height;
   }
@@ -473,6 +494,22 @@ export function initWaterfall(canvasId, data, options = {}) {
     const chanRange = viewEnd - viewStart;
     const rowH = height / HISTORY_ROWS;
 
+    let vmin = Infinity;
+    let vmax = -Infinity;
+    const newestBufRow = (currentRow - 1 + HISTORY_ROWS * 2) % HISTORY_ROWS;
+    const newestOff = newestBufRow * totalChannels;
+    for (let i = 0; i < totalChannels; i++) {
+      const v = buffer[newestOff + i];
+      if (v < vmin) vmin = v;
+      if (v > vmax) vmax = v;
+    }
+    if (!Number.isFinite(vmin) || !Number.isFinite(vmax) || vmax <= vmin + 1e-8) {
+      vmin = 0;
+      vmax = 0.35;
+    }
+    const span = vmax - vmin;
+    const gamma = 0.58;
+
     for (let row = 0; row < HISTORY_ROWS; row++) {
       // Newest sample at top (row 0); ring slot about to be overwritten (currentRow) at bottom.
       const bufRow = (currentRow - 1 - row + HISTORY_ROWS * 2) % HISTORY_ROWS;
@@ -485,8 +522,8 @@ export function initWaterfall(canvasId, data, options = {}) {
         if (ch < 0 || ch >= totalChannels) continue;
 
         const raw = buffer[bufRow * totalChannels + ch];
-        // Gamma compress to keep most of the range in blues with signals popping to warm colors
-        const val = Math.pow(Math.min(1, Math.max(0, raw)), 0.65);
+        const norm = (Math.min(vmax, Math.max(vmin, raw)) - vmin) / span;
+        const val = Math.pow(Math.min(1, Math.max(0, norm)), gamma);
         const lutIdx = Math.min(LUT_SIZE - 1, Math.floor(val * (LUT_SIZE - 1)));
 
         for (let y = y0; y < y1; y++) {
@@ -525,6 +562,22 @@ export function initWaterfall(canvasId, data, options = {}) {
       ctx.stroke();
     }
 
+    // Fiber–road crossings (vertical guides)
+    if (crossingChannels.length > 0) {
+      ctx.save();
+      for (const ch of crossingChannels) {
+        if (ch < viewStart || ch >= viewEnd) continue;
+        const x = ((viewEnd - 1 - ch) / chanRange) * width;
+        ctx.strokeStyle = 'rgba(255, 193, 7, 0.22)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, 0);
+        ctx.lineTo(x + 0.5, height);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     // Crosshair
     if (hoveredChannel !== null && hoveredChannel >= viewStart && hoveredChannel < viewEnd) {
       const x = ((viewEnd - 1 - hoveredChannel) / chanRange) * width;
@@ -538,6 +591,7 @@ export function initWaterfall(canvasId, data, options = {}) {
       ctx.setLineDash([]);
     }
 
+    const bottomPad = 34;
     // Bottom axis: milepost labels
     ctx.fillStyle = 'rgba(245,248,252,0.92)';
     ctx.font = '11px monospace';
@@ -549,10 +603,37 @@ export function initWaterfall(canvasId, data, options = {}) {
     for (let i = viewStart; i < viewEnd; i += labelStep) {
       const x = ((viewEnd - 1 - i) / chanRange) * width;
       const ch = data.channels[i];
-      if (ch) ctx.fillText(`MP ${ch.milepost.toFixed(1)}`, x + 2, height - 4);
+      if (ch) ctx.fillText(`MP ${ch.milepost.toFixed(1)}`, x + 2, height - bottomPad + 14);
     }
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
+
+    // Axis captions (fiber chainage + time flow)
+    ctx.fillStyle = 'rgba(180, 186, 200, 0.88)';
+    ctx.font = '10px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Milepost along route →', width * 0.5, height - 6);
+    ctx.textAlign = 'left';
+
+    ctx.save();
+    ctx.translate(11, height * 0.52);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = 'rgba(180, 186, 200, 0.88)';
+    ctx.textAlign = 'center';
+    ctx.fillText('Time → (newest at top)', 0, 0);
+    ctx.restore();
+
+    ctx.font = '9px monospace';
+    ctx.fillStyle = 'rgba(150, 156, 172, 0.75)';
+    ctx.textAlign = 'left';
+    ctx.fillText('Horizontal = distance along fiber (not lane map)', 4, height - bottomPad - 1);
+    if (crossingChannels.length > 0) {
+      const cmsg = `Crossings: ${crossingChannels.length}`;
+      ctx.fillStyle = 'rgba(255, 193, 7, 0.45)';
+      ctx.textAlign = 'right';
+      ctx.fillText(cmsg, width - 4, height - bottomPad - 1);
+      ctx.textAlign = 'left';
+    }
 
     if (hoveredChannel !== null && data.channels[hoveredChannel]) {
       const ch = data.channels[hoveredChannel];

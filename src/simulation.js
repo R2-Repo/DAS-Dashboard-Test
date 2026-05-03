@@ -134,6 +134,14 @@ export function createSimulation(data, targets) {
   const roadOk = laneEb && laneWb && laneEb.totalM > 50 && laneWb.totalM > 50;
 
   const noiseState = new Float32Array(totalChannels);
+  /** 0–1 coupling factor from channel geometry (near road = stronger). */
+  const channelRoadCoupling = new Float32Array(totalChannels);
+  for (let i = 0; i < totalChannels; i++) {
+    const rd = channels[i]?.nearest_road_distance_m;
+    const d = typeof rd === 'number' && Number.isFinite(rd) ? Math.max(0, rd) : 6;
+    const t = Math.min(1, d / 22);
+    channelRoadCoupling[i] = Math.max(0.12, 1 - t * t);
+  }
   let noiseSeed = Math.random() * 1000;
   let defaultVehicleType = 'car';
   let defaultPlacementLane = 'auto';
@@ -305,20 +313,15 @@ export function createSimulation(data, targets) {
       noiseState[i] *= 0.97;
       const spatial =
         0.004 * Math.sin(i * 0.01 + noiseSeed) + 0.0025 * Math.sin(i * 0.037 + noiseSeed * 1.7);
-      row[i] = Math.max(
-        0,
-        channelBias[i] + noiseState[i] + spatial + Math.random() * 0.012,
-      );
+      const coup = channelRoadCoupling[i];
+      const ambient = (channelBias[i] * (0.5 + 0.5 * coup) + spatial + Math.random() * 0.012) * (0.55 + 0.45 * coup);
+      row[i] = Math.max(0, ambient + noiseState[i]);
     }
 
-    for (const v of vehicles) {
-      const center = v.channelPos;
-      const ci = Math.floor(center);
-      const frac = center - ci;
-      const { halfWidth, strength } = vehicleDasFootprint(v.vehicleType);
+    function stampVehicleEnergyAt(pos, peakStrength, halfWidth) {
+      const ci = Math.floor(pos);
+      const frac = pos - ci;
       const hw = Math.ceil(halfWidth) + 1;
-      const peakStrength = strength * (0.92 + Math.random() * 0.08);
-
       for (let d = -hw; d <= hw; d++) {
         const idx = ci + d;
         if (idx < 0 || idx >= totalChannels) continue;
@@ -333,7 +336,36 @@ export function createSimulation(data, targets) {
         } else {
           continue;
         }
-        row[idx] = Math.min(1.0, row[idx] + amplitude);
+        const roadC = channelRoadCoupling[idx];
+        row[idx] = Math.min(1.0, row[idx] + amplitude * (0.45 + 0.55 * roadC));
+      }
+    }
+
+    for (const v of vehicles) {
+      const center = v.channelPos;
+      const prev = typeof v.prevChannelPos === 'number' ? v.prevChannelPos : center;
+      v.prevChannelPos = center;
+
+      const { halfWidth, strength } = vehicleDasFootprint(v.vehicleType);
+      const mph = Math.max(0, v.speedMph);
+      const speedCoupling = 0.22 + 0.78 * Math.min(1, mph / 42);
+      const ci = Math.min(Math.max(0, Math.floor(center)), totalChannels - 1);
+      const roadC0 = channelRoadCoupling[ci];
+      let peakStrength =
+        strength * (0.92 + Math.random() * 0.08) * speedCoupling * (0.55 + 0.45 * roadC0);
+
+      const delta = center - prev;
+      const pathLen = Math.abs(delta);
+      if (pathLen < 0.02) {
+        stampVehicleEnergyAt(center, peakStrength, halfWidth);
+      } else {
+        const nSteps = Math.min(40, Math.max(2, Math.ceil(pathLen * 3 + 4)));
+        for (let s = 0; s < nSteps; s++) {
+          const u = nSteps === 1 ? 1 : s / (nSteps - 1);
+          const pos = prev + delta * u;
+          const along = 0.88 + 0.12 * (1 - Math.abs(u - 0.5) * 2);
+          stampVehicleEnergyAt(pos, peakStrength * along, halfWidth);
+        }
       }
     }
 
@@ -490,6 +522,7 @@ export function createSimulation(data, targets) {
       direction,
       roadDistM: roadM,
       channelPos,
+      prevChannelPos: channelPos,
       lon,
       lat,
       channelsPerTick: mphToChannelsPerTick(speedMph),
@@ -518,6 +551,7 @@ export function createSimulation(data, targets) {
       direction,
       roadDistM: cp * CHANNEL_SPACING_M,
       channelPos: cp,
+      prevChannelPos: cp,
       lon: ch.lon,
       lat: ch.lat,
       channelsPerTick: mphToChannelsPerTick(speedMph),
@@ -550,10 +584,12 @@ export function createSimulation(data, targets) {
       existing.laneKey = snap.laneKey;
       existing.direction = directionForLane(snap.laneKey);
       existing.roadDistM = roadM;
-      existing.channelPos = clampChannelPosToFiber(
+      const newCp = clampChannelPosToFiber(
         roadDistanceToChannelPos(lane, roadM),
         totalChannels,
       );
+      existing.prevChannelPos = existing.channelPos;
+      existing.channelPos = newCp;
       const ll = lonLatAtRoadDistance(lane, roadM);
       existing.lon = ll[0];
       existing.lat = ll[1];
@@ -590,6 +626,7 @@ export function createSimulation(data, targets) {
       }
     }
     if (best < 0) return false;
+    existing.prevChannelPos = existing.channelPos;
     existing.channelPos = best;
     existing.roadDistM = best * CHANNEL_SPACING_M;
     existing.lon = channels[best].lon;

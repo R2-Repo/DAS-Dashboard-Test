@@ -16,7 +16,13 @@
           <div id="map"></div>
         </div>
         <div id="waterfall-container">
-          <canvas id="waterfall-canvas"></canvas>
+          <div class="waterfall-panel">
+            <div class="waterfall-header" aria-hidden="false">
+              <span class="waterfall-title">DAS waterfall</span>
+              <span class="waterfall-meta">10 Hz · band-summed intensity (sim)</span>
+            </div>
+            <canvas id="waterfall-canvas" aria-label="DAS waterfall: fiber distance versus time"></canvas>
+          </div>
         </div>
         <!-- On narrow viewports the traffic panel is moved here so it stacks below the waterfall (see main.js). -->
         <div id="traffic-panel-host-mobile" class="traffic-panel-host-mobile" aria-hidden="true"></div>
