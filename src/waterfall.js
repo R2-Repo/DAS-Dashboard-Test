@@ -151,9 +151,8 @@ export function initWaterfall(canvasId, data) {
 
   function resize() {
     const rect = canvas.parentElement.getBoundingClientRect();
-    const headerH = canvas.parentElement.querySelector('.waterfall-header')?.offsetHeight || 24;
     canvas.width = rect.width;
-    canvas.height = rect.height - headerH;
+    canvas.height = rect.height;
   }
 
   /** Map pixel x to channel index; left = smaller milepost, right = larger milepost. */
@@ -391,11 +390,15 @@ export function initWaterfall(canvasId, data) {
       if (ch) ctx.fillText(`MP ${ch.milepost.toFixed(1)}`, x + 2, height - 3);
     }
 
-    // Hover info
-    const infoEl = document.getElementById('waterfall-info');
-    if (infoEl && hoveredChannel !== null && data.channels[hoveredChannel]) {
+    if (hoveredChannel !== null && data.channels[hoveredChannel]) {
       const ch = data.channels[hoveredChannel];
-      infoEl.textContent = `Ch ${ch.channel_id} | MP ${ch.milepost.toFixed(2)} | ${ch.fiber_distance_m}m | ${ch.side_of_road}`;
+      const t = `Ch ${ch.channel_id} · MP ${ch.milepost.toFixed(2)} · ${ch.fiber_distance_m}m · ${ch.side_of_road}`;
+      ctx.font = '11px monospace';
+      const tw = ctx.measureText(t).width;
+      ctx.fillStyle = 'rgba(12, 14, 20, 0.78)';
+      ctx.fillRect(4, 4, tw + 10, 17);
+      ctx.fillStyle = 'rgba(228, 230, 235, 0.95)';
+      ctx.fillText(t, 9, 16);
     }
   }
 

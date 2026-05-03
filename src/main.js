@@ -40,8 +40,8 @@ async function boot() {
   const mapHint = document.getElementById('traffic-map-hint');
   if (mapHint) {
     mapHint.textContent = sim.isRoadOk()
-      ? 'Choose Auto, EB, or WB for drops, then drag a vehicle onto the map (or touch: pick type, tap map). Dropped vehicles are larger and color-coded by lane. Select a vehicle to set target speed; drag to reposition.'
-      : 'Drag an icon onto the map (snaps to fiber). Touch: tap an icon, then tap the map.';
+      ? 'Drag a vehicle icon onto the map, or tap an icon then tap the map. Auto / EB / WB sets the lane for new drops. Select a vehicle to change speed; drag on the map to move.'
+      : 'Drag an icon onto the map (snaps to fiber). On a phone: tap an icon, then tap the map.';
   }
 
   document.querySelector('.placement-lane-group')?.addEventListener('click', (e) => {
@@ -136,11 +136,11 @@ async function boot() {
 
 }
 
-const MOBILE_TAB_CLASSES = ['mobile-tab-map', 'mobile-tab-stats', 'mobile-tab-fleet', 'mobile-tab-feed'];
+const MOBILE_TAB_CLASSES = ['mobile-tab-map', 'mobile-tab-stats', 'mobile-tab-feed'];
 
 /**
- * Narrow screens: stack map + waterfall; bottom tab bar switches Map | Stats | Fleet | Feed
- * so controls stay thumb-friendly without cramming one scroll.
+ * Narrow screens: stack map + waterfall; bottom tab bar switches Map | Stats | Feed.
+ * Traffic controls sit on the Map tab under the waterfall (thumb reach).
  */
 function initResponsiveLayout(map, waterfall) {
   const app = document.getElementById('app');
@@ -153,14 +153,13 @@ function initResponsiveLayout(map, waterfall) {
   );
 
   function setMobileTab(tab) {
-    const allowed = new Set(['map', 'stats', 'fleet', 'feed']);
+    const allowed = new Set(['map', 'stats', 'feed']);
     let t = allowed.has(tab) ? tab : 'map';
-    if (t === 'data') t = 'fleet';
+    if (t === 'data' || t === 'fleet') t = 'map';
 
     sidebar.dataset.mobileTab = t;
     sidebar.classList.remove(...MOBILE_TAB_CLASSES);
     sidebar.classList.add(`mobile-tab-${t}`);
-    app.classList.toggle('mobile-show-fleet-hint', mobileMq.matches && t === 'map');
     tabbar.querySelectorAll('.mobile-tab').forEach((btn) => {
       btn.setAttribute('aria-selected', btn.dataset.mobileTab === t ? 'true' : 'false');
     });
@@ -180,13 +179,12 @@ function initResponsiveLayout(map, waterfall) {
 
     if (mobile) {
       let current = sidebar.dataset.mobileTab;
-      if (current === 'data') current = 'fleet';
-      if (!['map', 'stats', 'fleet', 'feed'].includes(current)) current = 'map';
+      if (current === 'data' || current === 'fleet') current = 'map';
+      if (!['map', 'stats', 'feed'].includes(current)) current = 'map';
       setMobileTab(current);
     } else {
       sidebar.classList.remove(...MOBILE_TAB_CLASSES);
       delete sidebar.dataset.mobileTab;
-      app.classList.remove('mobile-show-fleet-hint');
       tabbar.querySelectorAll('.mobile-tab').forEach((btn) => btn.setAttribute('aria-selected', 'false'));
       window.requestAnimationFrame(() => {
         map.resize();

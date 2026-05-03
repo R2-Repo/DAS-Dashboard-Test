@@ -38,44 +38,6 @@ html, body {
   height: 100vh;
 }
 
-/* Header */
-#header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
-  padding-left: max(1rem, env(safe-area-inset-left, 0px));
-  padding-right: max(1rem, env(safe-area-inset-right, 0px));
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  min-height: 48px;
-}
-
-.header-left {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  min-width: 0;
-  flex: 1;
-  width: 100%;
-}
-
-#header h1 {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--accent);
-  white-space: nowrap;
-}
-
-#header .subtitle {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
 /* Main layout */
 #main {
   display: flex;
@@ -96,34 +58,6 @@ html, body {
   min-height: 200px;
 }
 
-.mobile-fleet-hint {
-  display: none;
-}
-
-#app.app-mobile-layout.mobile-show-fleet-hint #map-container {
-  display: flex;
-  flex-direction: column;
-}
-
-#app.app-mobile-layout.mobile-show-fleet-hint .mobile-fleet-hint {
-  display: block;
-  flex-shrink: 0;
-  position: static;
-  margin: 0;
-  padding: 0.45rem 0.55rem;
-  font-size: 0.72rem;
-  line-height: 1.35;
-  color: var(--text-primary);
-  background: rgba(12, 14, 20, 0.92);
-  border-bottom: 1px solid var(--border);
-  pointer-events: none;
-}
-
-#app.app-mobile-layout.mobile-show-fleet-hint #map {
-  flex: 1;
-  min-height: 0;
-}
-
 #map {
   width: 100%;
   height: 100%;
@@ -137,28 +71,7 @@ html, body {
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-}
-
-.waterfall-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  flex-shrink: 0;
-}
-
-.wf-title-mobile {
-  display: none;
-}
-
-.waterfall-info {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
+  min-height: 0;
 }
 
 #waterfall-canvas {
@@ -176,6 +89,14 @@ html, body {
   background: var(--bg-panel);
   border-left: 1px solid var(--border);
   flex-shrink: 0;
+  min-height: 0;
+}
+
+#sidebar-data-stack {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-height: 0;
 }
 
 #sidebar h2 {
@@ -749,18 +670,6 @@ html, body {
     flex-shrink: 0;
   }
 
-  #app.app-mobile-layout .wf-title-desktop {
-    display: none;
-  }
-
-  #app.app-mobile-layout .wf-title-mobile {
-    display: inline;
-    text-transform: none;
-    letter-spacing: 0.02em;
-    font-size: 0.68rem;
-    line-height: 1.25;
-  }
-
   #app.app-mobile-layout #sidebar {
     width: 100%;
     border-left: none;
@@ -771,13 +680,23 @@ html, body {
     flex-direction: column;
   }
 
-  #app.app-mobile-layout #sidebar.mobile-tab-map #sidebar-data-stack,
+  /* Map tab: live stats + event feed hidden; traffic lab scrolls under waterfall */
+  #app.app-mobile-layout #sidebar.mobile-tab-map .sidebar-mobile-stats,
   #app.app-mobile-layout #sidebar.mobile-tab-map #event-feed {
     display: none;
   }
 
-  #app.app-mobile-layout #sidebar.mobile-tab-stats #event-feed,
-  #app.app-mobile-layout #sidebar.mobile-tab-stats .sidebar-mobile-fleet {
+  #app.app-mobile-layout #sidebar.mobile-tab-map #traffic-control-panel {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    border-top: 1px solid var(--border);
+    padding-bottom: 0.35rem;
+  }
+
+  #app.app-mobile-layout #sidebar.mobile-tab-stats #traffic-control-panel,
+  #app.app-mobile-layout #sidebar.mobile-tab-stats #event-feed {
     display: none;
   }
 
@@ -788,26 +707,7 @@ html, body {
     -webkit-overflow-scrolling: touch;
   }
 
-  #app.app-mobile-layout #sidebar.mobile-tab-stats .sidebar-mobile-stats {
-    display: block;
-  }
-
-  #app.app-mobile-layout #sidebar.mobile-tab-fleet #event-feed,
-  #app.app-mobile-layout #sidebar.mobile-tab-fleet .sidebar-mobile-stats {
-    display: none;
-  }
-
-  #app.app-mobile-layout #sidebar.mobile-tab-fleet #sidebar-data-stack {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  #app.app-mobile-layout #sidebar.mobile-tab-fleet .sidebar-mobile-fleet {
-    display: block;
-  }
-
+  #app.app-mobile-layout #sidebar.mobile-tab-feed #traffic-control-panel,
   #app.app-mobile-layout #sidebar.mobile-tab-feed #sidebar-data-stack {
     display: none;
   }
@@ -817,41 +717,6 @@ html, body {
     min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-  }
-
-  #app.app-mobile-layout .waterfall-header {
-    flex-wrap: wrap;
-    gap: 0.25rem;
-  }
-
-  #app.app-mobile-layout .waterfall-info {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  #app.app-mobile-layout #header {
-    flex-wrap: wrap;
-    align-items: flex-start;
-    padding: max(0.45rem, env(safe-area-inset-top, 0px)) max(0.65rem, env(safe-area-inset-right, 0px)) 0.45rem max(0.65rem, env(safe-area-inset-left, 0px));
-  }
-
-  #app.app-mobile-layout .header-left {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.15rem;
-  }
-
-  #app.app-mobile-layout #header h1 {
-    font-size: 1rem;
-    white-space: normal;
-  }
-
-  #app.app-mobile-layout #header .subtitle {
-    white-space: normal;
-    font-size: 0.68rem;
-    line-height: 1.3;
   }
 
   #app.app-mobile-layout .stat-cards {
@@ -864,10 +729,6 @@ html, body {
 
   #app.app-mobile-layout #sidebar {
     padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-
-  #app.app-mobile-layout #sidebar h2 {
-    padding-top: 0.65rem;
   }
 
   #app.app-mobile-layout .traffic-control-intro {
@@ -883,6 +744,7 @@ html, body {
     min-height: 52px;
     flex: 1 1 calc(33.333% - 0.35rem);
     padding: 0.35rem;
+    touch-action: manipulation;
   }
 
   #app.app-mobile-layout .palette-icon {

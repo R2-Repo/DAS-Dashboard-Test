@@ -7,6 +7,16 @@ import { VEHICLE_HIT_LAYERS } from './map-constants.js';
 
 const DRAG_MIME = 'application/x-sr190-vehicle-type';
 
+/** Same breakpoint as `app-mobile-layout` in main.js — tap-to-place even when `(pointer: fine)` (e.g. devtools). */
+const MOBILE_LAYOUT_MQ = '(max-width: 768px), (max-width: 900px) and (max-height: 560px), (max-width: 1024px) and (max-height: 480px)';
+
+function useTapPlacePalette() {
+  const coarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)')?.matches;
+  const narrow =
+    typeof window !== 'undefined' && window.matchMedia?.(MOBILE_LAYOUT_MQ)?.matches;
+  return Boolean(coarse || narrow);
+}
+
 export function createVehiclePalette({ map, sim, paletteRoot }) {
   if (!paletteRoot) {
     return {
@@ -17,8 +27,6 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
   }
 
   const touchHint = document.getElementById('vehicle-palette-touch-hint');
-  const coarse =
-    typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)')?.matches;
 
   let pendingPlaceType = null;
 
@@ -38,7 +46,7 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
     paletteRoot.querySelectorAll('.palette-chip').forEach((btn) => {
       btn.classList.toggle('palette-chip-pending', btn.dataset.vehicleType === type);
     });
-    if (touchHint && coarse) {
+    if (touchHint && useTapPlacePalette()) {
       touchHint.hidden = false;
       touchHint.textContent = 'Tap the map to place this vehicle (snaps to the route).';
     }
@@ -94,7 +102,7 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
     });
 
     btn.addEventListener('click', () => {
-      if (!coarse) return;
+      if (!useTapPlacePalette()) return;
       const t = btn.dataset.vehicleType;
       if (!t) return;
       if (pendingPlaceType === t) clearPending();
