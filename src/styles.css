@@ -791,23 +791,29 @@ html, body {
   }
 }
 
-/* User-placed vehicle callouts (MapLibre Marker) */
+/* User-placed vehicle callouts (MapLibre Marker, viewport pitch alignment) */
 .vehicle-callout {
   pointer-events: none;
   display: flex;
   flex-direction: column;
   align-items: center;
-  transform: translateY(-4px);
+  transform-style: preserve-3d;
+  perspective: 520px;
+  transform: translate3d(var(--callout-screen-x, 0px), var(--callout-screen-y, -6px), 2px);
+  will-change: transform;
 }
 
 .vehicle-callout-pole {
   width: 2px;
-  height: 22px;
+  flex: 0 0 auto;
+  height: 52px;
   border-radius: 1px;
+  transform-origin: 50% 100%;
+  transform: rotateX(-42deg);
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.55) 0%,
-    rgba(255, 255, 255, 0.12) 100%
+    rgba(255, 255, 255, 0.62) 0%,
+    rgba(255, 255, 255, 0.14) 100%
   );
   box-shadow:
     0 0 6px rgba(var(--callout-glow-rgb, 41, 182, 246), 0.85),
@@ -819,19 +825,20 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 0.05rem;
-  padding: 0.2rem 0.45rem 0.22rem;
+  padding: 0.22rem 0.5rem 0.24rem;
   margin-bottom: 2px;
-  min-width: 4.5rem;
-  max-width: 7.5rem;
+  min-width: 4.6rem;
+  max-width: 7.8rem;
   text-align: center;
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.64rem;
   line-height: 1.15;
   letter-spacing: 0.02em;
   color: var(--text-primary);
-  background: rgba(12, 14, 20, 0.88);
+  background: rgba(12, 14, 20, 0.9);
   border: 1px solid rgba(var(--callout-glow-rgb), 0.55);
   border-radius: 4px;
+  transform: translateZ(4px);
   box-shadow:
     0 0 10px rgba(var(--callout-glow-rgb), 0.55),
     0 0 22px rgba(var(--callout-glow-rgb), 0.28),

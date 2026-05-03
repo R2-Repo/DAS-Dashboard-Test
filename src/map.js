@@ -221,7 +221,7 @@ function addRoadCenterlineLayers(map, roadGeojson) {
     paint: {
       'line-color': LANE_ROUTE_COLOR_HEX.wb,
       'line-width': 2.2,
-      'line-opacity': 0.95,
+      'line-opacity': 0.72,
     },
   });
   map.addLayer({
@@ -231,7 +231,7 @@ function addRoadCenterlineLayers(map, roadGeojson) {
     paint: {
       'line-color': LANE_ROUTE_COLOR_HEX.eb,
       'line-width': 2.2,
-      'line-opacity': 0.95,
+      'line-opacity': 0.72,
     },
   });
 }
