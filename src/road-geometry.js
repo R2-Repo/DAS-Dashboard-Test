@@ -196,11 +196,19 @@ export function buildRoadMotionModel(roadGeojson, channels) {
     const curvature = buildCurvaturePerM(points);
     const totalM = cumDistM[cumDistM.length - 1];
 
-    let gradSum = 0;
-    for (let i = 0; i < channelAlong.length - 1; i++) {
-      gradSum += channelAlong[i + 1] - channelAlong[i];
+    const nCh = channels.length;
+    const milepostAlong = new Float32Array(points.length);
+    for (let i = 0; i < points.length; i++) {
+      const ci = Math.min(nCh - 1, Math.max(0, Math.round(channelAlong[i])));
+      const mp = channels[ci]?.milepost;
+      milepostAlong[i] = Number.isFinite(mp) ? mp : 0;
     }
-    const forwardIncreasesChannel = gradSum >= 0;
+    let mpGradSum = 0;
+    for (let i = 0; i < milepostAlong.length - 1; i++) {
+      mpGradSum += milepostAlong[i + 1] - milepostAlong[i];
+    }
+    /** True if milepost increases as cumulative distance along this centerline increases. */
+    const forwardIncreasesMilepost = mpGradSum >= 0;
 
     out[laneKey] = {
       points,
@@ -208,7 +216,7 @@ export function buildRoadMotionModel(roadGeojson, channels) {
       channelAlong,
       curvature,
       totalM,
-      forwardIncreasesChannel,
+      forwardIncreasesMilepost,
     };
   }
 
@@ -267,10 +275,13 @@ export function lonLatAtRoadDistance(lane, roadDistM) {
   return [p0[0] + frac * (p1[0] - p0[0]), p0[1] + frac * (p1[1] - p0[1])];
 }
 
-/** +1 = increasing cumulative distance along polyline when channel index should increase (up_canyon). */
+/**
+ * +1 = increasing cumulative distance along polyline when milepost increases (up_canyon).
+ * Uses milepost (not fiber channel index) because channel order can run opposite to MP along SR-190.
+ */
 export function roadForwardSignForDirection(lane, direction) {
   const up = direction === 'up_canyon';
-  if (lane.forwardIncreasesChannel) return up ? 1 : -1;
+  if (lane.forwardIncreasesMilepost) return up ? 1 : -1;
   return up ? -1 : 1;
 }
 
