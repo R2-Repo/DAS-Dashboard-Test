@@ -138,7 +138,7 @@ function addVehicleLayer(map) {
     paint: {
       'circle-radius': [
         'case',
-        ['==', ['get', 'lab'], 1],
+        ['==', ['get', 'selected'], 1],
         14,
         10,
       ],
@@ -160,7 +160,7 @@ function addVehicleLayer(map) {
     paint: {
       'circle-radius': [
         'case',
-        ['==', ['get', 'lab'], 1],
+        ['==', ['get', 'selected'], 1],
         8,
         5,
       ],
@@ -173,7 +173,7 @@ function addVehicleLayer(map) {
       ],
       'circle-stroke-width': [
         'case',
-        ['==', ['get', 'lab'], 1],
+        ['==', ['get', 'selected'], 1],
         2.5,
         1.5,
       ],
@@ -202,33 +202,60 @@ function addVehicleLayer(map) {
 }
 
 /**
- * While `isDemoMode()` is true and `isRoadOk()` is true, drag on the map moves the lab vehicle
- * (snap to nearest EB/WB centerline). Map pan uses two-finger touch or right/middle mouse.
+ * Map interaction for the traffic simulator: click vehicle to select, double-click empty
+ * road to add, drag selected vehicle (left button / one finger). Pan with right/middle
+ * mouse or two-finger touch.
  */
-export function setupTrafficLabMapDrag(map, { isDemoMode, isRoadOk, placeDemoVehicleAtLngLat }) {
+export function setupTrafficSimulatorMapInteractions(map, sim) {
   let dragging = false;
 
-  function isLabDragAllowed() {
-    return isDemoMode() && isRoadOk();
+  function vehicleFeatureAtPoint(e) {
+    const hits = map.queryRenderedFeatures(e.point, { layers: ['vehicle-markers'] });
+    return hits.length ? hits[0] : null;
   }
 
+  map.on('click', (e) => {
+    const feat = vehicleFeatureAtPoint(e);
+    if (feat) {
+      sim.setSelectedVehicleId(feat.properties.id);
+      sim.syncFleetPanel?.();
+      return;
+    }
+    sim.setSelectedVehicleId(null);
+    sim.syncFleetPanel?.();
+  });
+
+  map.on('dblclick', (e) => {
+    e.preventDefault();
+    const v = sim.addVehicleNearLngLat(e.lngLat.lng, e.lngLat.lat);
+    if (v) sim.syncFleetPanel?.();
+  });
+
   map.on('mousedown', (e) => {
-    if (!isLabDragAllowed()) return;
     if (e.originalEvent.button !== 0) return;
+    const feat = vehicleFeatureAtPoint(e);
+    if (!feat) return;
+    const dragId = feat.properties.id;
+    sim.setSelectedVehicleId(dragId);
+    sim.setDragVehicleId(dragId);
     dragging = true;
     map.dragPan.disable();
-    placeDemoVehicleAtLngLat(e.lngLat.lng, e.lngLat.lat);
+    sim.moveVehicleToLngLat(dragId, e.lngLat.lng, e.lngLat.lat);
     e.preventDefault();
   });
 
   map.on('mousemove', (e) => {
     if (!dragging) return;
-    placeDemoVehicleAtLngLat(e.lngLat.lng, e.lngLat.lat);
+    const id = sim.getDragVehicleId();
+    if (!id) return;
+    sim.moveVehicleToLngLat(id, e.lngLat.lng, e.lngLat.lat);
   });
 
   function endDrag() {
     if (!dragging) return;
     dragging = false;
+    sim.setDragVehicleId(null);
+    sim.releaseDragLocks();
     map.dragPan.enable();
   }
 
@@ -236,16 +263,22 @@ export function setupTrafficLabMapDrag(map, { isDemoMode, isRoadOk, placeDemoVeh
   map.on('mouseleave', endDrag);
 
   map.on('touchstart', (e) => {
-    if (!isLabDragAllowed()) return;
     if (e.points.length !== 1) return;
+    const hits = map.queryRenderedFeatures(e.point, { layers: ['vehicle-markers'] });
+    if (!hits.length) return;
+    const dragId = hits[0].properties.id;
+    sim.setSelectedVehicleId(dragId);
+    sim.setDragVehicleId(dragId);
     dragging = true;
     map.dragPan.disable();
-    placeDemoVehicleAtLngLat(e.lngLat.lng, e.lngLat.lat);
+    sim.moveVehicleToLngLat(dragId, e.lngLat.lng, e.lngLat.lat);
   });
 
   map.on('touchmove', (e) => {
     if (!dragging || e.points.length !== 1) return;
-    placeDemoVehicleAtLngLat(e.lngLat.lng, e.lngLat.lat);
+    const id = sim.getDragVehicleId();
+    if (!id) return;
+    sim.moveVehicleToLngLat(id, e.lngLat.lng, e.lngLat.lat);
   });
 
   map.on('touchend', endDrag);

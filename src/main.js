@@ -1,9 +1,9 @@
 /**
  * Application entry point.
- * Loads processed GIS data, initializes the map/waterfall/UI, and starts the simulation.
+ * Loads processed GIS data, initializes the map/waterfall/UI, and starts the traffic-first simulator.
  */
 import { registerSW } from 'virtual:pwa-register';
-import { initMap, setupTrafficLabMapDrag } from './map.js';
+import { initMap, setupTrafficSimulatorMapInteractions } from './map.js';
 import { initWaterfall } from './waterfall.js';
 import { createSimulation } from './simulation.js';
 import { initUI } from './ui.js';
@@ -21,45 +21,57 @@ async function boot() {
   initResponsiveLayout(map, waterfall);
 
   sim.start();
+  sim.syncFleetPanel();
 
-  setupTrafficLabMapDrag(map, {
-    isDemoMode: () => sim.isDemoMode(),
-    isRoadOk: () => sim.isRoadOk(),
-    placeDemoVehicleAtLngLat: (lng, lat) => sim.placeDemoVehicleAtLngLat(lng, lat),
+  map.on('load', () => {
+    setupTrafficSimulatorMapInteractions(map, sim);
   });
 
-  const labEnable = document.getElementById('traffic-lab-enable');
-  const labControls = document.getElementById('traffic-lab-controls');
-  const labDragHint = document.getElementById('traffic-lab-drag-hint');
-  const labLegacyHint = document.getElementById('traffic-lab-legacy-hint');
-
-  function syncLabHints() {
-    const roadOk = sim.isRoadOk();
-    if (labDragHint) labDragHint.hidden = !roadOk;
-    if (labLegacyHint) labLegacyHint.hidden = roadOk;
+  const mapHint = document.getElementById('traffic-map-hint');
+  if (mapHint) {
+    mapHint.textContent = sim.isRoadOk()
+      ? 'Double-click the map to add a vehicle (snapped to SR-190). Click a marker to select; drag the marker to reposition. Pan: right-drag or two fingers.'
+      : 'Road centerlines are unavailable: vehicles follow fiber index. Double-click map to add; drag markers to move along the fiber.';
   }
 
-  labEnable?.addEventListener('change', () => {
-    const on = labEnable.checked;
-    sim.setDemoMode(on);
-    if (labControls) labControls.hidden = !on;
-    if (!on) {
-      map.dragPan.enable();
-    }
-    if (on) {
-      syncLabHints();
-      sim.applyLabPreset('eb_up');
-    }
+  document.getElementById('btn-demo-fleet')?.addEventListener('click', () => {
+    sim.applyQuickFleet();
+    sim.syncFleetPanel();
+  });
+  document.getElementById('btn-clear-fleet')?.addEventListener('click', () => {
+    sim.clearFleet();
+    sim.syncFleetPanel();
+  });
+  document.getElementById('btn-rockslide')?.addEventListener('click', () => {
+    sim.triggerRockslide();
   });
 
-  document.getElementById('lab-preset-eb')?.addEventListener('click', () => {
-    sim.applyLabPreset('eb_up');
-  });
-  document.getElementById('lab-preset-wb')?.addEventListener('click', () => {
-    sim.applyLabPreset('wb_down');
+  document.getElementById('fleet-apply-btn')?.addEventListener('click', () => {
+    const id = sim.getSelectedVehicleId();
+    if (!id) return;
+    const mph = parseFloat(document.getElementById('fleet-speed-input')?.value ?? '38');
+    const type = document.getElementById('fleet-type-select')?.value ?? 'car';
+    if (Number.isFinite(mph)) sim.setVehicleDesiredSpeed(id, mph);
+    sim.setVehicleType(id, type);
+    sim.syncFleetPanel();
   });
 
-  syncLabHints();
+  document.getElementById('fleet-table-body')?.addEventListener('click', (e) => {
+    const rm = e.target.closest?.('[data-remove-id]');
+    if (rm) {
+      const rid = rm.getAttribute('data-remove-id');
+      if (rid) {
+        sim.removeVehicle(rid);
+        sim.syncFleetPanel();
+      }
+      return;
+    }
+    const tr = e.target.closest?.('tr[data-vehicle-id]');
+    if (tr) {
+      sim.setSelectedVehicleId(tr.getAttribute('data-vehicle-id'));
+      sim.syncFleetPanel();
+    }
+  });
 
   document.getElementById('btn-play').addEventListener('click', () => sim.play());
   document.getElementById('btn-pause').addEventListener('click', () => sim.pause());
