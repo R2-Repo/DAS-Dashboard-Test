@@ -85,9 +85,11 @@ async function boot() {
   });
 }
 
+const MOBILE_TAB_CLASSES = ['mobile-tab-map', 'mobile-tab-stats', 'mobile-tab-fleet', 'mobile-tab-feed'];
+
 /**
- * Narrow screens: stack map + waterfall, move sidebar below with tab bar
- * (Map | Data | Feed) so controls remain reachable without cramming one column.
+ * Narrow screens: stack map + waterfall; bottom tab bar switches Map | Stats | Fleet | Feed
+ * so controls stay thumb-friendly without cramming one scroll.
  */
 function initResponsiveLayout(map, waterfall) {
   const app = document.getElementById('app');
@@ -95,13 +97,17 @@ function initResponsiveLayout(map, waterfall) {
   const sidebar = document.getElementById('sidebar');
   if (!app || !tabbar || !sidebar) return;
 
-  const mobileMq = window.matchMedia('(max-width: 768px), (max-width: 900px) and (max-height: 520px)');
+  const mobileMq = window.matchMedia(
+    '(max-width: 768px), (max-width: 900px) and (max-height: 560px), (max-width: 1024px) and (max-height: 480px)',
+  );
 
   function setMobileTab(tab) {
-    const allowed = new Set(['map', 'data', 'feed']);
-    const t = allowed.has(tab) ? tab : 'map';
+    const allowed = new Set(['map', 'stats', 'fleet', 'feed']);
+    let t = allowed.has(tab) ? tab : 'map';
+    if (t === 'data') t = 'fleet';
+
     sidebar.dataset.mobileTab = t;
-    sidebar.classList.remove('mobile-tab-map', 'mobile-tab-data', 'mobile-tab-feed');
+    sidebar.classList.remove(...MOBILE_TAB_CLASSES);
     sidebar.classList.add(`mobile-tab-${t}`);
     tabbar.querySelectorAll('.mobile-tab').forEach((btn) => {
       btn.setAttribute('aria-selected', btn.dataset.mobileTab === t ? 'true' : 'false');
@@ -121,10 +127,12 @@ function initResponsiveLayout(map, waterfall) {
     tabbar.classList.toggle('is-visible', mobile);
 
     if (mobile) {
-      const current = sidebar.dataset.mobileTab;
-      setMobileTab(current === 'map' || current === 'data' || current === 'feed' ? current : 'map');
+      let current = sidebar.dataset.mobileTab;
+      if (current === 'data') current = 'fleet';
+      if (!['map', 'stats', 'fleet', 'feed'].includes(current)) current = 'map';
+      setMobileTab(current);
     } else {
-      sidebar.classList.remove('mobile-tab-map', 'mobile-tab-data', 'mobile-tab-feed');
+      sidebar.classList.remove(...MOBILE_TAB_CLASSES);
       delete sidebar.dataset.mobileTab;
       tabbar.querySelectorAll('.mobile-tab').forEach((btn) => btn.setAttribute('aria-selected', 'false'));
       window.requestAnimationFrame(() => {
