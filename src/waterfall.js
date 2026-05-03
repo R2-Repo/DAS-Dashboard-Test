@@ -1,7 +1,9 @@
 /**
  * DAS Waterfall renderer — realistic jet colormap waterfall display.
  *
- * Axes: X = channel/fiber distance (horizontal), Y = time (vertical, newest at top flowing downward — matches common DAS waterfall plots).
+ * Axes: X = milepost increasing left → right (fiber channel index runs opposite along SR-190,
+ *   so the horizontal axis is mirrored: low milepost on the left, high on the right).
+ *   Y = time (vertical, newest at top flowing downward — matches common DAS waterfall plots).
  * Colormap: standard jet — deep blue → cyan → green → yellow → orange → red.
  *
  * Real DAS physics:
@@ -155,12 +157,16 @@ export function initWaterfall(canvasId, data) {
     canvas.height = rect.height - headerH;
   }
 
+  /** Map pixel x to channel index; left = smaller milepost, right = larger milepost. */
   function channelFromClientX(clientX) {
     const rect = canvas.getBoundingClientRect();
     const x = clientX - rect.left;
     const w = canvas.width || rect.width;
     if (w <= 0) return null;
-    return viewStart + Math.floor((x / w) * (viewEnd - viewStart));
+    const seg = viewEnd - viewStart;
+    if (seg <= 0) return null;
+    const t = Math.max(0, Math.min(1 - 1e-9, x / w));
+    return viewEnd - 1 - Math.floor(t * seg);
   }
 
   function floatChannelFromClientX(clientX) {
@@ -168,7 +174,9 @@ export function initWaterfall(canvasId, data) {
     const x = clientX - rect.left;
     const w = canvas.width || rect.width;
     if (w <= 0) return null;
-    const ch = viewStart + (x / w) * (viewEnd - viewStart);
+    const seg = viewEnd - viewStart;
+    if (seg <= 0) return null;
+    const ch = viewEnd - 1 - (x / w) * seg;
     return Math.max(0, Math.min(totalChannels - 1, ch));
   }
 
@@ -316,7 +324,8 @@ export function initWaterfall(canvasId, data) {
       const y1 = Math.max(y0 + 1, Math.floor((row + 1) * rowH));
 
       for (let px = 0; px < width; px++) {
-        const ch = viewStart + Math.floor((px / width) * chanRange);
+        const t = Math.min(1 - Number.EPSILON, px / width);
+        const ch = viewEnd - 1 - Math.floor(t * chanRange);
         if (ch < 0 || ch >= totalChannels) continue;
 
         const raw = buffer[bufRow * totalChannels + ch];
@@ -339,7 +348,7 @@ export function initWaterfall(canvasId, data) {
     // Traffic lab: dim off-channel area and draw a band at the vehicle channel
     if (highlightChannel !== null && highlightChannel >= viewStart && highlightChannel < viewEnd) {
       const chanRange = viewEnd - viewStart;
-      const xCenter = ((highlightChannel - viewStart) / chanRange) * width;
+      const xCenter = ((viewEnd - 1 - highlightChannel) / chanRange) * width;
       const bandPx = Math.max(14, width * 0.04);
       const xLeft = xCenter - bandPx / 2;
       const xRight = xCenter + bandPx / 2;
@@ -362,7 +371,7 @@ export function initWaterfall(canvasId, data) {
 
     // Crosshair
     if (hoveredChannel !== null && hoveredChannel >= viewStart && hoveredChannel < viewEnd) {
-      const x = ((hoveredChannel - viewStart) / chanRange) * width;
+      const x = ((viewEnd - 1 - hoveredChannel) / chanRange) * width;
       ctx.strokeStyle = 'rgba(255,255,255,0.3)';
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
@@ -378,7 +387,7 @@ export function initWaterfall(canvasId, data) {
     ctx.font = '10px monospace';
     const labelStep = Math.max(1, Math.floor(chanRange / 8));
     for (let i = viewStart; i < viewEnd; i += labelStep) {
-      const x = ((i - viewStart) / chanRange) * width;
+      const x = ((viewEnd - 1 - i) / chanRange) * width;
       const ch = data.channels[i];
       if (ch) ctx.fillText(`MP ${ch.milepost.toFixed(1)}`, x + 2, height - 3);
     }
