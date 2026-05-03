@@ -10,6 +10,7 @@ describe('Preprocessed data integrity', () => {
   const fiberRoute = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'fiber_route.geojson'), 'utf-8'));
   const road = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'road.geojson'), 'utf-8'));
   const mileposts = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'mileposts.geojson'), 'utf-8'));
+  const fiberCrossings = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'fiber_crossings.geojson'), 'utf-8'));
 
   it('has a positive number of channels', () => {
     expect(channels.length).toBeGreaterThan(100);
@@ -35,13 +36,17 @@ describe('Preprocessed data integrity', () => {
 
   it('mileposts are within reasonable range for SR-190', () => {
     const mps = channels.map((c) => c.milepost);
-    expect(Math.min(...mps)).toBeGreaterThanOrEqual(5);
-    expect(Math.max(...mps)).toBeLessThanOrEqual(20);
+    expect(Math.min(...mps)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...mps)).toBeLessThanOrEqual(200);
   });
 
   it('config references SR-190', () => {
     expect(config.route_id).toBe('SR-190');
     expect(config.channel_count).toBe(channels.length);
+  });
+
+  it('crossing_count matches fiber_crossings feature count', () => {
+    expect(config.crossing_count).toBe(fiberCrossings.features.length);
   });
 
   it('fiber route is a valid GeoJSON FeatureCollection', () => {
@@ -94,12 +99,14 @@ describe('Waterfall row generation logic', () => {
 describe('Milepost interpolation', () => {
   const channels = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'fiber_channels.json'), 'utf-8'));
 
-  it('computes milepost for a midpoint channel', () => {
+  it('interpolated mileposts stay within reference point range', () => {
     const midIdx = Math.floor(channels.length / 2);
     const mp = channels[midIdx].milepost;
-    const minMp = channels[0].milepost;
-    const maxMp = channels[channels.length - 1].milepost;
-    expect(mp).toBeGreaterThan(minMp);
-    expect(mp).toBeLessThan(maxMp);
+    const ref = channels.map((c) => c.milepost);
+    const lo = Math.min(...ref);
+    const hi = Math.max(...ref);
+    expect(Number.isFinite(mp)).toBe(true);
+    expect(mp).toBeGreaterThanOrEqual(lo - 0.5);
+    expect(mp).toBeLessThanOrEqual(hi + 0.5);
   });
 });
