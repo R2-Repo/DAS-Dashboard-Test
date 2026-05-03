@@ -56,6 +56,10 @@ async function boot() {
     sim.syncFleetPanel();
   });
 
+  document.getElementById('fleet-add-type-select')?.addEventListener('change', (e) => {
+    sim.setDefaultVehicleType(e.target.value);
+  });
+
   document.getElementById('fleet-table-body')?.addEventListener('click', (e) => {
     const rm = e.target.closest?.('[data-remove-id]');
     if (rm) {

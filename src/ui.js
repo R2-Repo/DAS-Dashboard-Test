@@ -1,6 +1,8 @@
 /**
  * Sidebar UI — live stats, fleet controls, event feed.
  */
+import { vehicleSpec } from './vehicle-model.js';
+
 const MAX_EVENTS = 60;
 
 export function initUI() {
@@ -43,7 +45,7 @@ export function initUI() {
     if (type === 'vehicle') {
       const lane = data.laneKey === 'wb' ? 'WB (down canyon)' : 'EB (up canyon)';
       const dirClass = data.laneKey === 'eb' ? 'up-canyon' : 'down-canyon';
-      const typeLabel = data.vehicleType === 'truck' ? 'Truck' : 'Vehicle';
+      const typeLabel = vehicleSpec(data.vehicleType).label;
       li.className = dirClass;
       li.innerHTML = `
         <span class="event-time">${time}</span>
@@ -81,7 +83,7 @@ export function initUI() {
       tr.innerHTML = `
         <td><code class="fleet-id">${v.id}</code></td>
         <td>${lane}</td>
-        <td>${v.vehicleType === 'truck' ? 'Truck' : 'Car'}</td>
+        <td>${vehicleSpec(v.vehicleType).label}</td>
         <td class="fleet-speed">${Math.round(v.speedMph)}</td>
         <td class="fleet-mp">${v.currentMilepost != null ? v.currentMilepost.toFixed(1) : '\u2014'}</td>
         <td><button type="button" class="fleet-remove-btn" data-remove-id="${v.id}" title="Remove">×</button></td>
@@ -99,7 +101,12 @@ export function initUI() {
     }
     if (typeSelect) {
       typeSelect.disabled = !selected;
-      if (selected) typeSelect.value = selected.vehicleType === 'truck' ? 'truck' : 'car';
+      if (selected) typeSelect.value = selected.vehicleType;
+    }
+
+    const addType = el('fleet-add-type-select');
+    if (addType && sim.getDefaultVehicleType) {
+      addType.value = sim.getDefaultVehicleType();
     }
     if (applyBtn) applyBtn.disabled = !selected;
   }

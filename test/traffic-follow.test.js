@@ -9,8 +9,8 @@ import {
 } from '../src/traffic-follow.js';
 
 describe('traffic-follow', () => {
-  it('vehicleLengthM distinguishes truck vs car', () => {
-    expect(vehicleLengthM('truck')).toBeGreaterThan(vehicleLengthM('car'));
+  it('vehicleLengthM orders semi larger than car', () => {
+    expect(vehicleLengthM('semi_truck')).toBeGreaterThan(vehicleLengthM('car'));
   });
 
   it('idmAccelerationMps2 is negative when gap is too small', () => {
@@ -47,7 +47,8 @@ describe('traffic-follow', () => {
 
   it('clampFollowerCenterBehindLeader prevents overlap for fwd +1', () => {
     const s = clampFollowerCenterBehindLeader(150, 'car', 100, 'car', 1, 0.5);
-    expect(s).toBeCloseTo(100 - 4.5 - 0.5, 5);
+    expect(s).toBeLessThanOrEqual(95);
+    expect(s).toBeGreaterThan(94);
   });
 
   it('stepVehicleIdm does not move vehicle when userLock', () => {

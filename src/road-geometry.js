@@ -144,7 +144,7 @@ function buildChannelAlong(points, channels) {
   return along;
 }
 
-/** Bearing from point a to b in radians (0 = east). */
+/** Bearing from point a to b in radians (0 = east, counter-clockwise from +x). */
 function bearingRad(a, b) {
   const φ1 = (a[1] * Math.PI) / 180;
   const φ2 = (b[1] * Math.PI) / 180;
@@ -315,4 +315,31 @@ export function nearestPointOnLanes(laneEb, laneWb, lon, lat) {
   if (!b) return { laneKey: 'eb', ...a };
   if (a.distanceM <= b.distanceM) return { laneKey: 'eb', ...a };
   return { laneKey: 'wb', ...b };
+}
+
+export function bearingDegClockwiseFromNorthLonLat(lon0, lat0, lon1, lat1) {
+  const br = bearingRad([lon0, lat0], [lon1, lat1]);
+  const degEofN = (br * 180) / Math.PI;
+  return ((90 - degEofN) % 360 + 360) % 360;
+}
+
+/**
+ * Travel direction bearing at `roadDistM` along lane polyline.
+ * `direction` is `up_canyon` | `down_canyon` (same convention as simulation).
+ */
+export function travelBearingDegAtRoadDistance(lane, roadDistM, direction) {
+  if (!lane?.points?.length) return 0;
+  const fwd = roadForwardSignForDirection(lane, direction);
+  const idx = roadDistanceToSampleIndex(lane, roadDistM);
+  let i0 = Math.floor(idx);
+  let i1 = Math.min(i0 + 1, lane.points.length - 1);
+  if (i1 <= i0 && i0 > 0) {
+    i1 = i0;
+    i0 = i0 - 1;
+  }
+  const p0 = lane.points[i0];
+  const p1 = lane.points[i1];
+  let deg = bearingDegClockwiseFromNorthLonLat(p0[0], p0[1], p1[0], p1[1]);
+  if (fwd < 0) deg = (deg + 180) % 360;
+  return deg;
 }

@@ -12,9 +12,9 @@ export const DEFAULT_IDM = {
   minBumperGapM: 0.5,
 };
 
-export function vehicleLengthM(vehicleType) {
-  return vehicleType === 'truck' ? 12 : 4.5;
-}
+import { vehicleLengthM } from './vehicle-model.js';
+
+export { vehicleLengthM };
 
 /**
  * IDM acceleration (m/s²). No leader: free acceleration toward v0.

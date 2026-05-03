@@ -6,14 +6,23 @@
  *   - Terrain: AWS Terrarium RGB elevation tiles (for 3D + hillshade)
  *
  * GIS layers on load: fiber route only (road centerline, mileposts, crossings hidden).
- * Dynamic layers updated by simulation: vehicle markers (EB = up canyon, WB = down canyon),
+ * Dynamic layers: vehicles as fill-extrusion blocks (oriented rectangles on terrain),
+ * anomalies as circles.
  *
  * Exports: initMap(), updateMapVehicles(), updateMapAnomalies()
  */
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { vehicleSpec } from './vehicle-model.js';
 
 const TERRAIN_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+
+const VEHICLE_HIT_LAYERS = ['vehicle-blocks-fill', 'vehicle-blocks-outline'];
+
+function vehicleTypeLabel(type) {
+  const s = vehicleSpec(type);
+  return s.label;
+}
 
 export function initMap(containerId, data) {
   const bounds = computeBounds(data.road);
@@ -81,7 +90,7 @@ export function initMap(containerId, data) {
 
   map.on('load', () => {
     addFiberLayer(map, data.fiberRoute);
-    addVehicleLayer(map);
+    addVehicleLayers(map);
     addAnomalyLayer(map);
   });
 
@@ -126,79 +135,70 @@ function addFiberLayer(map, fiberRoute) {
   });
 }
 
-function addVehicleLayer(map) {
+function addVehicleLayers(map) {
   map.addSource('vehicles', {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
   });
+
   map.addLayer({
-    id: 'vehicle-glow',
-    type: 'circle',
+    id: 'vehicle-blocks-fill',
+    type: 'fill-extrusion',
     source: 'vehicles',
     paint: {
-      'circle-radius': [
+      'fill-extrusion-height': ['get', 'height_m'],
+      'fill-extrusion-base': 0,
+      'fill-extrusion-color': ['get', 'fill_color'],
+      'fill-extrusion-opacity': [
         'case',
         ['==', ['get', 'selected'], 1],
-        14,
-        10,
+        0.95,
+        0.82,
       ],
-      'circle-color': [
-        'match',
-        ['get', 'lane'],
-        'eb', '#66bb6a',
-        'wb', '#ffa726',
-        '#bdbdbd',
-      ],
-      'circle-opacity': 0.25,
-      'circle-blur': 1,
     },
   });
+
   map.addLayer({
-    id: 'vehicle-markers',
-    type: 'circle',
+    id: 'vehicle-blocks-outline',
+    type: 'fill-extrusion',
     source: 'vehicles',
     paint: {
-      'circle-radius': [
+      'fill-extrusion-height': ['+', ['get', 'height_m'], 0.25],
+      'fill-extrusion-base': ['get', 'height_m'],
+      'fill-extrusion-color': ['get', 'outline_color'],
+      'fill-extrusion-opacity': [
         'case',
         ['==', ['get', 'selected'], 1],
-        8,
-        5,
+        1,
+        0.55,
       ],
-      'circle-color': [
-        'match',
-        ['get', 'lane'],
-        'eb', '#66bb6a',
-        'wb', '#ffa726',
-        '#bdbdbd',
-      ],
-      'circle-stroke-width': [
-        'case',
-        ['==', ['get', 'selected'], 1],
-        2.5,
-        1.5,
-      ],
-      'circle-stroke-color': '#fff',
     },
   });
 
   const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false });
-  map.on('mouseenter', 'vehicle-markers', (e) => {
-    map.getCanvas().style.cursor = 'pointer';
-    const props = e.features[0].properties;
-    const laneLabel = props.lane === 'eb' ? 'EB (up canyon)' : props.lane === 'wb' ? 'WB (down canyon)' : '';
-    popup
-      .setLngLat(e.lngLat)
-      .setHTML(`
-        <strong>${props.type === 'truck' ? 'Truck' : 'Vehicle'}</strong> ${props.id}<br/>
+
+  function bindHover(layerId) {
+    map.on('mouseenter', layerId, (e) => {
+      map.getCanvas().style.cursor = 'pointer';
+      const props = e.features[0].properties;
+      const laneLabel = props.lane === 'eb' ? 'EB (up canyon)' : props.lane === 'wb' ? 'WB (down canyon)' : '';
+      const typeLabel = vehicleTypeLabel(props.type);
+      popup
+        .setLngLat(e.lngLat)
+        .setHTML(`
+        <strong>${typeLabel}</strong> ${props.id}<br/>
         ${laneLabel} &bull; ${props.speed} mph<br/>
         MP ${props.milepost}
       `)
-      .addTo(map);
-  });
-  map.on('mouseleave', 'vehicle-markers', () => {
-    map.getCanvas().style.cursor = '';
-    popup.remove();
-  });
+        .addTo(map);
+    });
+    map.on('mouseleave', layerId, () => {
+      map.getCanvas().style.cursor = '';
+      popup.remove();
+    });
+  }
+
+  bindHover('vehicle-blocks-fill');
 }
 
 /**
@@ -210,7 +210,7 @@ export function setupTrafficSimulatorMapInteractions(map, sim) {
   let dragging = false;
 
   function vehicleFeatureAtPoint(e) {
-    const hits = map.queryRenderedFeatures(e.point, { layers: ['vehicle-markers'] });
+    const hits = map.queryRenderedFeatures(e.point, { layers: VEHICLE_HIT_LAYERS });
     return hits.length ? hits[0] : null;
   }
 
@@ -264,7 +264,7 @@ export function setupTrafficSimulatorMapInteractions(map, sim) {
 
   map.on('touchstart', (e) => {
     if (e.points.length !== 1) return;
-    const hits = map.queryRenderedFeatures(e.point, { layers: ['vehicle-markers'] });
+    const hits = map.queryRenderedFeatures(e.point, { layers: VEHICLE_HIT_LAYERS });
     if (!hits.length) return;
     const dragId = hits[0].properties.id;
     sim.setSelectedVehicleId(dragId);

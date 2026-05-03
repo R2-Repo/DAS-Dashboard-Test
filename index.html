@@ -95,14 +95,27 @@
           </div>
           <div class="fleet-editor">
             <label class="fleet-field">
+              <span>Add on map (double-click)</span>
+              <select id="fleet-add-type-select">
+                <option value="bicycle">Bicycle</option>
+                <option value="motorcycle">Motorcycle</option>
+                <option value="car" selected>Car</option>
+                <option value="truck">Truck</option>
+                <option value="semi_truck">Semi truck</option>
+              </select>
+            </label>
+            <label class="fleet-field">
               <span>Desired speed (mph)</span>
               <input type="number" id="fleet-speed-input" min="0" max="85" step="1" value="38" disabled />
             </label>
             <label class="fleet-field">
               <span>Vehicle type</span>
               <select id="fleet-type-select" disabled>
+                <option value="bicycle">Bicycle</option>
+                <option value="motorcycle">Motorcycle</option>
                 <option value="car">Car</option>
                 <option value="truck">Truck</option>
+                <option value="semi_truck">Semi truck</option>
               </select>
             </label>
             <button type="button" id="fleet-apply-btn" class="lab-btn" disabled>Apply to selected</button>

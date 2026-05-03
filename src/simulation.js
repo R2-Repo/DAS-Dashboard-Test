@@ -12,8 +12,16 @@ import {
   roadForwardSignForDirection,
   lonLatAtRoadDistance,
   nearestPointOnLanes,
+  travelBearingDegAtRoadDistance,
+  bearingDegClockwiseFromNorthLonLat,
 } from './road-geometry.js';
 import { stepVehicleIdm, DEFAULT_IDM } from './traffic-follow.js';
+import {
+  buildVehicleFootprintPolygon,
+  normalizeVehicleType,
+  vehicleDasFootprint,
+  vehicleSpec,
+} from './vehicle-model.js';
 
 const CHANNEL_SPACING_M = 2.0;
 const TICK_MS = 100;
@@ -69,6 +77,7 @@ export function createSimulation(data, targets) {
 
   const noiseState = new Float32Array(totalChannels);
   let noiseSeed = Math.random() * 1000;
+  let defaultVehicleType = 'car';
 
   function vehicleById(id) {
     return vehicles.find((v) => v.id === id) ?? null;
@@ -217,10 +226,11 @@ export function createSimulation(data, targets) {
       const center = v.channelPos;
       const ci = Math.floor(center);
       const frac = center - ci;
-      const halfWidth = v.vehicleType === 'truck' ? 2 : 1;
-      const peakStrength = v.signalStrength * (0.92 + Math.random() * 0.08);
+      const { halfWidth, strength } = vehicleDasFootprint(v.vehicleType);
+      const hw = Math.ceil(halfWidth) + 1;
+      const peakStrength = strength * (0.92 + Math.random() * 0.08);
 
-      for (let d = -halfWidth - 1; d <= halfWidth + 1; d++) {
+      for (let d = -hw; d <= hw; d++) {
         const idx = ci + d;
         if (idx < 0 || idx >= totalChannels) continue;
         const dist = Math.abs(d - frac);
@@ -265,8 +275,27 @@ export function createSimulation(data, targets) {
       .map((v) => {
         const ci = Math.min(Math.max(0, Math.floor(v.channelPos)), totalChannels - 1);
         const ch = channels[ci];
-        const lonLat =
-          roadOk && v.lon !== undefined && v.lat !== undefined ? [v.lon, v.lat] : [ch.lon, ch.lat];
+        const lon =
+          roadOk && v.lon !== undefined && v.lat !== undefined ? v.lon : ch.lon;
+        const lat =
+          roadOk && v.lon !== undefined && v.lat !== undefined ? v.lat : ch.lat;
+
+        let bearingDeg;
+        if (roadOk) {
+          const lane = v.laneKey === 'eb' ? laneEb : laneWb;
+          bearingDeg = travelBearingDegAtRoadDistance(lane, v.roadDistM, v.direction);
+        } else {
+          const i0 = Math.min(ci, totalChannels - 2);
+          const c0 = channels[Math.max(0, i0)];
+          const c1 = channels[Math.min(i0 + 1, totalChannels - 1)];
+          bearingDeg = bearingDegClockwiseFromNorthLonLat(c0.lon, c0.lat, c1.lon, c1.lat);
+          if (v.direction === 'down_canyon') bearingDeg = (bearingDeg + 180) % 360;
+        }
+
+        const spec = vehicleSpec(v.vehicleType);
+        const geom = buildVehicleFootprintPolygon(lon, lat, spec.lengthM, spec.widthM, bearingDeg);
+        const outline = v.id === selectedVehicleId ? '#ffffff' : 'rgba(0,0,0,0.35)';
+
         return {
           type: 'Feature',
           properties: {
@@ -277,8 +306,11 @@ export function createSimulation(data, targets) {
             type: v.vehicleType,
             milepost: ch.milepost.toFixed(1),
             selected: v.id === selectedVehicleId ? 1 : 0,
+            height_m: spec.heightM,
+            fill_color: spec.color,
+            outline_color: outline,
           },
-          geometry: { type: 'Point', coordinates: lonLat },
+          geometry: geom,
         };
       });
 
@@ -323,11 +355,10 @@ export function createSimulation(data, targets) {
     if (!lane) return null;
     const direction = directionForLane(laneKey);
     const speedMph = opts.forceSpeed ?? 38;
-    const vehicleType = opts.vehicleType || 'car';
+    const vehicleType = normalizeVehicleType(opts.vehicleType || 'car');
     const roadM = Math.max(0, Math.min(lane.totalM, roadDistM));
     const channelPos = roadDistanceToChannelPos(lane, roadM);
     const [lon, lat] = lonLatAtRoadDistance(lane, roadM);
-    const signalStrength = opts.signalStrength ?? (vehicleType === 'truck' ? 0.72 : 0.55);
     const id = formatFleetId(nextFleetId++);
 
     const v = {
@@ -342,7 +373,6 @@ export function createSimulation(data, targets) {
       desiredSpeedMph: speedMph,
       speedMph,
       vehicleType,
-      signalStrength,
       currentMilepost: 0,
       dead: false,
       userLock: false,
@@ -354,7 +384,7 @@ export function createSimulation(data, targets) {
 
   function spawnUserVehicleLegacy(channelPos, direction, opts = {}) {
     const speedMph = opts.forceSpeed ?? 36;
-    const vehicleType = opts.vehicleType || 'car';
+    const vehicleType = normalizeVehicleType(opts.vehicleType || 'car');
     const cp = Math.max(0, Math.min(totalChannels - 1, channelPos));
     const ch = channels[Math.floor(cp)];
     const id = formatFleetId(nextFleetId++);
@@ -370,7 +400,6 @@ export function createSimulation(data, targets) {
       desiredSpeedMph: speedMph,
       speedMph,
       vehicleType,
-      signalStrength: opts.signalStrength ?? 0.55,
       currentMilepost: 0,
       dead: false,
       userLock: false,
@@ -389,7 +418,7 @@ export function createSimulation(data, targets) {
     const lane = snap.laneKey === 'eb' ? laneEb : laneWb;
     const roadM = Math.max(0, Math.min(lane.totalM, snap.roadDistM));
     const speed = opts.forceSpeed ?? (existing ? existing.desiredSpeedMph : 38);
-    const vtype = opts.vehicleType ?? (existing ? existing.vehicleType : 'car');
+    const vtype = normalizeVehicleType(opts.vehicleType ?? (existing ? existing.vehicleType : 'car'));
 
     if (existing) {
       existing.laneKey = snap.laneKey;
@@ -401,7 +430,6 @@ export function createSimulation(data, targets) {
       existing.lat = ll[1];
       existing.desiredSpeedMph = speed;
       existing.vehicleType = vtype;
-      existing.signalStrength = vtype === 'truck' ? 0.72 : 0.55;
       existing.userLock = true;
       existing.speedMph = 0;
       targets.waterfall.scrollChannelIntoView(existing.channelPos);
@@ -449,10 +477,14 @@ export function createSimulation(data, targets) {
   }
 
   function addVehicleNearLngLat(lng, lat, opts = {}) {
+    const merged = {
+      ...opts,
+      vehicleType: normalizeVehicleType(opts.vehicleType ?? defaultVehicleType),
+    };
     if (roadOk) {
       const snap = nearestPointOnLanes(laneEb, laneWb, lng, lat);
       if (!snap || snap.distanceM > LAB_SNAP_MAX_M) return null;
-      const v = spawnUserVehicleAtRoad(snap.laneKey, snap.roadDistM, opts);
+      const v = spawnUserVehicleAtRoad(snap.laneKey, snap.roadDistM, merged);
       if (v) setSelectedVehicleId(v.id);
       return v;
     }
@@ -469,8 +501,8 @@ export function createSimulation(data, targets) {
       }
     }
     if (best < 0) return null;
-    const dir = opts.direction || (Math.random() > 0.5 ? 'up_canyon' : 'down_canyon');
-    const v = spawnUserVehicleLegacy(best, dir, opts);
+    const dir = merged.direction || (Math.random() > 0.5 ? 'up_canyon' : 'down_canyon');
+    const v = spawnUserVehicleLegacy(best, dir, merged);
     if (v) setSelectedVehicleId(v.id);
     return v;
   }
@@ -496,10 +528,11 @@ export function createSimulation(data, targets) {
   function applyQuickFleet() {
     clearFleet();
     if (roadOk) {
-      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.08, { forceSpeed: 28, vehicleType: 'car' });
-      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.06, { forceSpeed: 40, vehicleType: 'car' });
+      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.08, { forceSpeed: 28, vehicleType: 'bicycle' });
+      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.065, { forceSpeed: 38, vehicleType: 'motorcycle' });
+      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.05, { forceSpeed: 34, vehicleType: 'car' });
       spawnUserVehicleAtRoad('wb', laneWb.totalM * 0.92, { forceSpeed: 35, vehicleType: 'truck' });
-      spawnUserVehicleAtRoad('wb', laneWb.totalM * 0.94, { forceSpeed: 42, vehicleType: 'car' });
+      spawnUserVehicleAtRoad('wb', laneWb.totalM * 0.88, { forceSpeed: 40, vehicleType: 'semi_truck' });
     } else {
       spawnUserVehicleLegacy(totalChannels * 0.1, 'up_canyon', { forceSpeed: 32 });
       spawnUserVehicleLegacy(totalChannels * 0.08, 'up_canyon', { forceSpeed: 40 });
@@ -547,8 +580,7 @@ export function createSimulation(data, targets) {
   function setVehicleType(id, vehicleType) {
     const v = vehicleById(id);
     if (!v) return false;
-    v.vehicleType = vehicleType === 'truck' ? 'truck' : 'car';
-    v.signalStrength = v.vehicleType === 'truck' ? 0.72 : 0.55;
+    v.vehicleType = normalizeVehicleType(vehicleType);
     return true;
   }
 
@@ -611,6 +643,10 @@ export function createSimulation(data, targets) {
     triggerRockslide,
     setVehicleDesiredSpeed,
     setVehicleType,
+    getDefaultVehicleType: () => defaultVehicleType,
+    setDefaultVehicleType: (t) => {
+      defaultVehicleType = normalizeVehicleType(t);
+    },
     getDragVehicleId: () => dragVehicleId,
     setDragVehicleId: (id) => {
       dragVehicleId = id;
