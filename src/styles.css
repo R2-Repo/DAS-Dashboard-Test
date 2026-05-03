@@ -268,9 +268,10 @@ html, body {
 
 .palette-chip {
   flex: 1 1 auto;
-  min-width: 3.2rem;
-  padding: 0.4rem 0.45rem;
-  border-radius: 6px;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0.25rem;
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--bg-card);
   color: var(--text-primary);
@@ -278,7 +279,15 @@ html, body {
   font-weight: 600;
   cursor: grab;
   user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.palette-icon {
+  font-size: 1.45rem;
+  line-height: 1;
 }
 
 .palette-chip:hover {
@@ -311,6 +320,16 @@ html, body {
   padding: 0 0.75rem 0.5rem;
 }
 
+.traffic-control-actions-row {
+  flex-direction: row;
+  gap: 0.5rem;
+}
+
+.traffic-control-actions-row .lab-btn {
+  flex: 1;
+  text-align: center;
+}
+
 .lab-btn {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -332,98 +351,164 @@ html, body {
   border-color: var(--text-secondary);
 }
 
-.lab-btn-hazard {
-  border-color: rgba(239, 83, 80, 0.45);
+.lab-btn-inline {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.65rem;
+  text-align: center;
 }
 
-.lab-btn-hazard:hover {
-  border-color: var(--accent-red);
-  background: rgba(239, 83, 80, 0.12);
+.fleet-selected-panel {
+  padding: 0 0.75rem 0.55rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.fleet-editor {
+.fleet-selected-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.fleet-type-inline {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.45rem;
+}
+
+.fleet-type-btn {
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.fleet-type-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-card-hover);
+}
+
+.fleet-type-btn-active {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.fleet-speed-row {
+  display: flex;
+  align-items: center;
   gap: 0.45rem;
-  padding: 0 0.75rem 0.5rem;
-}
-
-.fleet-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   color: var(--text-secondary);
 }
 
-.fleet-field input,
-.fleet-field select {
+.fleet-speed-label {
+  flex: 0 0 auto;
+  min-width: 2rem;
+}
+
+.fleet-speed-row input {
+  flex: 1;
+  min-width: 0;
   background: var(--bg-card);
   border: 1px solid var(--border);
   color: var(--text-primary);
   padding: 0.35rem 0.45rem;
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
 }
 
-.fleet-field input:disabled,
-.fleet-field select:disabled {
+.fleet-speed-row input:disabled {
   opacity: 0.55;
 }
 
-.fleet-table-wrap {
+.fleet-list-wrap {
   max-height: 200px;
   overflow: auto;
-  margin: 0 0.6rem;
+  margin: 0.35rem 0.75rem 0.5rem;
   border: 1px solid var(--border);
   border-radius: 6px;
 }
 
-.fleet-table {
+.fleet-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.fleet-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.68rem;
-}
-
-.fleet-table th {
-  text-align: left;
-  padding: 0.35rem 0.4rem;
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  font-weight: 600;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.fleet-table td {
-  padding: 0.3rem 0.4rem;
+  padding: 0.4rem 0.45rem;
+  border: none;
   border-top: 1px solid var(--border);
+  background: transparent;
   color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.fleet-list .fleet-row:first-child {
+  border-top: none;
+}
+
+.fleet-row:hover {
+  background: var(--bg-card-hover);
 }
 
 .fleet-row-selected {
   background: rgba(79, 195, 247, 0.12);
 }
 
-.fleet-id {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-}
-
-.fleet-remove-btn {
-  background: transparent;
-  border: none;
-  color: var(--accent-red);
-  cursor: pointer;
-  font-size: 1rem;
+.fleet-row-icon {
+  font-size: 1.35rem;
   line-height: 1;
-  padding: 0.1rem 0.25rem;
-  border-radius: 3px;
+  flex-shrink: 0;
 }
 
-.fleet-remove-btn:hover {
-  background: rgba(239, 83, 80, 0.15);
+.fleet-row-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.fleet-row-line1 {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.fleet-row-line2 {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+}
+
+.fleet-row-remove {
+  flex-shrink: 0;
+  color: var(--accent-red);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+}
+
+.fleet-row:hover .fleet-row-remove {
+  background: rgba(239, 83, 80, 0.12);
 }
 
 /* Event feed */
@@ -712,32 +797,36 @@ html, body {
   }
 
   #app.app-mobile-layout .palette-chip {
-    min-height: 48px;
+    min-height: 52px;
     flex: 1 1 calc(33.333% - 0.35rem);
-    font-size: 0.78rem;
-    padding: 0.45rem 0.35rem;
+    padding: 0.35rem;
   }
 
-  #app.app-mobile-layout .fleet-field input,
-  #app.app-mobile-layout .fleet-field select {
+  #app.app-mobile-layout .palette-icon {
+    font-size: 1.55rem;
+  }
+
+  #app.app-mobile-layout .fleet-speed-row input {
     min-height: 48px;
     font-size: 1rem;
   }
 
-  #app.app-mobile-layout .fleet-table-wrap {
+  #app.app-mobile-layout .fleet-list-wrap {
     max-height: min(42vh, 320px);
   }
 
-  #app.app-mobile-layout .fleet-table {
-    font-size: 0.72rem;
+  #app.app-mobile-layout .fleet-type-btn {
+    min-width: 48px;
+    min-height: 48px;
+    font-size: 1.35rem;
   }
 
-  #app.app-mobile-layout .fleet-table th,
-  #app.app-mobile-layout .fleet-table td {
-    padding: 0.45rem 0.35rem;
+  #app.app-mobile-layout .fleet-row {
+    min-height: 52px;
+    padding: 0.45rem 0.5rem;
   }
 
-  #app.app-mobile-layout .fleet-remove-btn {
+  #app.app-mobile-layout .fleet-row-remove {
     min-width: 44px;
     min-height: 44px;
     display: inline-flex;

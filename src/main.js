@@ -21,9 +21,6 @@ async function boot() {
 
   initResponsiveLayout(map, waterfall);
 
-  sim.start();
-  sim.syncFleetPanel();
-
   map.on('load', () => {
     const paletteRoot = document.getElementById('vehicle-palette');
     const palette = createVehiclePalette({ map, sim, paletteRoot });
@@ -32,11 +29,14 @@ async function boot() {
     });
   });
 
+  sim.start();
+  sim.syncFleetPanel();
+
   const mapHint = document.getElementById('traffic-map-hint');
   if (mapHint) {
     mapHint.textContent = sim.isRoadOk()
-      ? 'Drag a vehicle type from the palette onto the map — it snaps to the nearest SR-190 lane. On touch: tap a type, then tap the map. Click a 3D block to select; drag to move. Pan: right-drag or two fingers.'
-      : 'Drag a type onto the map (snaps to fiber). On touch: tap a type, then tap the map. Click a block to select; drag to move.';
+      ? 'Drag an icon onto the map (snaps to SR-190). Touch: tap an icon, then tap the map. Select a vehicle on the map to edit speed; drag to move.'
+      : 'Drag an icon onto the map (snaps to fiber). Touch: tap an icon, then tap the map.';
   }
 
   document.getElementById('btn-demo-fleet')?.addEventListener('click', () => {
@@ -47,21 +47,25 @@ async function boot() {
     sim.clearFleet();
     sim.syncFleetPanel();
   });
-  document.getElementById('btn-rockslide')?.addEventListener('click', () => {
-    sim.triggerRockslide();
-  });
 
   document.getElementById('fleet-apply-btn')?.addEventListener('click', () => {
     const id = sim.getSelectedVehicleId();
     if (!id) return;
     const mph = parseFloat(document.getElementById('fleet-speed-input')?.value ?? '38');
-    const type = document.getElementById('fleet-type-select')?.value ?? 'car';
     if (Number.isFinite(mph)) sim.setVehicleDesiredSpeed(id, mph);
-    sim.setVehicleType(id, type);
     sim.syncFleetPanel();
   });
 
-  document.getElementById('fleet-table-body')?.addEventListener('click', (e) => {
+  document.getElementById('fleet-type-inline')?.addEventListener('click', (e) => {
+    const btn = e.target.closest?.('[data-set-vehicle-type]');
+    if (!btn) return;
+    const id = sim.getSelectedVehicleId();
+    if (!id) return;
+    sim.setVehicleType(id, btn.getAttribute('data-set-vehicle-type') ?? 'car');
+    sim.syncFleetPanel();
+  });
+
+  document.getElementById('fleet-list')?.addEventListener('click', (e) => {
     const rm = e.target.closest?.('[data-remove-id]');
     if (rm) {
       const rid = rm.getAttribute('data-remove-id');
@@ -71,9 +75,9 @@ async function boot() {
       }
       return;
     }
-    const tr = e.target.closest?.('tr[data-vehicle-id]');
-    if (tr) {
-      sim.setSelectedVehicleId(tr.getAttribute('data-vehicle-id'));
+    const row = e.target.closest?.('[data-vehicle-id]');
+    if (row) {
+      sim.setSelectedVehicleId(row.getAttribute('data-vehicle-id'));
       sim.syncFleetPanel();
     }
   });

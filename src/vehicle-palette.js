@@ -40,7 +40,7 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
     });
     if (touchHint && coarse) {
       touchHint.hidden = false;
-      touchHint.textContent = 'Tap the map where you want this vehicle (snaps to route).';
+      touchHint.textContent = 'Tap the map to place this vehicle (snaps to the route).';
     }
   }
 
@@ -50,7 +50,44 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
       if (!t) return;
       e.dataTransfer?.setData(DRAG_MIME, t);
       e.dataTransfer?.setData('text/plain', t);
-      e.dataTransfer.effectAllowed = 'copy';
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
+
+      const canvas = map.getCanvas?.();
+      if (!canvas || !map.unproject) return;
+
+      const wOver = (ev) => {
+        ev.preventDefault();
+        if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy';
+      };
+      const wDrop = (ev) => {
+        window.removeEventListener('dragover', wOver);
+        window.removeEventListener('drop', wDrop);
+        const raw = ev.dataTransfer?.getData(DRAG_MIME) || ev.dataTransfer?.getData('text/plain');
+        if (!raw) return;
+        const stack = typeof document.elementsFromPoint === 'function'
+          ? document.elementsFromPoint(ev.clientX, ev.clientY)
+          : [];
+        if (!stack.includes(canvas)) return;
+        ev.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const lngLat = map.unproject([ev.clientX - rect.left, ev.clientY - rect.top]);
+        const v = sim.addVehicleNearLngLat(lngLat.lng, lngLat.lat, { vehicleType: raw });
+        if (v) {
+          sim.setDefaultVehicleType(raw);
+          sim.syncFleetPanel?.();
+        }
+      };
+
+      window.addEventListener('dragover', wOver);
+      window.addEventListener('drop', wDrop);
+      btn.addEventListener(
+        'dragend',
+        () => {
+          window.removeEventListener('dragover', wOver);
+          window.removeEventListener('drop', wDrop);
+        },
+        { once: true },
+      );
     });
 
     btn.addEventListener('click', () => {
@@ -82,6 +119,7 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
   }
 
   if (canvas) {
+    canvas.addEventListener('dragenter', onMapDragOver);
     canvas.addEventListener('dragover', onMapDragOver);
     canvas.addEventListener('drop', (e) => {
       if (!map.unproject) return;
