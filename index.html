@@ -10,33 +10,18 @@
 </head>
 <body>
   <div id="app">
-    <header id="header">
-      <div class="header-left">
-        <h1>SR-190 Traffic &amp; DAS Lab</h1>
-        <span class="subtitle">User-driven traffic microsim &rarr; live synthetic DAS waterfall (SR-190 Big Cottonwood Canyon)</span>
-      </div>
-    </header>
     <main id="main">
       <div id="left-panel">
         <div id="map-container">
-          <p id="mobile-fleet-hint" class="mobile-fleet-hint">
-            Traffic lab: open the <strong>Fleet</strong> tab in the bar below to add vehicles, load a demo fleet, and edit vehicles.
-          </p>
           <div id="map"></div>
         </div>
         <div id="waterfall-container">
-          <div class="waterfall-header">
-            <span class="wf-title-desktop">DAS waterfall — time × fiber channel (runtime strain-rate proxy)</span>
-            <span class="wf-title-mobile">DAS waterfall · time × channel</span>
-            <span id="waterfall-info" class="waterfall-info"></span>
-          </div>
           <canvas id="waterfall-canvas"></canvas>
         </div>
       </div>
       <aside id="sidebar">
         <div id="sidebar-data-stack" class="sidebar-data-stack">
         <section id="stats-panel" class="sidebar-mobile-panel sidebar-mobile-stats">
-          <h2>Live sensing</h2>
           <div class="stat-cards">
             <div class="stat-card">
               <span class="stat-value" id="stat-vehicles">0</span>
@@ -72,11 +57,11 @@
             </div>
           </div>
         </section>
-        <section id="traffic-control-panel" class="traffic-control-panel sidebar-mobile-panel sidebar-mobile-fleet">
-          <h2>Traffic</h2>
+        </div>
+        <section id="traffic-control-panel" class="traffic-control-panel sidebar-mobile-panel sidebar-mobile-traffic">
           <p class="traffic-control-intro" id="traffic-map-hint"></p>
           <div id="vehicle-palette" class="vehicle-palette" aria-label="Add vehicles to the map">
-            <span class="vehicle-palette-title">Drop on map</span>
+            <span class="vehicle-palette-title">Vehicles</span>
             <div class="vehicle-palette-chips" role="group" aria-label="Vehicle types">
               <button type="button" class="palette-chip" draggable="true" data-vehicle-type="bicycle" title="Bicycle">
                 <span class="palette-icon" aria-hidden="true">🚴</span>
@@ -96,7 +81,7 @@
             </div>
             <p id="vehicle-palette-touch-hint" class="vehicle-palette-touch-hint" hidden></p>
             <div class="placement-lane-group" role="radiogroup" aria-label="Lane for new vehicles">
-              <span class="placement-lane-title">Drop on lane</span>
+              <span class="placement-lane-title">Lane</span>
               <div class="placement-lane-buttons">
                 <button type="button" class="placement-lane-btn placement-lane-btn-active" data-placement-lane="auto" title="Snap to nearest centerline">Auto</button>
                 <button type="button" class="placement-lane-btn placement-lane-eb" data-placement-lane="eb" title="Eastbound (up canyon)">EB</button>
@@ -131,22 +116,17 @@
             <div id="fleet-list" class="fleet-list" aria-label="Vehicles on route"></div>
           </div>
         </section>
-        </div>
         <section id="event-feed">
-          <h2>Event Feed</h2>
           <ul id="event-list"></ul>
         </section>
       </aside>
     </main>
-    <nav id="mobile-tabbar" class="mobile-tabbar" aria-label="Switch panel" hidden>
+    <nav id="mobile-tabbar" class="mobile-tabbar" aria-label="Map, stats, and feed" hidden>
       <button type="button" class="mobile-tab" data-mobile-tab="map" aria-selected="true">
         <span class="mobile-tab-label">Map</span>
       </button>
       <button type="button" class="mobile-tab" data-mobile-tab="stats" aria-selected="false">
         <span class="mobile-tab-label">Stats</span>
-      </button>
-      <button type="button" class="mobile-tab" data-mobile-tab="fleet" aria-selected="false">
-        <span class="mobile-tab-label">Fleet</span>
       </button>
       <button type="button" class="mobile-tab" data-mobile-tab="feed" aria-selected="false">
         <span class="mobile-tab-label">Feed</span>

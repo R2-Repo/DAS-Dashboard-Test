@@ -380,6 +380,7 @@ export function setupTrafficSimulatorMapInteractions(map, sim, options = {}) {
 
   map.on('touchmove', (e) => {
     if (!dragging || e.points.length !== 1) return;
+    e.originalEvent?.preventDefault?.();
     const id = sim.getDragVehicleId();
     if (!id) return;
     sim.moveVehicleToLngLat(id, e.lngLat.lng, e.lngLat.lat);
