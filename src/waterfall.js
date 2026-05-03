@@ -15,6 +15,8 @@
  *   - Vehicle at 45 mph ≈ 1 channel/tick → diagonal slope depends on horizontal zoom
  *   - Zoom: mouse wheel (focal zoom); Shift+wheel / Ctrl+wheel widen or narrow the window.
  *     Double-click does not change zoom (avoids accidental extreme zoom + loss of contrast).
+ *   - Horizontal zoom is clamped: default shows the full fiber; zoom-in stops at a minimum window
+ *     width so the plot cannot zoom to a single-pixel-wide strip.
  */
 
 const HISTORY_ROWS = 256;
@@ -94,10 +96,6 @@ export function initWaterfall(canvasId, data, options = {}) {
   /** Horizontal window in channel index space (half-open [viewStart, viewEnd)). */
   let viewStart = 0;
   let viewEnd = totalChannels;
-  const defaultViewChannels = Math.min(600, totalChannels);
-  if (totalChannels > defaultViewChannels) {
-    viewEnd = defaultViewChannels;
-  }
   const buffer = new Float32Array(totalChannels * HISTORY_ROWS);
   let currentRow = 0;
   let hoveredChannel = null;
@@ -231,7 +229,9 @@ export function initWaterfall(canvasId, data, options = {}) {
 
   const activeTouchX = new Map();
 
-  const MIN_VIEW_CHANNELS = 60;
+  /** Most zoomed-in window (channels); cap prevents extreme pixel zoom; never wider than route. */
+  const MIN_VIEW_CHANNELS = Math.min(200, totalChannels);
+  /** Most zoomed-out = full route (all mileposts along the fiber in channel table). */
   const MAX_VIEW_CHANNELS = totalChannels;
 
   /** Scroll/pan horizontally by channel delta (positive = view moves toward higher channel indices / right side of plot). */
