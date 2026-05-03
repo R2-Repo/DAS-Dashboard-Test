@@ -248,6 +248,13 @@ export function roadDistanceToChannelPos(lane, roadDistM) {
   return c0 + frac * (c1 - c0);
 }
 
+/** Clamp fractional channel index so floor(channelPos) is always a valid fiber channel index. */
+export function clampChannelPosToFiber(cp, channelCount) {
+  if (!Number.isFinite(cp) || channelCount < 1) return 0;
+  const hi = channelCount - 1e-9;
+  return Math.max(0, Math.min(hi, cp));
+}
+
 /** Interpolate WGS84 position along resampled centerline at cumulative distance `roadDistM`. */
 export function lonLatAtRoadDistance(lane, roadDistM) {
   const idx = roadDistanceToSampleIndex(lane, roadDistM);

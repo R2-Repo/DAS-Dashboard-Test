@@ -1,9 +1,22 @@
 /**
  * Sidebar UI — live stats, fleet controls, event feed.
  */
-import { vehicleSpec } from './vehicle-model.js';
+import { normalizeVehicleType, vehicleSpec } from './vehicle-model.js';
 
 const MAX_EVENTS = 60;
+
+const VEHICLE_ICON = {
+  bicycle: '🚴',
+  motorcycle: '🏍',
+  car: '🚗',
+  truck: '🚚',
+  semi_truck: '🚛',
+};
+
+function vehicleIcon(type) {
+  const key = normalizeVehicleType(type);
+  return VEHICLE_ICON[key] ?? VEHICLE_ICON.car;
+}
 
 export function initUI() {
   const el = (id) => document.getElementById(id);
@@ -43,14 +56,14 @@ export function initUI() {
     const time = new Date().toLocaleTimeString();
 
     if (type === 'vehicle') {
-      const lane = data.laneKey === 'wb' ? 'WB (down canyon)' : 'EB (up canyon)';
+      const lane = data.laneKey === 'wb' ? 'WB' : 'EB';
       const dirClass = data.laneKey === 'eb' ? 'up-canyon' : 'down-canyon';
-      const typeLabel = vehicleSpec(data.vehicleType).label;
+      const icon = vehicleIcon(data.vehicleType);
       li.className = dirClass;
       li.innerHTML = `
         <span class="event-time">${time}</span>
-        <span class="event-type vehicle">${typeLabel}</span> ${data.id}<br/>
-        SR-190 MP ${data.currentMilepost.toFixed(1)} &bull; ${lane} &bull; ${Math.round(data.speedMph)} mph
+        <span class="event-type vehicle" title="${vehicleSpec(data.vehicleType).label}">${icon}</span>
+        ${data.id} · ${lane} · ${Math.round(data.speedMph)} mph · MP ${data.currentMilepost.toFixed(1)}
       `;
     } else if (type === 'anomaly') {
       li.className = 'anomaly';
@@ -69,41 +82,53 @@ export function initUI() {
   }
 
   function refreshFleetPanel(sim) {
-    const tbody = el('fleet-table-body');
-    if (!tbody || !sim) return;
-    tbody.replaceChildren();
+    const listEl = el('fleet-list');
+    const selectedPanel = el('fleet-selected-panel');
+    if (!listEl || !sim) return;
+    listEl.replaceChildren();
     const list = sim.getVehicles();
     const sel = sim.getSelectedVehicleId();
 
     for (const v of list) {
-      const tr = document.createElement('tr');
-      if (v.id === sel) tr.classList.add('fleet-row-selected');
-      tr.dataset.vehicleId = v.id;
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'fleet-row';
+      if (v.id === sel) row.classList.add('fleet-row-selected');
+      row.dataset.vehicleId = v.id;
       const lane = v.laneKey === 'wb' ? 'WB' : 'EB';
-      tr.innerHTML = `
-        <td><code class="fleet-id">${v.id}</code></td>
-        <td>${lane}</td>
-        <td>${vehicleSpec(v.vehicleType).label}</td>
-        <td class="fleet-speed">${Math.round(v.speedMph)}</td>
-        <td class="fleet-mp">${v.currentMilepost != null ? v.currentMilepost.toFixed(1) : '\u2014'}</td>
-        <td><button type="button" class="fleet-remove-btn" data-remove-id="${v.id}" title="Remove">×</button></td>
+      const icon = vehicleIcon(v.vehicleType);
+      row.innerHTML = `
+        <span class="fleet-row-icon" aria-hidden="true">${icon}</span>
+        <span class="fleet-row-meta">
+          <span class="fleet-row-line1">${lane} · ${Math.round(v.speedMph)} mph</span>
+          <span class="fleet-row-line2">MP ${v.currentMilepost != null ? v.currentMilepost.toFixed(1) : '\u2014'}</span>
+        </span>
+        <span class="fleet-row-remove" role="presentation" data-remove-id="${v.id}" title="Remove">×</span>
       `;
-      tbody.appendChild(tr);
+      listEl.appendChild(row);
     }
 
     const speedInput = el('fleet-speed-input');
-    const typeSelect = el('fleet-type-select');
     const applyBtn = el('fleet-apply-btn');
     const selected = sel ? list.find((v) => v.id === sel) : null;
+
+    if (selectedPanel) {
+      selectedPanel.hidden = !selected;
+    }
     if (speedInput) {
-      speedInput.disabled = !selected;
       if (selected) speedInput.value = String(Math.round(selected.desiredSpeedMph));
+      speedInput.disabled = !selected;
     }
-    if (typeSelect) {
-      typeSelect.disabled = !selected;
-      if (selected) typeSelect.value = selected.vehicleType;
+    if (applyBtn) {
+      applyBtn.disabled = !selected;
     }
-    if (applyBtn) applyBtn.disabled = !selected;
+
+    if (selectedPanel) {
+      selectedPanel.querySelectorAll('.fleet-type-btn').forEach((b) => {
+        const t = b.getAttribute('data-set-vehicle-type');
+        b.classList.toggle('fleet-type-btn-active', selected && t === selected.vehicleType);
+      });
+    }
   }
 
   return { updateStats, updateChannelCount, addEvent, refreshFleetPanel };

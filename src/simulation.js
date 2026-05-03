@@ -14,6 +14,7 @@ import {
   nearestPointOnLanes,
   travelBearingDegAtRoadDistance,
   bearingDegClockwiseFromNorthLonLat,
+  clampChannelPosToFiber,
 } from './road-geometry.js';
 import { stepVehicleIdm, DEFAULT_IDM } from './traffic-follow.js';
 import {
@@ -29,7 +30,7 @@ const MS_PER_S = 1000;
 const MPH_TO_MS = 0.44704;
 
 const MIN_CURVE_SPEED_MPH = 18;
-const LAB_SNAP_MAX_M = 150;
+const LAB_SNAP_MAX_M = 650;
 
 let vehicles = [];
 let anomalies = [];
@@ -129,7 +130,10 @@ export function createSimulation(data, targets) {
             v.roadDistM = Math.max(0, Math.min(lane.totalM, v.roadDistM));
           }
 
-          v.channelPos = roadDistanceToChannelPos(lane, v.roadDistM);
+          v.channelPos = clampChannelPosToFiber(
+            roadDistanceToChannelPos(lane, v.roadDistM),
+            totalChannels,
+          );
           const ll = lonLatAtRoadDistance(lane, v.roadDistM);
           v.lon = ll[0];
           v.lat = ll[1];
@@ -264,10 +268,6 @@ export function createSimulation(data, targets) {
     );
 
     const vehicleFeatures = vehicles
-      .filter((v) => {
-        const ci = Math.floor(v.channelPos);
-        return ci >= 0 && ci < totalChannels;
-      })
       .map((v) => {
         const ci = Math.min(Math.max(0, Math.floor(v.channelPos)), totalChannels - 1);
         const ch = channels[ci];
@@ -335,11 +335,6 @@ export function createSimulation(data, targets) {
       const v = vehicles[Math.floor(Math.random() * vehicles.length)];
       targets.ui.addEvent('vehicle', v);
     }
-    if (anomalies.length > 0 && tickCount % 40 === 0) {
-      const a = anomalies[0];
-      const midCh = channels[Math.min(Math.floor((a.startChannel + a.endChannel) / 2), totalChannels - 1)];
-      targets.ui.addEvent('anomaly', { ...a, milepost: midCh.milepost });
-    }
 
     if (tickCount % 8 === 0) {
       syncFleetPanelFn();
@@ -353,7 +348,10 @@ export function createSimulation(data, targets) {
     const speedMph = opts.forceSpeed ?? 38;
     const vehicleType = normalizeVehicleType(opts.vehicleType || 'car');
     const roadM = Math.max(0, Math.min(lane.totalM, roadDistM));
-    const channelPos = roadDistanceToChannelPos(lane, roadM);
+    const channelPos = clampChannelPosToFiber(
+      roadDistanceToChannelPos(lane, roadM),
+      totalChannels,
+    );
     const [lon, lat] = lonLatAtRoadDistance(lane, roadM);
     const id = formatFleetId(nextFleetId++);
 
@@ -420,7 +418,10 @@ export function createSimulation(data, targets) {
       existing.laneKey = snap.laneKey;
       existing.direction = directionForLane(snap.laneKey);
       existing.roadDistM = roadM;
-      existing.channelPos = roadDistanceToChannelPos(lane, roadM);
+      existing.channelPos = clampChannelPosToFiber(
+        roadDistanceToChannelPos(lane, roadM),
+        totalChannels,
+      );
       const ll = lonLatAtRoadDistance(lane, roadM);
       existing.lon = ll[0];
       existing.lat = ll[1];
@@ -536,36 +537,6 @@ export function createSimulation(data, targets) {
     setSelectedVehicleId(vehicles[0]?.id ?? null);
   }
 
-  /**
-   * Broadband disturbance along fiber (placeholder for avalanche / rock slide UI).
-   */
-  function triggerRockslide(opts = {}) {
-    const span = Math.min(
-      totalChannels - 4,
-      Math.max(24, Math.floor(opts.spanChannels ?? 120)),
-    );
-    let start = Math.floor(opts.startChannel ?? totalChannels * 0.45 + (Math.random() - 0.5) * 400);
-    start = Math.max(2, Math.min(totalChannels - span - 2, start));
-    const ttl = opts.durationTicks ?? 180;
-    anomalies.push({
-      id: `RS-${String(tickCount).padStart(5, '0')}`,
-      subtype: 'rock_slide_disturbance',
-      startChannel: start,
-      endChannel: Math.min(start + span, totalChannels - 1),
-      intensity: opts.intensity ?? 0.55,
-      ttl,
-      initialTtl: ttl,
-      phase: Math.random() * Math.PI * 2,
-    });
-    const midCh = channels[Math.min(Math.floor(start + span / 2), totalChannels - 1)];
-    targets.ui.addEvent('anomaly', {
-      id: anomalies[anomalies.length - 1].id,
-      subtype: 'rock_slide_disturbance',
-      milepost: midCh.milepost,
-      intensity: anomalies[anomalies.length - 1].intensity,
-    });
-  }
-
   function setVehicleDesiredSpeed(id, mph) {
     const v = vehicleById(id);
     if (!v) return false;
@@ -613,7 +584,6 @@ export function createSimulation(data, targets) {
     removeVehicle,
     clearFleet,
     applyQuickFleet,
-    triggerRockslide,
     setVehicleDesiredSpeed,
     setVehicleType,
     getDefaultVehicleType: () => defaultVehicleType,

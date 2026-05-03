@@ -73,55 +73,50 @@
           </div>
         </section>
         <section id="traffic-control-panel" class="traffic-control-panel sidebar-mobile-panel sidebar-mobile-fleet">
-          <h2>Fleet &amp; map</h2>
+          <h2>Traffic</h2>
           <p class="traffic-control-intro" id="traffic-map-hint"></p>
           <div id="vehicle-palette" class="vehicle-palette" aria-label="Add vehicles to the map">
-            <span class="vehicle-palette-title">Add vehicle</span>
+            <span class="vehicle-palette-title">Drop on map</span>
             <div class="vehicle-palette-chips" role="group" aria-label="Vehicle types">
-              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="bicycle" title="Bicycle">Bike</button>
-              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="motorcycle" title="Motorcycle">Moto</button>
-              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="car" title="Car">Car</button>
-              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="truck" title="Truck">Truck</button>
-              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="semi_truck" title="Semi truck">Semi</button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="bicycle" title="Bicycle">
+                <span class="palette-icon" aria-hidden="true">🚴</span>
+              </button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="motorcycle" title="Motorcycle">
+                <span class="palette-icon" aria-hidden="true">🏍</span>
+              </button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="car" title="Car">
+                <span class="palette-icon" aria-hidden="true">🚗</span>
+              </button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="truck" title="Truck">
+                <span class="palette-icon" aria-hidden="true">🚚</span>
+              </button>
+              <button type="button" class="palette-chip" draggable="true" data-vehicle-type="semi_truck" title="Semi truck">
+                <span class="palette-icon" aria-hidden="true">🚛</span>
+              </button>
             </div>
             <p id="vehicle-palette-touch-hint" class="vehicle-palette-touch-hint" hidden></p>
           </div>
-          <div class="traffic-control-actions">
-            <button type="button" id="btn-demo-fleet" class="lab-btn">Load demo fleet</button>
-            <button type="button" id="btn-clear-fleet" class="lab-btn lab-btn-muted">Clear all</button>
-            <button type="button" id="btn-rockslide" class="lab-btn lab-btn-hazard">Simulate rock slide</button>
+          <div class="traffic-control-actions traffic-control-actions-row">
+            <button type="button" id="btn-demo-fleet" class="lab-btn">Demo</button>
+            <button type="button" id="btn-clear-fleet" class="lab-btn lab-btn-muted">Clear</button>
           </div>
-          <div class="fleet-editor">
-            <label class="fleet-field">
-              <span>Desired speed (mph)</span>
-              <input type="number" id="fleet-speed-input" min="0" max="85" step="1" value="38" disabled />
+          <div id="fleet-selected-panel" class="fleet-selected-panel" hidden>
+            <div class="fleet-selected-label">Selected</div>
+            <div id="fleet-type-inline" class="fleet-type-inline" role="group" aria-label="Vehicle type">
+              <button type="button" class="fleet-type-btn" data-set-vehicle-type="bicycle" title="Bicycle"><span aria-hidden="true">🚴</span></button>
+              <button type="button" class="fleet-type-btn" data-set-vehicle-type="motorcycle" title="Motorcycle"><span aria-hidden="true">🏍</span></button>
+              <button type="button" class="fleet-type-btn" data-set-vehicle-type="car" title="Car"><span aria-hidden="true">🚗</span></button>
+              <button type="button" class="fleet-type-btn" data-set-vehicle-type="truck" title="Truck"><span aria-hidden="true">🚚</span></button>
+              <button type="button" class="fleet-type-btn" data-set-vehicle-type="semi_truck" title="Semi"><span aria-hidden="true">🚛</span></button>
+            </div>
+            <label class="fleet-speed-row">
+              <span class="fleet-speed-label">mph</span>
+              <input type="number" id="fleet-speed-input" min="0" max="85" step="1" value="38" />
+              <button type="button" id="fleet-apply-btn" class="lab-btn lab-btn-inline">Set</button>
             </label>
-            <label class="fleet-field">
-              <span>Vehicle type</span>
-              <select id="fleet-type-select" disabled>
-                <option value="bicycle">Bicycle</option>
-                <option value="motorcycle">Motorcycle</option>
-                <option value="car">Car</option>
-                <option value="truck">Truck</option>
-                <option value="semi_truck">Semi truck</option>
-              </select>
-            </label>
-            <button type="button" id="fleet-apply-btn" class="lab-btn" disabled>Apply to selected</button>
           </div>
-          <div class="fleet-table-wrap">
-            <table class="fleet-table" aria-label="Vehicle fleet">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Lane</th>
-                  <th>Type</th>
-                  <th>mph</th>
-                  <th>MP</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="fleet-table-body"></tbody>
-            </table>
+          <div class="fleet-list-wrap">
+            <div id="fleet-list" class="fleet-list" aria-label="Vehicles on route"></div>
           </div>
         </section>
         </div>
