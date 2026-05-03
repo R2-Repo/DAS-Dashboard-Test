@@ -33,6 +33,9 @@ const TICK_MS = 100;
 const MS_PER_S = 1000;
 const MPH_TO_MS = 0.44704;
 
+/** Extra Δchannels/tick in waterfall stamping so tracks read diagonal when road ≈ fiber. */
+const WATERFALL_DIAGONAL_SKEW = 0.78;
+
 /** Lookahead distance (m) for curve speed — slow before the bend. */
 const CURVE_LOOKAHEAD_M = 70;
 
@@ -354,15 +357,24 @@ export function createSimulation(data, targets) {
       let peakStrength =
         strength * (0.92 + Math.random() * 0.08) * speedCoupling * (0.55 + 0.45 * roadC0);
 
-      const delta = center - prev;
+      const cpt =
+        typeof v.channelsPerTick === 'number' && v.channelsPerTick > 0
+          ? v.channelsPerTick
+          : mphToChannelsPerTick(Math.max(1, mph));
+      const skewSign = v.direction === 'up_canyon' ? 1 : -1;
+      const skew = skewSign * WATERFALL_DIAGONAL_SKEW * cpt;
+      const stampPrev = prev - skew * 0.5;
+      const stampCenter = center + skew * 0.5;
+
+      const delta = stampCenter - stampPrev;
       const pathLen = Math.abs(delta);
       if (pathLen < 0.02) {
-        stampVehicleEnergyAt(center, peakStrength, halfWidth);
+        stampVehicleEnergyAt(stampCenter, peakStrength, halfWidth);
       } else {
         const nSteps = Math.min(40, Math.max(2, Math.ceil(pathLen * 3 + 4)));
         for (let s = 0; s < nSteps; s++) {
           const u = nSteps === 1 ? 1 : s / (nSteps - 1);
-          const pos = prev + delta * u;
+          const pos = stampPrev + delta * u;
           const along = 0.88 + 0.12 * (1 - Math.abs(u - 0.5) * 2);
           stampVehicleEnergyAt(pos, peakStrength * along, halfWidth);
         }
