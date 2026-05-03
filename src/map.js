@@ -1,8 +1,8 @@
 /**
  * 3D MapLibre map — terrain, hillshade, GIS layers, and dynamic vehicle/anomaly markers.
  *
- * Tile sources (all free, no API key):
- *   - Base map: OpenStreetMap raster tiles
+ * Tile sources (no API key in this build):
+ *   - Base map: Esri World Imagery + reference overlays (transportation, boundaries/places) — hybrid satellite
  *   - Terrain: AWS Terrarium RGB elevation tiles (for 3D + hillshade)
  *
  * GIS layers on load: fiber route only (road centerline, mileposts, crossings hidden).
@@ -17,6 +17,20 @@ import { vehicleSpec } from './vehicle-model.js';
 import { VEHICLE_HIT_LAYERS } from './map-constants.js';
 
 const TERRAIN_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+
+/** Esri tiled basemap (ArcGIS Online); {z}/{row}/{col} with row = TMS Y from North. */
+const ESRI_IMAGERY_TILES =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const ESRI_TRANSPORT_TILES =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}';
+const ESRI_BOUNDARIES_TILES =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
+
+const ESRI_ATTRIBUTION =
+  'Tiles © <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> '
+  + '(<a href="https://goto.arcgisonline.com/maps/World_Imagery" target="_blank" rel="noopener">World Imagery</a>, '
+  + '<a href="https://goto.arcgisonline.com/maps/Reference/World_Transportation" target="_blank" rel="noopener">Transportation</a>, '
+  + '<a href="https://goto.arcgisonline.com/maps/Reference/World_Boundaries_and_Places" target="_blank" rel="noopener">Boundaries</a>)';
 
 function vehicleTypeLabel(type) {
   const s = vehicleSpec(type);
@@ -33,11 +47,25 @@ export function initMap(containerId, data) {
     style: {
       version: 8,
       sources: {
-        osm: {
+        'esri-imagery': {
           type: 'raster',
-          tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+          tiles: [ESRI_IMAGERY_TILES],
           tileSize: 256,
-          attribution: '&copy; OpenStreetMap contributors',
+          attribution: ESRI_ATTRIBUTION,
+          maxzoom: 19,
+        },
+        'esri-transport': {
+          type: 'raster',
+          tiles: [ESRI_TRANSPORT_TILES],
+          tileSize: 256,
+          attribution: ESRI_ATTRIBUTION,
+          maxzoom: 19,
+        },
+        'esri-boundaries': {
+          type: 'raster',
+          tiles: [ESRI_BOUNDARIES_TILES],
+          tileSize: 256,
+          attribution: ESRI_ATTRIBUTION,
           maxzoom: 19,
         },
         terrainSource: {
@@ -56,7 +84,7 @@ export function initMap(containerId, data) {
         },
       },
       layers: [
-        { id: 'osm-tiles', type: 'raster', source: 'osm' },
+        { id: 'esri-imagery', type: 'raster', source: 'esri-imagery' },
         {
           id: 'hillshade',
           type: 'hillshade',
@@ -65,8 +93,20 @@ export function initMap(containerId, data) {
             'hillshade-shadow-color': '#1a1a2e',
             'hillshade-highlight-color': '#fafafa',
             'hillshade-accent-color': '#5a5a7a',
-            'hillshade-exaggeration': 0.3,
+            'hillshade-exaggeration': 0.22,
           },
+        },
+        {
+          id: 'esri-transport',
+          type: 'raster',
+          source: 'esri-transport',
+          paint: { 'raster-opacity': 0.92 },
+        },
+        {
+          id: 'esri-boundaries',
+          type: 'raster',
+          source: 'esri-boundaries',
+          paint: { 'raster-opacity': 0.88 },
         },
       ],
       terrain: {
