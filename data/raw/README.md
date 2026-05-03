@@ -5,9 +5,11 @@ Place your raw GIS datasets here. The preprocessing script (`scripts/preprocess_
 | File | Description | Format |
 |------|-------------|--------|
 | `fiber.geojson` | Fiber optic cable path (may be multiple disconnected segments) | GeoJSON LineString/MultiLineString |
-| `road.geojson` | UDOT SR-190 road centerline | GeoJSON LineString |
-| `mileposts.geojson` | Milepost point features (linear referenced to tenths) | GeoJSON Point with `milepost` property |
+| `road.geojson` | SR-190 road centerline(s); may contain multiple LineStrings (WB + EB) | GeoJSON LineString |
+| `mileposts.geojson` | Milepost point features | GeoJSON Point with `milepost`, or UDOT `Measure` (copied to `milepost` at preprocess time) |
 | `crossings.geojson` | (Optional) Known fiber-road crossing points | GeoJSON Point |
+
+When the final UDOT exports live in `data/` (`SR-190 Fiber.geojson`, both centerline files, `Milepost Linear Measure (LM) Tenth.geojson`, `Fiber Road Crossings.geojson`), running the script copies them into this folder and merges the two centerlines into `road.geojson` before processing.
 
 Run the preprocessing script from the project root:
 
