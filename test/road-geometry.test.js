@@ -1,70 +1,57 @@
 import { describe, it, expect } from 'vitest';
 import {
-  clampChannelPosToFiber,
-  nearestPointOnLanes,
-  nearestPointOnLanesPrefer,
+  bearingDegClockwiseFromNorthLonLat,
+  travelBearingDegAtRoadDistance,
 } from '../src/road-geometry.js';
 
-describe('clampChannelPosToFiber', () => {
-  it('clamps so floor is always a valid channel index', () => {
-    expect(clampChannelPosToFiber(-5, 100)).toBe(0);
-    expect(clampChannelPosToFiber(99.9, 100)).toBe(99.9);
-    const hi = clampChannelPosToFiber(150, 100);
-    expect(Math.floor(hi)).toBe(99);
-    expect(hi).toBeLessThan(100);
+describe('bearingDegClockwiseFromNorthLonLat', () => {
+  it('returns ~0° for due north (increasing latitude)', () => {
+    const d = bearingDegClockwiseFromNorthLonLat(-111.7, 40.6, -111.7, 40.65);
+    const northish = d < 0.5 || d > 359.5;
+    expect(northish).toBe(true);
   });
 
-  it('handles single-channel fiber', () => {
-    expect(clampChannelPosToFiber(0.5, 1)).toBe(0.5);
-    const hi = clampChannelPosToFiber(2, 1);
-    expect(Math.floor(hi)).toBe(0);
-    expect(hi).toBeLessThan(1);
+  it('returns ~90° for due east (increasing longitude at mid-latitude)', () => {
+    const d = bearingDegClockwiseFromNorthLonLat(-111.75, 40.62, -111.74, 40.62);
+    expect(d).toBeGreaterThan(89);
+    expect(d).toBeLessThan(91);
+  });
+
+  it('returns ~180° for due south', () => {
+    const d = bearingDegClockwiseFromNorthLonLat(-111.7, 40.65, -111.7, 40.6);
+    expect(d).toBeGreaterThan(179);
+    expect(d).toBeLessThan(181);
+  });
+
+  it('returns ~270° for due west', () => {
+    const d = bearingDegClockwiseFromNorthLonLat(-111.74, 40.62, -111.75, 40.62);
+    expect(d).toBeGreaterThan(269);
+    expect(d).toBeLessThan(271);
   });
 });
 
-function minimalLane(pts) {
-  const cumDistM = [0];
-  for (let i = 1; i < pts.length; i++) {
-    const dx = (pts[i][0] - pts[i - 1][0]) * 111320 * Math.cos((pts[i][1] * Math.PI) / 180);
-    const dy = (pts[i][1] - pts[i - 1][1]) * 111320;
-    cumDistM.push(cumDistM[i - 1] + Math.sqrt(dx * dx + dy * dy));
-  }
-  return { points: pts, cumDistM };
-}
+describe('travelBearingDegAtRoadDistance', () => {
+  const laneEast = {
+    points: [
+      [-111.8, 40.6],
+      [-111.79, 40.6],
+    ],
+    cumDistM: [0, 800],
+    forwardIncreasesChannel: true,
+    channelAlong: new Float32Array([0, 1]),
+    curvature: new Float32Array([0, 0]),
+    totalM: 800,
+  };
 
-describe('nearestPointOnLanesPrefer', () => {
-  it('forces EB when requested even if WB is closer', () => {
-    const laneEb = minimalLane([
-      [-111.8, 40.62],
-      [-111.78, 40.63],
-    ]);
-    const laneWb = minimalLane([
-      [-111.8, 40.619],
-      [-111.78, 40.629],
-    ]);
-    const lon = -111.79;
-    const lat = 40.6192;
-    const auto = nearestPointOnLanes(laneEb, laneWb, lon, lat);
-    expect(auto?.laneKey).toBe('wb');
-    const forced = nearestPointOnLanesPrefer(laneEb, laneWb, lon, lat, 'eb');
-    expect(forced?.laneKey).toBe('eb');
-    expect(Math.abs(forced.distanceM - auto.distanceM)).toBeGreaterThan(1);
+  it('matches segment bearing for up_canyon when polyline increases channel', () => {
+    const b = travelBearingDegAtRoadDistance(laneEast, 400, 'up_canyon');
+    expect(b).toBeGreaterThan(89);
+    expect(b).toBeLessThan(91);
   });
 
-  it('auto matches nearestPointOnLanes', () => {
-    const laneEb = minimalLane([
-      [-111.8, 40.62],
-      [-111.78, 40.63],
-    ]);
-    const laneWb = minimalLane([
-      [-111.8, 40.6],
-      [-111.78, 40.61],
-    ]);
-    const lon = -111.79;
-    const lat = 40.605;
-    const a = nearestPointOnLanes(laneEb, laneWb, lon, lat);
-    const b = nearestPointOnLanesPrefer(laneEb, laneWb, lon, lat, 'auto');
-    expect(b?.laneKey).toBe(a?.laneKey);
-    expect(b?.distanceM).toBeCloseTo(a.distanceM, 6);
+  it('reverses bearing for down_canyon on same polyline', () => {
+    const b = travelBearingDegAtRoadDistance(laneEast, 400, 'down_canyon');
+    expect(b).toBeGreaterThan(269);
+    expect(b).toBeLessThan(271);
   });
 });
