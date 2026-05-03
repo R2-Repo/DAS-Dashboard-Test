@@ -66,6 +66,16 @@ function formatFleetId(n) {
   return `VEH-${String(n).padStart(4, '0')}`;
 }
 
+/** MapLibre fill-extrusion opacity is layer-wide; encode per-vehicle alpha in the color string. */
+function rgbaFromHex(hex, a) {
+  const h = String(hex).trim().replace('#', '');
+  if (h.length !== 6) return `rgba(144,202,249,${a})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
 export function createSimulation(data, targets) {
   const { channels, road } = data;
   const totalChannels = channels.length;
@@ -121,9 +131,11 @@ export function createSimulation(data, targets) {
           if (fwd > 0 && k < sorted.length - 1) leader = vehicles[sorted[k + 1]];
           if (fwd < 0 && k > 0) leader = vehicles[sorted[k - 1]];
 
-          const curv = curvatureAtRoadDistance(lane, v.roadDistM);
-          const cap = curveSpeedCapMph(curv);
-          stepVehicleIdm(v, leader, v.desiredSpeedMph, cap, fwd, dtS, DEFAULT_IDM);
+          if (v.id !== dragVehicleId) {
+            const curv = curvatureAtRoadDistance(lane, v.roadDistM);
+            const cap = curveSpeedCapMph(curv);
+            stepVehicleIdm(v, leader, v.desiredSpeedMph, cap, fwd, dtS, DEFAULT_IDM);
+          }
 
           if (v.roadDistM < -30 || v.roadDistM > lane.totalM + 30) {
             v.dead = true;
@@ -176,8 +188,10 @@ export function createSimulation(data, targets) {
             };
           }
 
-          const cap = 120;
-          stepVehicleIdm(v, leader, v.desiredSpeedMph, cap, fwd, dtS, DEFAULT_IDM);
+          if (v.id !== dragVehicleId) {
+            const cap = 120;
+            stepVehicleIdm(v, leader, v.desiredSpeedMph, cap, fwd, dtS, DEFAULT_IDM);
+          }
 
           v.channelPos = v.roadDistM / CHANNEL_SPACING_M;
           const ci = Math.floor(v.channelPos);
@@ -298,7 +312,9 @@ export function createSimulation(data, targets) {
           mapDims.widthM,
           bearingDeg,
         );
-        const outline = v.id === selectedVehicleId ? '#ffffff' : 'rgba(0,0,0,0.35)';
+        const sel = v.id === selectedVehicleId;
+        const fillColor = rgbaFromHex(spec.color, sel ? 0.96 : 0.82);
+        const outlineColor = sel ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.42)';
 
         return {
           type: 'Feature',
@@ -309,10 +325,9 @@ export function createSimulation(data, targets) {
             speed: Math.round(v.speedMph),
             type: v.vehicleType,
             milepost: ch.milepost.toFixed(1),
-            selected: v.id === selectedVehicleId ? 1 : 0,
             height_m: mapDims.heightM,
-            fill_color: spec.color,
-            outline_color: outline,
+            fill_color: fillColor,
+            outline_color: outlineColor,
           },
           geometry: geom,
         };
@@ -435,8 +450,6 @@ export function createSimulation(data, targets) {
       existing.lat = ll[1];
       existing.desiredSpeedMph = speed;
       existing.vehicleType = vtype;
-      existing.userLock = true;
-      existing.speedMph = 0;
       targets.waterfall.scrollChannelIntoView(existing.channelPos);
       return true;
     }
@@ -445,10 +458,6 @@ export function createSimulation(data, targets) {
       forceSpeed: speed,
       vehicleType: vtype,
     });
-    if (v) {
-      v.userLock = true;
-      v.speedMph = 0;
-    }
     return !!v;
   }
 
@@ -475,8 +484,6 @@ export function createSimulation(data, targets) {
     existing.roadDistM = best * CHANNEL_SPACING_M;
     existing.lon = channels[best].lon;
     existing.lat = channels[best].lat;
-    existing.userLock = true;
-    existing.speedMph = 0;
     targets.waterfall.scrollChannelIntoView(best);
     return true;
   }
