@@ -5,7 +5,7 @@
  *   - Base map: Esri World Imagery + reference overlays (transportation, boundaries/places) — hybrid satellite
  *   - Terrain: AWS Terrarium RGB elevation tiles (for 3D + hillshade)
  *
- * GIS layers on load: fiber route + EB/WB road centerlines (mileposts, crossings not drawn).
+ * GIS layers on load: fiber path (soft glow) + EB/WB road centerlines (mileposts, crossings not drawn).
  * Dynamic layers: anomaly pulses (below), then vehicles as fill-extrusion blocks on terrain
  * so markers do not obscure vehicles.
  *
@@ -247,16 +247,6 @@ function addFiberLayer(map, fiberRoute) {
       'line-width': 6,
       'line-opacity': 0.3,
       'line-blur': 4,
-    },
-  });
-  map.addLayer({
-    id: 'fiber-line',
-    type: 'line',
-    source: 'fiber',
-    paint: {
-      'line-color': '#4fc3f7',
-      'line-width': 2.5,
-      'line-dasharray': [4, 2],
     },
   });
 }
