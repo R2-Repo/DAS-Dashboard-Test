@@ -25,6 +25,7 @@ import {
   vehicleSpec,
 } from './vehicle-model.js';
 import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
+import { syncVehicleCallouts, clearVehicleCallouts } from './vehicle-callouts.js';
 
 const CHANNEL_SPACING_M = 2.0;
 const TICK_MS = 100;
@@ -337,10 +338,24 @@ export function createSimulation(data, targets) {
         const sel = v.id === selectedVehicleId;
         const laneTint =
           v.laneKey === 'eb' ? LANE_ROUTE_COLOR_HEX.eb : LANE_ROUTE_COLOR_HEX.wb;
-        const laneMix = roadOk ? (v.userPlaced ? 0.72 : 0.38) : 0;
-        const baseFillHex = mixRgbWithHex(spec.color, laneTint, laneMix);
-        const fillColor = rgbaFromHex(baseFillHex, sel ? 0.96 : 0.82);
-        const outlineColor = sel ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.42)';
+        let baseFillHex;
+        if (v.userPlaced) {
+          baseFillHex = laneTint;
+        } else if (roadOk) {
+          baseFillHex = mixRgbWithHex(spec.color, laneTint, 0.38);
+        } else {
+          baseFillHex = spec.color;
+        }
+        const fillColor = rgbaFromHex(baseFillHex, sel ? 0.96 : v.userPlaced ? 0.9 : 0.82);
+        let outlineColor;
+        if (v.userPlaced) {
+          outlineColor = sel
+            ? rgbaFromHex(mixRgbWithHex(baseFillHex, '#ffffff', 0.4), 0.95)
+            : rgbaFromHex(baseFillHex, 0.88);
+        } else {
+          outlineColor = sel ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.42)';
+        }
+        const glowColor = v.userPlaced ? fillColor : 'rgba(0,0,0,0)';
 
         return {
           type: 'Feature',
@@ -354,6 +369,8 @@ export function createSimulation(data, targets) {
             height_m: mapDims.heightM,
             fill_color: fillColor,
             outline_color: outlineColor,
+            user_placed: v.userPlaced ? 1 : 0,
+            glow_color: glowColor,
           },
           geometry: geom,
         };
@@ -373,6 +390,7 @@ export function createSimulation(data, targets) {
     });
 
     updateMapVehicles(targets.map, vehicleFeatures);
+    syncVehicleCallouts(targets.map, vehicles);
     updateMapAnomalies(targets.map, anomalyFeatures);
 
     targets.ui.updateStats(vehicles, anomalies, {
@@ -555,6 +573,7 @@ export function createSimulation(data, targets) {
     vehicles = vehicles.filter((v) => v.id !== id);
     if (selectedVehicleId === id) setSelectedVehicleId(vehicles[0]?.id ?? null);
     if (dragVehicleId === id) dragVehicleId = null;
+    syncVehicleCallouts(targets.map, vehicles);
     return vehicles.length < before;
   }
 
@@ -563,6 +582,7 @@ export function createSimulation(data, targets) {
     anomalies = [];
     setSelectedVehicleId(null);
     dragVehicleId = null;
+    clearVehicleCallouts();
     updateMapVehicles(targets.map, []);
     updateMapAnomalies(targets.map, []);
     targets.ui.updateStats(vehicles, anomalies, { sampleRateHz: MS_PER_S / TICK_MS, simTimeS: 0 });
