@@ -599,7 +599,6 @@ export function createSimulation(data, targets) {
     dragVehicleId = null;
     intervalId = setInterval(tick, TICK_MS);
     targets.ui.updateChannelCount(totalChannels);
-    applyQuickFleet();
     targets.ui.updateStats(vehicles, anomalies, { sampleRateHz: MS_PER_S / TICK_MS, simTimeS: 0 });
   }
 
