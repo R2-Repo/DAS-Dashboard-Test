@@ -36,10 +36,12 @@ const ESRI_ATTRIBUTION =
 
 /** Bearing in degrees (MapLibre): 0 = north up; ~45° ≈ northeast-facing view. */
 const DEFAULT_VIEW_BEARING = 45;
-const DEFAULT_VIEW_PITCH = 42;
+/** Initial / reset pitch; `fitBounds` uses this so framing accounts for tilted horizon. */
+const DEFAULT_VIEW_PITCH = 55;
 /** Subtracted from fitBounds zoom; smaller value = stay zoomed in closer to the route. */
-const FIT_BOUNDS_ZOOM_OUT = 0.04;
-const FIT_BOUNDS_MAX_ZOOM = 11.55;
+const FIT_BOUNDS_ZOOM_OUT = 0.02;
+/** Upper cap for auto-fit zoom (road + fiber union); raised so steeper pitch can still zoom in. */
+const FIT_BOUNDS_MAX_ZOOM = 12.35;
 
 const LAYER_TOGGLE_IDS = {
   road: ['road-wb-centerline', 'road-eb-centerline'],
@@ -182,7 +184,8 @@ export function initMap(containerId, data) {
 }
 
 /**
- * Fit the camera to the route with padding, default bearing/pitch, then nudge zoom slightly.
+ * Fit the camera to the route with padding and default bearing/pitch (pitch affects visible area).
+ * Nudges zoom out slightly so the union of road + fiber centerlines stays inside the viewport.
  */
 function applyRouteBoundsCamera(map, bounds) {
   if (!bounds || bounds[0] > bounds[2] || bounds[1] > bounds[3]) return;
