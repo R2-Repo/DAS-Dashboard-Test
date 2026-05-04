@@ -10,7 +10,7 @@ const VEHICLE_ICON = {
   motorcycle: '🏍',
   car: '🚗',
   truck: '🛻',
-  semi_truck: '🚛',
+  semi_truck: '🚌',
 };
 
 function vehicleIcon(type) {
