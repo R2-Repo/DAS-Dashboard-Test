@@ -1,8 +1,8 @@
 {
-  "name": "das-canyon-dashboard",
+  "name": "sr190-canyon-web",
   "version": "0.1.0",
   "private": true,
-  "description": "Distributed Acoustic Sensing (DAS) Canyon Roadway Monitoring Dashboard",
+  "description": "SR-190 Big Cottonwood Canyon — map and fiber view web app",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,8 +13,8 @@
     "test:watch": "vitest"
   },
   "keywords": [
-    "das",
-    "dashboard",
+    "sr-190",
+    "big-cottonwood",
     "maplibre",
     "geospatial"
   ],

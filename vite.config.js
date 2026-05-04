@@ -39,10 +39,9 @@ export default defineConfig(({ mode }) => {
               injectRegister: 'auto',
               includeAssets: ['icons/*.png', 'icons/*.svg'],
               manifest: {
-                name: 'SR-190 Traffic & DAS Lab',
-                short_name: 'Traffic DAS',
-                description:
-                  'Traffic microsimulation with live synthetic DAS waterfall — SR-190 Big Cottonwood Canyon',
+                name: 'SR-190 Big Cottonwood Canyon',
+                short_name: 'SR-190 Canyon',
+                description: 'Map of the canyon road with a simple synthetic view along the fiber.',
                 theme_color: '#0f1422',
                 background_color: '#0f1422',
                 display: 'standalone',
