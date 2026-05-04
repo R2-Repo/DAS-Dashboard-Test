@@ -311,17 +311,14 @@ export function createSimulation(data, targets) {
     const row = new Float32Array(totalChannels);
     noiseSeed += 0.1;
 
-    // Ambient noise uses the same calm floor with or without vehicles so the jet stretch
-    // stays in the blue band; vehicle/anomaly stamps below provide contrast.
+    // Quiet ambient noise — stays in the dark-blue band of the jet colormap.
+    // Vehicle stamps below provide the contrast that makes diagonal traces visible.
     for (let i = 0; i < totalChannels; i++) {
-      noiseState[i] += (Math.random() - 0.5) * 0.0024;
-      noiseState[i] *= 0.982;
+      noiseState[i] += (Math.random() - 0.5) * 0.0008;
+      noiseState[i] *= 0.99;
       const spatial =
-        0.0028 * Math.sin(i * 0.01 + noiseSeed) + 0.0018 * Math.sin(i * 0.037 + noiseSeed * 1.7);
-      const coup = channelRoadCoupling[i];
-      let ambient =
-        (channelBias[i] * (0.52 + 0.48 * coup) + spatial + Math.random() * 0.018) * (0.52 + 0.48 * coup);
-      ambient *= 0.45;
+        0.0008 * Math.sin(i * 0.01 + noiseSeed) + 0.0005 * Math.sin(i * 0.037 + noiseSeed * 1.7);
+      const ambient = channelBias[i] + spatial + Math.random() * 0.004;
       row[i] = Math.max(0, ambient + noiseState[i]);
     }
 
