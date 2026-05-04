@@ -345,7 +345,7 @@ export function createSimulation(data, targets) {
 
       const { halfWidth, strength } = vehicleDasFootprint(v.vehicleType);
       const mph = Math.max(0, v.speedMph);
-      const speedCoupling = 0.55 + 0.45 * Math.min(1, mph / 25);
+      const speedCoupling = 0.82 + 0.18 * Math.min(1, mph / 42);
       let peakStrength = strength * (0.96 + Math.random() * 0.04) * speedCoupling;
 
       const cpt =
@@ -363,11 +363,12 @@ export function createSimulation(data, targets) {
         stampVehicleEnergyAt(stampCenter, peakStrength, halfWidth);
       } else {
         const nSteps = Math.min(40, Math.max(2, Math.ceil(pathLen * 3 + 4)));
+        const stackScale = 1 / Math.sqrt(nSteps);
         for (let s = 0; s < nSteps; s++) {
           const u = nSteps === 1 ? 1 : s / (nSteps - 1);
           const pos = stampPrev + delta * u;
-          const along = 0.92 + 0.08 * (1 - Math.abs(u - 0.5) * 2);
-          stampVehicleEnergyAt(pos, peakStrength * along, halfWidth);
+          const along = 0.68 + 0.32 * (1 - Math.abs(u - 0.5) * 2);
+          stampVehicleEnergyAt(pos, peakStrength * along * stackScale, halfWidth);
         }
       }
     }
