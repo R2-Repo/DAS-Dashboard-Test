@@ -43,16 +43,11 @@ const FIT_BOUNDS_ZOOM_NUDGE = -0.22;
 /** Upper cap for auto-fit zoom (road + fiber union); raised so steeper pitch can still zoom in. */
 const FIT_BOUNDS_MAX_ZOOM = 13.45;
 
-/** Bright intro-only route highlight (dismissed after the user leaves the initial framing). */
+/** Bright intro-only route highlight; hidden once the user zooms in closer to the ground past baseline. */
 const CANYON_INTRO_LAYER_GLOW = 'canyon-intro-highlight-glow';
 const CANYON_INTRO_LAYER_CORE = 'canyon-intro-highlight-core';
-/** Hide the intro line after this many screen pixels of pan from the post-load center. */
-const CANYON_INTRO_PAN_PX = 78;
-/** Hide once zoom drops this far below the initial fitted zoom (user zoomed out past the intro extent). */
-const CANYON_INTRO_ZOOM_OUT_DELTA = 0.55;
-/** Bearing / pitch change from load also dismisses the highlight. */
-const CANYON_INTRO_BEARING_DELTA_DEG = 16;
-const CANYON_INTRO_PITCH_DELTA_DEG = 10;
+/** Hide when current zoom exceeds baseline (post-idle) by this amount (user moved in on the map). */
+const CANYON_INTRO_ZOOM_IN_DELTA = 0.65;
 
 const LAYER_TOGGLE_IDS = {
   road: ['road-wb-centerline', 'road-eb-centerline'],
@@ -455,8 +450,8 @@ function addFiberLayer(map, fiberRoute) {
 }
 
 /**
- * Purely decorative bright red route pulse on first paint; hidden after the user pans/zooms/rotates
- * away from the initial framing (see setupCanyonIntroHighlightLifecycle).
+ * Purely decorative bright red route pulse on first paint; hidden after the user zooms in past
+ * CANYON_INTRO_ZOOM_IN_DELTA from the baseline captured on first idle (see setupCanyonIntroHighlightLifecycle).
  * Drawn under vehicle layers so drops stay readable.
  */
 function addCanyonIntroHighlightLayers(map) {
@@ -498,19 +493,15 @@ function setupCanyonIntroHighlightLifecycle(map) {
 
   let introActive = true;
   let rafId = 0;
-  /** @type {{ lng: number, lat: number, zoom: number, bearing: number, pitch: number } | null} */
-  let baseline = null;
-
-  const dismissEvents = ['move', 'zoom', 'rotate', 'pitch', 'drag'];
+  /** @type {number | null} */
+  let baselineZoom = null;
 
   function hideIntroHighlight() {
     if (!introActive) return;
     introActive = false;
     if (rafId) globalThis.cancelAnimationFrame(rafId);
     rafId = 0;
-    for (const ev of dismissEvents) {
-      map.off(ev, checkDismissFromViewChange);
-    }
+    map.off('zoom', checkDismissZoomIn);
     for (const id of [CANYON_INTRO_LAYER_GLOW, CANYON_INTRO_LAYER_CORE]) {
       if (map.getLayer(id)) {
         map.setLayoutProperty(id, 'visibility', 'none');
@@ -518,42 +509,13 @@ function setupCanyonIntroHighlightLifecycle(map) {
     }
   }
 
-  function snapshotBaseline() {
-    const c = map.getCenter();
-    baseline = {
-      lng: c.lng,
-      lat: c.lat,
-      zoom: map.getZoom(),
-      bearing: map.getBearing(),
-      pitch: map.getPitch(),
-    };
+  function snapshotBaselineZoom() {
+    baselineZoom = map.getZoom();
   }
 
-  function bearingDeltaDeg(a, b) {
-    let d = Math.abs(a - b) % 360;
-    if (d > 180) d = 360 - d;
-    return d;
-  }
-
-  function checkDismissFromViewChange() {
-    if (!introActive || !baseline) return;
-    const c = map.getCenter();
-    const p0 = map.project([baseline.lng, baseline.lat]);
-    const p1 = map.project([c.lng, c.lat]);
-    const panPx = Math.hypot(p1.x - p0.x, p1.y - p0.y);
-    if (panPx >= CANYON_INTRO_PAN_PX) {
-      hideIntroHighlight();
-      return;
-    }
-    if (map.getZoom() < baseline.zoom - CANYON_INTRO_ZOOM_OUT_DELTA) {
-      hideIntroHighlight();
-      return;
-    }
-    if (bearingDeltaDeg(map.getBearing(), baseline.bearing) > CANYON_INTRO_BEARING_DELTA_DEG) {
-      hideIntroHighlight();
-      return;
-    }
-    if (Math.abs(map.getPitch() - baseline.pitch) > CANYON_INTRO_PITCH_DELTA_DEG) {
+  function checkDismissZoomIn() {
+    if (!introActive || baselineZoom == null) return;
+    if (map.getZoom() > baselineZoom + CANYON_INTRO_ZOOM_IN_DELTA) {
       hideIntroHighlight();
     }
   }
@@ -572,15 +534,13 @@ function setupCanyonIntroHighlightLifecycle(map) {
 
   function onIdleOnce() {
     map.off('idle', onIdleOnce);
-    snapshotBaseline();
+    snapshotBaselineZoom();
     rafId = globalThis.requestAnimationFrame(animatePulse);
   }
 
   map.once('idle', onIdleOnce);
 
-  for (const ev of dismissEvents) {
-    map.on(ev, checkDismissFromViewChange);
-  }
+  map.on('zoom', checkDismissZoomIn);
 }
 
 function addMilepostLayers(map, milepostsGeojson) {
