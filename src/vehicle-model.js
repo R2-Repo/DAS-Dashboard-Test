@@ -51,7 +51,19 @@ export function mapVehicleFootprintDims(typeOrSpec, opts = {}) {
   };
 }
 
-/** @type {Record<string, { lengthM: number; widthM: number; heightM: number; color: string; label: string; dasHalfWidthCh: number; dasStrength: number }>} */
+/**
+ * DAS strength targets (peak value written to row buffer, before speed coupling):
+ *   bicycle   0.12 → cyan band        (jet ~20–30%)
+ *   motorcycle 0.22 → green band       (jet ~35–45%)
+ *   car       0.38 → yellow band       (jet ~50–60%)
+ *   truck     0.58 → orange band       (jet ~65–75%)
+ *   semi      0.82 → red band          (jet ~80–90%)
+ *
+ * The waterfall render uses vmax = 0.90, gamma = 0.85 so these strengths spread
+ * across the full colour range instead of all clipping to solid red.
+ *
+ * @type {Record<string, { lengthM: number; widthM: number; heightM: number; color: string; label: string; dasHalfWidthCh: number; dasStrength: number }>}
+ */
 export const VEHICLE_SPECS = {
   bicycle: {
     lengthM: 1.8,
@@ -59,8 +71,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.6,
     color: '#26c6da',
     label: 'Bicycle',
-    dasHalfWidthCh: 0.5,
-    dasStrength: 0.1,
+    dasHalfWidthCh: 3,
+    dasStrength: 0.12,
   },
   motorcycle: {
     lengthM: 2.2,
@@ -68,8 +80,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.45,
     color: '#ba68c8',
     label: 'Motorcycle',
-    dasHalfWidthCh: 0.5,
-    dasStrength: 0.16,
+    dasHalfWidthCh: 4,
+    dasStrength: 0.22,
   },
   car: {
     lengthM: 4.6,
@@ -77,8 +89,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.5,
     color: '#90caf9',
     label: 'Car',
-    dasHalfWidthCh: 1,
-    dasStrength: 0.34,
+    dasHalfWidthCh: 5,
+    dasStrength: 0.38,
   },
   truck: {
     lengthM: 9.0,
@@ -86,8 +98,8 @@ export const VEHICLE_SPECS = {
     heightM: 3.2,
     color: '#ffb74d',
     label: 'Pickup',
-    dasHalfWidthCh: 2,
-    dasStrength: 0.52,
+    dasHalfWidthCh: 7,
+    dasStrength: 0.58,
   },
   semi_truck: {
     lengthM: 22,
@@ -95,8 +107,8 @@ export const VEHICLE_SPECS = {
     heightM: 4.0,
     color: '#ff8a65',
     label: 'Semi',
-    dasHalfWidthCh: 2.5,
-    dasStrength: 0.68,
+    dasHalfWidthCh: 10,
+    dasStrength: 0.82,
   },
 };
 

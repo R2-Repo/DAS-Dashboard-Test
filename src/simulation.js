@@ -311,40 +311,30 @@ export function createSimulation(data, targets) {
     const row = new Float32Array(totalChannels);
     noiseSeed += 0.1;
 
-    // Ambient noise uses the same calm floor with or without vehicles so the jet stretch
-    // stays in the blue band; vehicle/anomaly stamps below provide contrast.
+    // Quiet ambient noise — stays in the dark-blue band of the jet colormap.
+    // Vehicle stamps below provide the contrast that makes diagonal traces visible.
     for (let i = 0; i < totalChannels; i++) {
-      noiseState[i] += (Math.random() - 0.5) * 0.0024;
-      noiseState[i] *= 0.982;
+      noiseState[i] += (Math.random() - 0.5) * 0.0008;
+      noiseState[i] *= 0.99;
       const spatial =
-        0.0028 * Math.sin(i * 0.01 + noiseSeed) + 0.0018 * Math.sin(i * 0.037 + noiseSeed * 1.7);
-      const coup = channelRoadCoupling[i];
-      let ambient =
-        (channelBias[i] * (0.52 + 0.48 * coup) + spatial + Math.random() * 0.018) * (0.52 + 0.48 * coup);
-      ambient *= 0.45;
+        0.0008 * Math.sin(i * 0.01 + noiseSeed) + 0.0005 * Math.sin(i * 0.037 + noiseSeed * 1.7);
+      const ambient = channelBias[i] + spatial + Math.random() * 0.004;
       row[i] = Math.max(0, ambient + noiseState[i]);
     }
 
     function stampVehicleEnergyAt(pos, peakStrength, halfWidth) {
       const ci = Math.floor(pos);
       const frac = pos - ci;
-      const hw = Math.ceil(halfWidth) + 1;
+      const hw = Math.ceil(halfWidth) + 2;
       for (let d = -hw; d <= hw; d++) {
         const idx = ci + d;
         if (idx < 0 || idx >= totalChannels) continue;
         const dist = Math.abs(d - frac);
-        let amplitude;
-        if (dist < 0.5) {
-          amplitude = peakStrength;
-        } else if (dist < 1.5) {
-          amplitude = peakStrength * (1.5 - dist);
-        } else if (dist < 2.5) {
-          amplitude = peakStrength * 0.15 * (2.5 - dist);
-        } else {
-          continue;
-        }
-        const roadC = channelRoadCoupling[idx];
-        row[idx] = Math.min(1.0, row[idx] + amplitude * (0.45 + 0.55 * roadC));
+        if (dist > halfWidth + 1) continue;
+        const t = dist / Math.max(0.5, halfWidth);
+        const amplitude = peakStrength * Math.max(0, 1 - t * t);
+        if (amplitude < 0.001) continue;
+        row[idx] = Math.min(1.0, row[idx] + amplitude);
       }
     }
 
@@ -355,11 +345,8 @@ export function createSimulation(data, targets) {
 
       const { halfWidth, strength } = vehicleDasFootprint(v.vehicleType);
       const mph = Math.max(0, v.speedMph);
-      const speedCoupling = 0.22 + 0.78 * Math.min(1, mph / 42);
-      const ci = Math.min(Math.max(0, Math.floor(center)), totalChannels - 1);
-      const roadC0 = channelRoadCoupling[ci];
-      let peakStrength =
-        strength * (0.92 + Math.random() * 0.08) * speedCoupling * (0.55 + 0.45 * roadC0);
+      const speedCoupling = 0.55 + 0.45 * Math.min(1, mph / 25);
+      let peakStrength = strength * (0.96 + Math.random() * 0.04) * speedCoupling;
 
       const cpt =
         typeof v.channelsPerTick === 'number' && v.channelsPerTick > 0
@@ -379,7 +366,7 @@ export function createSimulation(data, targets) {
         for (let s = 0; s < nSteps; s++) {
           const u = nSteps === 1 ? 1 : s / (nSteps - 1);
           const pos = stampPrev + delta * u;
-          const along = 0.88 + 0.12 * (1 - Math.abs(u - 0.5) * 2);
+          const along = 0.92 + 0.08 * (1 - Math.abs(u - 0.5) * 2);
           stampVehicleEnergyAt(pos, peakStrength * along, halfWidth);
         }
       }
@@ -715,6 +702,14 @@ export function createSimulation(data, targets) {
       spawnUserVehicleLegacy(totalChannels * 0.08, 'up_canyon', { forceSpeed: 40, vehicleType: 'motorcycle', userPlaced: true });
     }
     setSelectedVehicleId(vehicles[0]?.id ?? null);
+
+    // Zoom the waterfall to the region around the first vehicle so diagonal
+    // traces are visible immediately instead of being compressed at full-route zoom.
+    if (vehicles.length > 0) {
+      const ch = Math.floor(vehicles[0].channelPos);
+      const pad = 600;
+      targets.waterfall.setViewRange?.(ch - pad, ch + pad);
+    }
   }
 
   function setVehicleDesiredSpeed(id, mph) {

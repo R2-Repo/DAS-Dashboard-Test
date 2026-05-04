@@ -1,25 +1,30 @@
 /**
- * DAS Waterfall renderer — realistic jet colormap waterfall display.
+ * DAS Waterfall renderer — clean jet colormap waterfall display optimised for
+ * educational DAS demonstrations.
  *
  * Axes: X = milepost increasing left → right (fiber channel index runs opposite along SR-190,
  *   so the horizontal axis is mirrored: low milepost on the left, high on the right).
  *   Y = time (vertical, newest at top flowing downward — matches common DAS waterfall plots).
  * Colormap: standard jet — deep blue → cyan → green → yellow → orange → red.
- * Display levels use percentile stretch (≈5th–95th) over visible history so outliers do not
- * wash out the noise floor. Gamma is adaptive: a narrow value range (ambient noise only) uses a
- * higher gamma so the stretch maps mostly into the blue/cyan end of jet; strong events widen the
- * range and restore the lower gamma used for traffic visualization. Pre-fill uses the same
- * low ambient row model as the simulator (calm blue static) with light deterministic grain.
+ *
+ * Display scaling uses a **fixed reference range** so that ambient noise stays in the dark-blue
+ * band and vehicle/anomaly energy pops into green → yellow → red.  This avoids the problem with
+ * pure percentile stretch where the colour-map auto-adjusts and makes noise fill the entire
+ * colour range, washing out the vehicle diagonal traces.
+ *
+ * Interaction:
+ *   - Mouse wheel  → horizontal scroll (pan along the fiber)
+ *   - Shift+wheel  → focal zoom (channel under cursor stays fixed)
+ *   - Ctrl/⌘+wheel → focal zoom (same as Shift+wheel)
+ *   - Left-drag    → horizontal pan
+ *   - Click        → pick channel → fly map to that fiber location
+ *   - Touch: one finger pan, two-finger pinch zoom
  *
  * Sim / display (not interrogator PRF):
  *   - 2m channel spacing
  *   - One waterfall row per sim tick (TICK_MS in simulation.js, currently 100ms)
  *   - 256 rows visible = 25.6s of history at that tick
  *   - Vehicle at 45 mph ≈ 1 channel/tick → diagonal slope depends on horizontal zoom
- *   - Zoom: mouse wheel (focal zoom); Shift+wheel / Ctrl+wheel widen or narrow the window.
- *     Double-click does not change zoom (avoids accidental extreme zoom + loss of contrast).
- *   - Horizontal zoom is clamped: default shows the full fiber; zoom-in stops at a minimum window
- *     width so the plot cannot zoom to a single-pixel-wide strip.
  */
 
 const HISTORY_ROWS = 256;
@@ -103,14 +108,10 @@ export function initWaterfall(canvasId, data, options = {}) {
   const ctx = canvas.getContext('2d');
   const totalChannels = data.channels.length;
 
-  const crossingChannels = collectCrossingChannelIndices(data);
-
   /** Horizontal window in channel index space (half-open [viewStart, viewEnd)). */
   let viewStart = 0;
   let viewEnd = totalChannels;
   const buffer = new Float32Array(totalChannels * HISTORY_ROWS);
-  /** Subsampled values for percentile autoscale (reused each frame). */
-  const scratchSamples = new Float32Array(32768);
   let currentRow = 0;
   let hoveredChannel = null;
   /** Traffic lab: emphasize one channel column (integer index or null). */
@@ -153,22 +154,21 @@ export function initWaterfall(canvasId, data, options = {}) {
   }
 
   // === Per-channel static noise profile ===
-  // Real fiber has coupling variations, micro-bends, splice points, etc.
+  // Kept very low so ambient reads as dark blue; vehicle traces pop into green/yellow/red.
   const channelBias = new Float32Array(totalChannels);
 
-  // Base bias: smooth low-frequency variation across fiber (kept subtle so idle plot is calm)
   for (let i = 0; i < totalChannels; i++) {
-    channelBias[i] = 0.018
-      + 0.009 * Math.sin(i * 0.002)
-      + 0.006 * Math.sin(i * 0.0073)
-      + 0.005 * Math.sin(i * 0.019);
+    channelBias[i] = 0.006
+      + 0.003 * Math.sin(i * 0.002)
+      + 0.002 * Math.sin(i * 0.0073)
+      + 0.001 * Math.sin(i * 0.019);
   }
 
-  // Noisy channels: fiber coupling imperfections (deterministic — stable across reloads)
+  // Sparse coupling imperfections (very subtle)
   for (let i = 0; i < totalChannels; i++) {
-    if (hash01(i * 2654435761) < 0.022) {
+    if (hash01(i * 2654435761) < 0.015) {
       const spread = 1 + Math.floor(hash01(i * 2246822519) * 2);
-      const extra = 0.018 + hash01(i * 4051735735) * 0.045;
+      const extra = 0.004 + hash01(i * 4051735735) * 0.008;
       for (let d = -spread; d <= spread; d++) {
         const idx = i + d;
         if (idx >= 0 && idx < totalChannels) {
@@ -178,34 +178,14 @@ export function initWaterfall(canvasId, data, options = {}) {
     }
   }
 
-  // Sparse bumps along the route (coupling quirks)
-  const bandCount = Math.min(28, Math.max(12, Math.floor(totalChannels / 520)));
-  for (let b = 0; b < bandCount; b++) {
-    const center = Math.floor(hash01(b * 374761393 + totalChannels * 17) * totalChannels);
-    const halfWidth = 1 + Math.floor(hash01(b * 668265263) * 4);
-    const strength = 0.012 + hash01(b * 15485863) * 0.03;
-    for (let d = -halfWidth; d <= halfWidth; d++) {
-      const idx = center + d;
-      if (idx >= 0 && idx < totalChannels) {
-        channelBias[idx] += strength * (1 - Math.abs(d) / (halfWidth + 1));
-      }
-    }
-  }
-
-  // Crossing zones: slight elevated baseline near fiber–road crossings (subtle vs traffic tracks)
+  // Crossing zones: barely visible baseline bump near fiber–road crossings
   for (const ch of data.channels) {
     if (ch.crossing_flag) {
       const cid = ch.channel_id;
-      channelBias[cid] += 0.012 + hash01(cid * 1664525 + 1013904223) * 0.012;
+      channelBias[cid] += 0.003 + hash01(cid * 1664525 + 1013904223) * 0.003;
     }
   }
 
-  // Canyon mouth: gentle taper (quieter default — avoids a bright vertical ramp at full-route zoom)
-  for (let i = 0; i < Math.min(400, totalChannels); i++) {
-    channelBias[i] += 0.004 * (1 - i / 400);
-  }
-
-  // Same road–coupling weights as simulation.js so pre-fill matches live idle ambient rows.
   const channelRoadCoupling = new Float32Array(totalChannels);
   for (let i = 0; i < totalChannels; i++) {
     const rd = data.channels[i]?.nearest_road_distance_m;
@@ -214,22 +194,18 @@ export function initWaterfall(canvasId, data, options = {}) {
     channelRoadCoupling[i] = Math.max(0.12, 1 - t * t);
   }
 
-  // Pre-fill with the same ambient row shape as the simulator (calm blue floor), plus tiny
-  // deterministic grain so startup history does not scroll away into a different texture.
+  // Pre-fill with quiet ambient (dark blue) so the waterfall starts clean.
   let prefillNoiseSeed = hash01(totalChannels + 90211) * 1000;
   for (let row = 0; row < HISTORY_ROWS; row++) {
     prefillNoiseSeed += 0.1;
     const offset = row * totalChannels;
     for (let i = 0; i < totalChannels; i++) {
       const spatial =
-        0.0028 * Math.sin(i * 0.01 + prefillNoiseSeed)
-        + 0.0018 * Math.sin(i * 0.037 + prefillNoiseSeed * 1.7);
-      const coup = channelRoadCoupling[i];
+        0.0008 * Math.sin(i * 0.01 + prefillNoiseSeed)
+        + 0.0005 * Math.sin(i * 0.037 + prefillNoiseSeed * 1.7);
       const rnd = hash01(i * 374761393 + row * 668265263 + totalChannels);
-      let ambient =
-        (channelBias[i] * (0.52 + 0.48 * coup) + spatial + rnd * 0.018) * (0.52 + 0.48 * coup);
-      ambient *= 0.45;
-      const grain = (hash01(i * 7919 + row * 31337) - 0.5) * 0.0035;
+      const ambient = channelBias[i] + spatial + rnd * 0.004;
+      const grain = (hash01(i * 7919 + row * 31337) - 0.5) * 0.001;
       buffer[offset + i] = Math.max(0, ambient + grain);
     }
   }
@@ -246,21 +222,24 @@ export function initWaterfall(canvasId, data, options = {}) {
     const rect = canvas.getBoundingClientRect();
     const x = clientX - rect.left;
     const w = canvas.width || rect.width;
-    if (w <= 0) return null;
+    if (!(w > 0)) return null;
     const seg = viewEnd - viewStart;
-    if (seg <= 0) return null;
+    if (!(seg > 0)) return null;
     const t = Math.max(0, Math.min(1 - 1e-9, x / w));
-    return viewEnd - 1 - Math.floor(t * seg);
+    const ch = viewEnd - 1 - Math.floor(t * seg);
+    if (!Number.isFinite(ch)) return null;
+    return ch;
   }
 
   function floatChannelFromClientX(clientX) {
     const rect = canvas.getBoundingClientRect();
     const x = clientX - rect.left;
     const w = canvas.width || rect.width;
-    if (w <= 0) return null;
+    if (!(w > 0)) return null;
     const seg = viewEnd - viewStart;
-    if (seg <= 0) return null;
+    if (!(seg > 0)) return null;
     const ch = viewEnd - 1 - (x / w) * seg;
+    if (!Number.isFinite(ch)) return null;
     return Math.max(0, Math.min(totalChannels - 1, ch));
   }
 
@@ -271,8 +250,18 @@ export function initWaterfall(canvasId, data, options = {}) {
   /** Most zoomed-out = full route (all mileposts along the fiber in channel table). */
   const MAX_VIEW_CHANNELS = totalChannels;
 
+  /** Reset view to known-good defaults if state is corrupted. */
+  function resetViewIfInvalid() {
+    if (!Number.isFinite(viewStart) || !Number.isFinite(viewEnd)
+        || viewStart < 0 || viewEnd > totalChannels || viewEnd <= viewStart) {
+      viewStart = 0;
+      viewEnd = totalChannels;
+    }
+  }
+
   /** Scroll/pan horizontally by channel delta (positive = view moves toward higher channel indices / right side of plot). */
   function applyHorizontalScroll(deltaCh) {
+    resetViewIfInvalid();
     const range = viewEnd - viewStart;
     if (range <= 0) return;
     viewStart = Math.max(0, viewStart + deltaCh);
@@ -286,16 +275,18 @@ export function initWaterfall(canvasId, data, options = {}) {
   /** Zoom so channel under `clientX` stays fixed; `deltaY` > 0 zooms out (wider view). */
   function applyWheelZoomAtClientX(clientX, deltaY, shiftKey) {
     const range = viewEnd - viewStart;
-    if (range <= 0) return;
+    if (!(range > 0)) return;
     const focal = floatChannelFromClientX(clientX);
-    if (focal === null) return;
+    if (focal === null || !Number.isFinite(focal)) return;
     const sign = Math.sign(deltaY);
     const strong = shiftKey ? 1.14 : 1.09;
     let newRange = sign > 0 ? range * strong : range / strong;
     newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(MAX_VIEW_CHANNELS, Math.round(newRange)));
+    if (!Number.isFinite(newRange) || newRange < 1) return;
     const frac = (viewEnd - 1 - focal) / range;
     let newEnd = focal + 1 + frac * newRange;
     let newStart = newEnd - newRange;
+    if (!Number.isFinite(newStart) || !Number.isFinite(newEnd)) return;
     if (newStart < 0) {
       newStart = 0;
       newEnd = Math.min(totalChannels, newStart + newRange);
@@ -304,22 +295,8 @@ export function initWaterfall(canvasId, data, options = {}) {
       newEnd = totalChannels;
       newStart = Math.max(0, newEnd - newRange);
     }
-    viewStart = newStart;
-    viewEnd = newEnd;
-  }
-
-  /** Legacy: wheel without focal (fallback). */
-  function applyWheelDelta(deltaY, shiftKey) {
-    const range = viewEnd - viewStart;
-    const delta = Math.sign(deltaY) * Math.max(8, Math.floor(range * 0.06));
-    if (shiftKey) {
-      const newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(totalChannels, range + delta * 6));
-      const center = (viewStart + viewEnd) / 2;
-      viewStart = Math.max(0, Math.floor(center - newRange / 2));
-      viewEnd = Math.min(totalChannels, viewStart + newRange);
-    } else {
-      applyHorizontalScroll(delta);
-    }
+    viewStart = Math.floor(newStart);
+    viewEnd = Math.ceil(newEnd);
   }
 
   function schedulePlotChannelPick(clientX) {
@@ -348,10 +325,12 @@ export function initWaterfall(canvasId, data, options = {}) {
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    if (e.ctrlKey || e.metaKey) {
-      applyWheelDelta(e.deltaY, true);
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      applyWheelZoomAtClientX(e.clientX, e.deltaY, true);
     } else {
-      applyWheelZoomAtClientX(e.clientX, e.deltaY, e.shiftKey);
+      const range = viewEnd - viewStart;
+      const delta = Math.sign(e.deltaY) * Math.max(4, Math.floor(range * 0.04));
+      applyHorizontalScroll(delta);
     }
   }, { passive: false });
 
@@ -441,9 +420,11 @@ export function initWaterfall(canvasId, data, options = {}) {
           let newRange = Math.round(wfPinch.range0 * (wfPinch.dist0 / dist));
           newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(totalChannels, newRange));
           const c = wfPinch.centerCh;
-          viewStart = Math.max(0, Math.floor(c - newRange / 2));
-          viewEnd = Math.min(totalChannels, viewStart + newRange);
-          if (viewEnd - viewStart < newRange) viewStart = Math.max(0, viewEnd - newRange);
+          if (Number.isFinite(c) && Number.isFinite(newRange)) {
+            viewStart = Math.max(0, Math.floor(c - newRange / 2));
+            viewEnd = Math.min(totalChannels, viewStart + newRange);
+            if (viewEnd - viewStart < newRange) viewStart = Math.max(0, viewEnd - newRange);
+          }
         }
       } else if (wfTouchPan && e.pointerId === wfTouchPan.pointerId && activeTouchX.size === 1) {
         const w = canvas.width || canvas.getBoundingClientRect().width;
@@ -515,83 +496,58 @@ export function initWaterfall(canvasId, data, options = {}) {
     const { width, height } = canvas;
     if (width === 0 || height === 0) return;
 
+    resetViewIfInvalid();
+
     const imageData = ctx.createImageData(width, height);
     const pix = imageData.data;
     const chanRange = viewEnd - viewStart;
     const rowH = height / HISTORY_ROWS;
 
-    // Percentile stretch (~5th–95th) over subsampled visible history so lone bright pixels
-    // (or stale vehicle tails) do not flatten ambient noise to a single hue.
-    const ch0 = Math.max(0, viewStart);
-    const ch1 = Math.min(totalChannels, viewEnd);
-    const chSpan = ch1 - ch0;
-    const chStride = chSpan * HISTORY_ROWS > 450_000 ? Math.max(1, Math.ceil(chSpan / 800)) : 1;
-    const cellsPerRow = Math.ceil(chSpan / chStride);
-    const totalCells = HISTORY_ROWS * cellsPerRow;
-    const sampleEvery = Math.max(1, Math.floor(totalCells / scratchSamples.length));
+    // Fixed reference range chosen so each vehicle class maps to a distinct colour
+    // band in the jet colormap:
+    //   ambient noise (0–0.02) → deep blue (quiet floor)
+    //   bicycle  ~0.12         → cyan
+    //   motorcycle ~0.22       → green
+    //   car      ~0.38         → yellow
+    //   truck    ~0.58         → orange
+    //   semi     ~0.82         → red
+    // Only genuinely strong signals (anomalies, heavy trucks) reach deep red.
+    const vmin = 0.0;
+    const vmax = 0.90;
+    const span = vmax - vmin;
+    const gamma = 0.85;
 
-    let nSamp = 0;
-    let cellCounter = 0;
-    outerCollect:
-    for (let row = 0; row < HISTORY_ROWS; row++) {
-      const bufRow = (currentRow - 1 - row + HISTORY_ROWS * 2) % HISTORY_ROWS;
-      const rowOff = bufRow * totalChannels;
-      for (let i = ch0; i < ch1; i += chStride) {
-        if (cellCounter % sampleEvery === 0 && nSamp < scratchSamples.length) {
-          scratchSamples[nSamp++] = buffer[rowOff + i];
-        }
-        cellCounter++;
-        if (nSamp >= scratchSamples.length) break outerCollect;
-      }
-    }
-
-    let vmin;
-    let vmax;
-    if (nSamp < 32) {
-      vmin = 0;
-      vmax = 0.32;
-    } else {
-      scratchSamples.subarray(0, nSamp).sort();
-      const lo = Math.max(0, Math.min(nSamp - 1, Math.floor(0.05 * (nSamp - 1))));
-      const hi = Math.max(0, Math.min(nSamp - 1, Math.floor(0.95 * (nSamp - 1))));
-      vmin = scratchSamples[lo];
-      vmax = scratchSamples[hi];
-      if (!Number.isFinite(vmin) || !Number.isFinite(vmax) || vmax <= vmin + 1e-8) {
-        vmin = 0;
-        vmax = 0.32;
-      } else {
-        const pad = 0.06 * (vmax - vmin);
-        vmin = Math.max(0, vmin - pad);
-        vmax = vmax + pad;
-      }
-    }
-    const span = Math.max(vmax - vmin, 1e-8);
-    // Fixed γ<1 (e.g. 0.72) lifts dark pixels toward mid jet — fine for high-contrast traffic,
-    // but it turns quiet percentile-stretched noise green/yellow/red. Widen γ when the visible
-    // history has little dynamic range so ambient reads as blue static.
-    let gamma;
-    if (span < 0.048) {
-      gamma = 2.35;
-    } else if (span < 0.095) {
-      gamma = 1.62;
-    } else if (span < 0.2) {
-      gamma = 1.05;
-    } else {
-      gamma = 0.72;
-    }
+    // When zoomed out, many channels map to a single pixel.  Point-sampling
+    // one channel per pixel misses narrow vehicle traces entirely.  Instead,
+    // take the MAX value across the channel span covered by each pixel so
+    // vehicle energy is never discarded during down-sampling.
+    const channelsPerPx = chanRange / Math.max(1, width);
 
     for (let row = 0; row < HISTORY_ROWS; row++) {
-      // Newest sample at top (row 0); ring slot about to be overwritten (currentRow) at bottom.
       const bufRow = (currentRow - 1 - row + HISTORY_ROWS * 2) % HISTORY_ROWS;
       const y0 = Math.floor(row * rowH);
       const y1 = Math.max(y0 + 1, Math.floor((row + 1) * rowH));
+      const rowOff = bufRow * totalChannels;
 
       for (let px = 0; px < width; px++) {
-        const t = Math.min(1 - Number.EPSILON, px / width);
-        const ch = viewEnd - 1 - Math.floor(t * chanRange);
-        if (ch < 0 || ch >= totalChannels) continue;
+        const tL = px / width;
+        const tR = (px + 1) / width;
+        const chHi = viewEnd - 1 - Math.floor(tL * chanRange);
+        const chLo = viewEnd - 1 - Math.floor(tR * chanRange);
+        const lo = Math.max(0, Math.min(chLo, chHi));
+        const hi = Math.min(totalChannels - 1, Math.max(chLo, chHi));
 
-        const raw = buffer[bufRow * totalChannels + ch];
+        let raw;
+        if (channelsPerPx <= 1.5) {
+          raw = buffer[rowOff + Math.min(totalChannels - 1, Math.max(0, lo))];
+        } else {
+          raw = 0;
+          for (let c = lo; c <= hi; c++) {
+            const v = buffer[rowOff + c];
+            if (v > raw) raw = v;
+          }
+        }
+
         const norm = (Math.min(vmax, Math.max(vmin, raw)) - vmin) / span;
         const val = Math.pow(Math.min(1, Math.max(0, norm)), gamma);
         const lutIdx = Math.min(LUT_SIZE - 1, Math.floor(val * (LUT_SIZE - 1)));
@@ -632,21 +588,10 @@ export function initWaterfall(canvasId, data, options = {}) {
       ctx.stroke();
     }
 
-    // Fiber–road crossings (vertical guides)
-    if (crossingChannels.length > 0) {
-      ctx.save();
-      for (const ch of crossingChannels) {
-        if (ch < viewStart || ch >= viewEnd) continue;
-        const x = ((viewEnd - 1 - ch) / chanRange) * width;
-        ctx.strokeStyle = 'rgba(255, 193, 7, 0.22)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x + 0.5, 0);
-        ctx.lineTo(x + 0.5, height);
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
+    // Fiber–road crossing guides are available in `crossingChannels` but omitted
+    // from the default view to keep the plot clean for educational use.  They add
+    // vertical amber lines at every road crossing and are distracting when the
+    // primary goal is spotting vehicle diagonal traces.
 
     // Crosshair
     if (hoveredChannel !== null && hoveredChannel >= viewStart && hoveredChannel < viewEnd) {
@@ -697,13 +642,6 @@ export function initWaterfall(canvasId, data, options = {}) {
     ctx.fillStyle = 'rgba(150, 156, 172, 0.75)';
     ctx.textAlign = 'left';
     ctx.fillText('Horizontal = distance along fiber (not lane map)', 4, height - bottomPad - 1);
-    if (crossingChannels.length > 0) {
-      const cmsg = `Crossings: ${crossingChannels.length}`;
-      ctx.fillStyle = 'rgba(255, 193, 7, 0.45)';
-      ctx.textAlign = 'right';
-      ctx.fillText(cmsg, width - 4, height - bottomPad - 1);
-      ctx.textAlign = 'left';
-    }
 
     if (hoveredChannel !== null && data.channels[hoveredChannel]) {
       const ch = data.channels[hoveredChannel];
@@ -721,11 +659,26 @@ export function initWaterfall(canvasId, data, options = {}) {
     plotChannelPickCallback = typeof fn === 'function' ? fn : null;
   }
 
+  /** Programmatically zoom so [start, end) channels are visible. */
+  function setViewRange(start, end) {
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+    const lo = Math.max(0, Math.floor(start));
+    const hi = Math.min(totalChannels, Math.ceil(end));
+    const range = Math.max(MIN_VIEW_CHANNELS, hi - lo);
+    viewStart = lo;
+    viewEnd = Math.min(totalChannels, lo + range);
+    if (viewEnd > totalChannels) {
+      viewEnd = totalChannels;
+      viewStart = Math.max(0, viewEnd - range);
+    }
+  }
+
   return {
     pushRow,
     render,
     channelBias,
     getViewRange: () => [viewStart, viewEnd],
+    setViewRange,
     setHighlightChannel,
     scrollChannelIntoView,
     resize,
