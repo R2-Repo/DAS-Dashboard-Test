@@ -9,11 +9,12 @@ import { createSimulation } from './simulation.js';
 import { initUI } from './ui.js';
 import { loadData } from './data-loader.js';
 import { createVehiclePalette } from './vehicle-palette.js';
+import { runSplashGate } from './splash.js';
 
 registerSW({ immediate: true });
 
 async function boot() {
-  const data = await loadData();
+  const data = await runSplashGate(loadData);
   const map = initMap('map', data);
   const waterfall = initWaterfall('waterfall-canvas', data);
   const ui = initUI();
