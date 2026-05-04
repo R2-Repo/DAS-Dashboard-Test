@@ -53,8 +53,8 @@ export function mapVehicleFootprintDims(typeOrSpec, opts = {}) {
 
 /**
  * DAS strength targets (peak row value before speed coupling; see simulation stamp):
- *   Tuned so traces sit in cyan→green→yellow→light orange with only a touch of red
- *   on the heaviest class. Types stay close in hue; semi is marginally stronger/wider.
+ *   Spread by vehicle class so lighter classes read cyan→green with yellow highlights,
+ *   and heavier classes reach orange→red on the jet scale (see waterfall vmax/gamma).
  *
  * @type {Record<string, { lengthM: number; widthM: number; heightM: number; color: string; label: string; dasHalfWidthCh: number; dasStrength: number }>}
  */
@@ -66,7 +66,7 @@ export const VEHICLE_SPECS = {
     color: '#26c6da',
     label: 'Bicycle',
     dasHalfWidthCh: 4,
-    dasStrength: 0.15,
+    dasStrength: 0.24,
   },
   motorcycle: {
     lengthM: 2.2,
@@ -75,7 +75,7 @@ export const VEHICLE_SPECS = {
     color: '#ba68c8',
     label: 'Motorcycle',
     dasHalfWidthCh: 5,
-    dasStrength: 0.185,
+    dasStrength: 0.3,
   },
   car: {
     lengthM: 4.6,
@@ -84,7 +84,7 @@ export const VEHICLE_SPECS = {
     color: '#90caf9',
     label: 'Car',
     dasHalfWidthCh: 5,
-    dasStrength: 0.22,
+    dasStrength: 0.36,
   },
   truck: {
     lengthM: 9.0,
@@ -93,7 +93,7 @@ export const VEHICLE_SPECS = {
     color: '#ffb74d',
     label: 'Pickup',
     dasHalfWidthCh: 6,
-    dasStrength: 0.255,
+    dasStrength: 0.46,
   },
   semi_truck: {
     lengthM: 22,
@@ -102,7 +102,7 @@ export const VEHICLE_SPECS = {
     color: '#ff8a65',
     label: 'Semi',
     dasHalfWidthCh: 7,
-    dasStrength: 0.29,
+    dasStrength: 0.58,
   },
 };
 
@@ -124,6 +124,19 @@ export function vehicleLengthM(type) {
 export function vehicleDasFootprint(type) {
   const s = vehicleSpec(type);
   return { halfWidth: s.dasHalfWidthCh, strength: s.dasStrength };
+}
+
+/** Extra waterfall intensity for heavier classes (multiplies sim peak before diagonal spread). */
+export function vehicleDasClassHeat(type) {
+  const t = normalizeVehicleType(type);
+  const m = {
+    bicycle: 1.0,
+    motorcycle: 1.08,
+    car: 1.18,
+    truck: 1.32,
+    semi_truck: 1.48,
+  };
+  return m[t] ?? 1.12;
 }
 
 /**
