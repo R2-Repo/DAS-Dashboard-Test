@@ -8,7 +8,8 @@
  * Display levels use percentile stretch (≈5th–95th) over visible history so outliers do not
  * wash out the noise floor. Gamma is adaptive: a narrow value range (ambient noise only) uses a
  * higher gamma so the stretch maps mostly into the blue/cyan end of jet; strong events widen the
- * range and restore the lower gamma used for traffic visualization.
+ * range and restore the lower gamma used for traffic visualization. Idle pre-fill uses a low
+ * variance fiber bias + fine speckle so the default view stays calm (mostly blue static).
  *
  * Sim / display (not interrogator PRF):
  *   - 2m channel spacing
@@ -155,19 +156,19 @@ export function initWaterfall(canvasId, data, options = {}) {
   // Real fiber has coupling variations, micro-bends, splice points, etc.
   const channelBias = new Float32Array(totalChannels);
 
-  // Base bias: smooth low-frequency variation across fiber
+  // Base bias: smooth low-frequency variation across fiber (kept subtle so idle plot is calm)
   for (let i = 0; i < totalChannels; i++) {
-    channelBias[i] = 0.03
-      + 0.015 * Math.sin(i * 0.002)
-      + 0.01 * Math.sin(i * 0.0073)
-      + 0.008 * Math.sin(i * 0.019);
+    channelBias[i] = 0.018
+      + 0.009 * Math.sin(i * 0.002)
+      + 0.006 * Math.sin(i * 0.0073)
+      + 0.005 * Math.sin(i * 0.019);
   }
 
   // Noisy channels: fiber coupling imperfections (deterministic — stable across reloads)
   for (let i = 0; i < totalChannels; i++) {
-    if (hash01(i * 2654435761) < 0.045) {
-      const spread = 1 + Math.floor(hash01(i * 2246822519) * 3);
-      const extra = 0.036 + hash01(i * 4051735735) * 0.092;
+    if (hash01(i * 2654435761) < 0.022) {
+      const spread = 1 + Math.floor(hash01(i * 2246822519) * 2);
+      const extra = 0.018 + hash01(i * 4051735735) * 0.045;
       for (let d = -spread; d <= spread; d++) {
         const idx = i + d;
         if (idx >= 0 && idx < totalChannels) {
@@ -178,11 +179,11 @@ export function initWaterfall(canvasId, data, options = {}) {
   }
 
   // Sparse bumps along the route (coupling quirks)
-  const bandCount = Math.min(36, Math.max(14, Math.floor(totalChannels / 420)));
+  const bandCount = Math.min(28, Math.max(12, Math.floor(totalChannels / 520)));
   for (let b = 0; b < bandCount; b++) {
     const center = Math.floor(hash01(b * 374761393 + totalChannels * 17) * totalChannels);
-    const halfWidth = 1 + Math.floor(hash01(b * 668265263) * 6);
-    const strength = 0.022 + hash01(b * 15485863) * 0.048;
+    const halfWidth = 1 + Math.floor(hash01(b * 668265263) * 4);
+    const strength = 0.012 + hash01(b * 15485863) * 0.03;
     for (let d = -halfWidth; d <= halfWidth; d++) {
       const idx = center + d;
       if (idx >= 0 && idx < totalChannels) {
@@ -195,26 +196,26 @@ export function initWaterfall(canvasId, data, options = {}) {
   for (const ch of data.channels) {
     if (ch.crossing_flag) {
       const cid = ch.channel_id;
-      channelBias[cid] += 0.026 + hash01(cid * 1664525 + 1013904223) * 0.02;
+      channelBias[cid] += 0.012 + hash01(cid * 1664525 + 1013904223) * 0.012;
     }
   }
 
   // Canyon mouth: gentle taper (quieter default — avoids a bright vertical ramp at full-route zoom)
   for (let i = 0; i < Math.min(400, totalChannels); i++) {
-    channelBias[i] += 0.008 * (1 - i / 400);
+    channelBias[i] += 0.004 * (1 - i / 400);
   }
 
   // Pre-fill buffer with speckled baseline noise (fine grain + weak horizontal micro-streaks)
   for (let row = 0; row < HISTORY_ROWS; row++) {
     const offset = row * totalChannels;
     const rowPhase = row * 0.29;
-    const rowFlutter = (hash01(row * 27644437 + 9001) - 0.5) * 0.004;
+    const rowFlutter = (hash01(row * 27644437 + 9001) - 0.5) * 0.002;
     for (let i = 0; i < totalChannels; i++) {
-      const speckle = (hash01(i * 7919 + row * 31337) - 0.5) * 0.024;
+      const speckle = (hash01(i * 7919 + row * 31337) - 0.5) * 0.011;
       const micro =
-        0.007 * Math.sin(i * 0.079 + rowPhase)
-        + 0.0045 * Math.sin(i * 0.0173 + row * 0.51)
-        + 0.003 * Math.sin(i * 0.0024 + row * 0.11);
+        0.0035 * Math.sin(i * 0.079 + rowPhase)
+        + 0.0022 * Math.sin(i * 0.0173 + row * 0.51)
+        + 0.0014 * Math.sin(i * 0.0024 + row * 0.11);
       buffer[offset + i] = Math.max(
         0,
         channelBias[i] + speckle + micro + rowFlutter,
