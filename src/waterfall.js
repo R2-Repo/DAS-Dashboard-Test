@@ -5,8 +5,8 @@
  *   so the horizontal axis is mirrored: low milepost on the left, high on the right).
  *   Y = time (vertical, newest at top flowing downward — matches common DAS waterfall plots).
  * Colormap: standard jet — deep blue → cyan → green → yellow → orange → red.
- * Display levels adapt per frame from the newest row (min–max stretch) so
- * background noise stays in cool colors while vehicles use the warm end of the scale.
+ * Display levels use percentile stretch (≈5th–95th) over visible history so outliers do not
+ * wash out the noise floor; gamma biases the jet toward deep blues for ambient DAS.
  *
  * Sim / display (not interrogator PRF):
  *   - 2m channel spacing
@@ -20,6 +20,15 @@
  */
 
 const HISTORY_ROWS = 256;
+
+/** Deterministic [0, 1) pseudo-random from channel index / band id (stable noise texture). */
+function hash01(n) {
+  let x = Math.imul(n >>> 0, 0x9e3779b1);
+  x ^= x >>> 16;
+  x = Math.imul(x, 0x85ebca6b);
+  x ^= x >>> 13;
+  return (x >>> 0) / 4294967296;
+}
 
 // Precomputed jet colormap LUT — 512 entries for smooth gradients
 const LUT_SIZE = 512;
@@ -97,6 +106,8 @@ export function initWaterfall(canvasId, data, options = {}) {
   let viewStart = 0;
   let viewEnd = totalChannels;
   const buffer = new Float32Array(totalChannels * HISTORY_ROWS);
+  /** Subsampled values for percentile autoscale (reused each frame). */
+  const scratchSamples = new Float32Array(32768);
   let currentRow = 0;
   let hoveredChannel = null;
   /** Traffic lab: emphasize one channel column (integer index or null). */
@@ -150,11 +161,11 @@ export function initWaterfall(canvasId, data, options = {}) {
       + 0.008 * Math.sin(i * 0.019);
   }
 
-  // Noisy channels: fiber coupling imperfections
+  // Noisy channels: fiber coupling imperfections (deterministic — stable across reloads)
   for (let i = 0; i < totalChannels; i++) {
-    if (Math.random() < 0.04) {
-      const spread = 1 + Math.floor(Math.random() * 3);
-      const extra = 0.04 + Math.random() * 0.10;
+    if (hash01(i * 2654435761) < 0.045) {
+      const spread = 1 + Math.floor(hash01(i * 2246822519) * 3);
+      const extra = 0.036 + hash01(i * 4051735735) * 0.092;
       for (let d = -spread; d <= spread; d++) {
         const idx = i + d;
         if (idx >= 0 && idx < totalChannels) {
@@ -164,11 +175,12 @@ export function initWaterfall(canvasId, data, options = {}) {
     }
   }
 
-  // Sparse horizontal bands (coupling quirks) — keep subtle vs real vehicle diagonals
-  for (let b = 0; b < 8; b++) {
-    const center = Math.floor(Math.random() * totalChannels);
-    const halfWidth = 1 + Math.floor(Math.random() * 6);
-    const strength = 0.03 + Math.random() * 0.06;
+  // Sparse bumps along the route (coupling quirks)
+  const bandCount = Math.min(36, Math.max(14, Math.floor(totalChannels / 420)));
+  for (let b = 0; b < bandCount; b++) {
+    const center = Math.floor(hash01(b * 374761393 + totalChannels * 17) * totalChannels);
+    const halfWidth = 1 + Math.floor(hash01(b * 668265263) * 6);
+    const strength = 0.022 + hash01(b * 15485863) * 0.048;
     for (let d = -halfWidth; d <= halfWidth; d++) {
       const idx = center + d;
       if (idx >= 0 && idx < totalChannels) {
@@ -177,23 +189,34 @@ export function initWaterfall(canvasId, data, options = {}) {
     }
   }
 
-  // Crossing zones: elevated baseline near fiber-road crossings
+  // Crossing zones: slight elevated baseline near fiber–road crossings (subtle vs traffic tracks)
   for (const ch of data.channels) {
     if (ch.crossing_flag) {
-      channelBias[ch.channel_id] += 0.06 + Math.random() * 0.04;
+      const cid = ch.channel_id;
+      channelBias[cid] += 0.026 + hash01(cid * 1664525 + 1013904223) * 0.02;
     }
   }
 
-  // Canyon mouth end is noisier (more ambient road/traffic vibration)
+  // Canyon mouth: gentle taper (quieter default — avoids a bright vertical ramp at full-route zoom)
   for (let i = 0; i < Math.min(400, totalChannels); i++) {
-    channelBias[i] += 0.02 * (1 - i / 400);
+    channelBias[i] += 0.008 * (1 - i / 400);
   }
 
-  // Pre-fill buffer with baseline noise so waterfall has texture immediately
+  // Pre-fill buffer with speckled baseline noise (fine grain + weak horizontal micro-streaks)
   for (let row = 0; row < HISTORY_ROWS; row++) {
     const offset = row * totalChannels;
+    const rowPhase = row * 0.29;
+    const rowFlutter = (hash01(row * 27644437 + 9001) - 0.5) * 0.004;
     for (let i = 0; i < totalChannels; i++) {
-      buffer[offset + i] = channelBias[i] + Math.random() * 0.015;
+      const speckle = (hash01(i * 7919 + row * 31337) - 0.5) * 0.024;
+      const micro =
+        0.007 * Math.sin(i * 0.079 + rowPhase)
+        + 0.0045 * Math.sin(i * 0.0173 + row * 0.51)
+        + 0.003 * Math.sin(i * 0.0024 + row * 0.11);
+      buffer[offset + i] = Math.max(
+        0,
+        channelBias[i] + speckle + micro + rowFlutter,
+      );
     }
   }
 
@@ -483,31 +506,53 @@ export function initWaterfall(canvasId, data, options = {}) {
     const chanRange = viewEnd - viewStart;
     const rowH = height / HISTORY_ROWS;
 
-    // Autoscale from the visible channel window and full visible history (all rows).
-    // Using only the newest row made extreme zoom (few channels) look black when that row
-    // was flat noise while older rows still had vehicle diagonals.
-    let vmin = Infinity;
-    let vmax = -Infinity;
+    // Percentile stretch (~5th–95th) over subsampled visible history so lone bright pixels
+    // (or stale vehicle tails) do not flatten ambient noise to a single hue.
     const ch0 = Math.max(0, viewStart);
     const ch1 = Math.min(totalChannels, viewEnd);
     const chSpan = ch1 - ch0;
-    // When zoomed far out, subsample channels so render stays light (~O(rows × ~800)).
     const chStride = chSpan * HISTORY_ROWS > 450_000 ? Math.max(1, Math.ceil(chSpan / 800)) : 1;
+    const cellsPerRow = Math.ceil(chSpan / chStride);
+    const totalCells = HISTORY_ROWS * cellsPerRow;
+    const sampleEvery = Math.max(1, Math.floor(totalCells / scratchSamples.length));
+
+    let nSamp = 0;
+    let cellCounter = 0;
+    outerCollect:
     for (let row = 0; row < HISTORY_ROWS; row++) {
       const bufRow = (currentRow - 1 - row + HISTORY_ROWS * 2) % HISTORY_ROWS;
       const rowOff = bufRow * totalChannels;
       for (let i = ch0; i < ch1; i += chStride) {
-        const v = buffer[rowOff + i];
-        if (v < vmin) vmin = v;
-        if (v > vmax) vmax = v;
+        if (cellCounter % sampleEvery === 0 && nSamp < scratchSamples.length) {
+          scratchSamples[nSamp++] = buffer[rowOff + i];
+        }
+        cellCounter++;
+        if (nSamp >= scratchSamples.length) break outerCollect;
       }
     }
-    if (!Number.isFinite(vmin) || !Number.isFinite(vmax) || vmax <= vmin + 1e-8) {
+
+    let vmin;
+    let vmax;
+    if (nSamp < 32) {
       vmin = 0;
-      vmax = 0.35;
+      vmax = 0.32;
+    } else {
+      scratchSamples.subarray(0, nSamp).sort();
+      const lo = Math.max(0, Math.min(nSamp - 1, Math.floor(0.05 * (nSamp - 1))));
+      const hi = Math.max(0, Math.min(nSamp - 1, Math.floor(0.95 * (nSamp - 1))));
+      vmin = scratchSamples[lo];
+      vmax = scratchSamples[hi];
+      if (!Number.isFinite(vmin) || !Number.isFinite(vmax) || vmax <= vmin + 1e-8) {
+        vmin = 0;
+        vmax = 0.32;
+      } else {
+        const pad = 0.06 * (vmax - vmin);
+        vmin = Math.max(0, vmin - pad);
+        vmax = vmax + pad;
+      }
     }
     const span = Math.max(vmax - vmin, 1e-8);
-    const gamma = 0.58;
+    const gamma = 0.72;
 
     for (let row = 0; row < HISTORY_ROWS; row++) {
       // Newest sample at top (row 0); ring slot about to be overwritten (currentRow) at bottom.

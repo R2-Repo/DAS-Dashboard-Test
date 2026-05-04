@@ -312,12 +312,13 @@ export function createSimulation(data, targets) {
     noiseSeed += 0.1;
 
     for (let i = 0; i < totalChannels; i++) {
-      noiseState[i] += (Math.random() - 0.5) * 0.006;
-      noiseState[i] *= 0.97;
+      noiseState[i] += (Math.random() - 0.5) * 0.0048;
+      noiseState[i] *= 0.972;
       const spatial =
-        0.004 * Math.sin(i * 0.01 + noiseSeed) + 0.0025 * Math.sin(i * 0.037 + noiseSeed * 1.7);
+        0.0028 * Math.sin(i * 0.01 + noiseSeed) + 0.0018 * Math.sin(i * 0.037 + noiseSeed * 1.7);
       const coup = channelRoadCoupling[i];
-      const ambient = (channelBias[i] * (0.5 + 0.5 * coup) + spatial + Math.random() * 0.012) * (0.55 + 0.45 * coup);
+      const ambient =
+        (channelBias[i] * (0.52 + 0.48 * coup) + spatial + Math.random() * 0.018) * (0.52 + 0.48 * coup);
       row[i] = Math.max(0, ambient + noiseState[i]);
     }
 

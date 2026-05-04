@@ -15,6 +15,13 @@ export async function runSplashGate(loadData) {
     return loadData();
   }
 
+  // Automation / dev: skip modal so headless browsers can load the dashboard directly.
+  if (typeof window !== 'undefined' && new window.URLSearchParams(window.location.search).has('nosplash')) {
+    root.hidden = true;
+    root.setAttribute('aria-hidden', 'true');
+    return loadData();
+  }
+
   app.setAttribute('inert', '');
 
   const dataPromise = loadData();
