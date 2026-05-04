@@ -52,9 +52,9 @@ export function mapVehicleFootprintDims(typeOrSpec, opts = {}) {
 }
 
 /**
- * DAS strength targets (peak row value before speed coupling; see simulation stamp):
- *   Spread by vehicle class so lighter classes read cyan→green with yellow highlights,
- *   and heavier classes reach orange→red on the jet scale (see waterfall vmax/gamma).
+ * DAS coupling for the waterfall: tuned so every vehicle class matches the bicycle
+ * trace (width + peak strength). Heavier types get a barely perceptible nudge so
+ * they are not literally identical in amplitude.
  *
  * @type {Record<string, { lengthM: number; widthM: number; heightM: number; color: string; label: string; dasHalfWidthCh: number; dasStrength: number }>}
  */
@@ -74,8 +74,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.45,
     color: '#ba68c8',
     label: 'Motorcycle',
-    dasHalfWidthCh: 5,
-    dasStrength: 0.3,
+    dasHalfWidthCh: 4,
+    dasStrength: 0.241,
   },
   car: {
     lengthM: 4.6,
@@ -83,8 +83,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.5,
     color: '#90caf9',
     label: 'Car',
-    dasHalfWidthCh: 5,
-    dasStrength: 0.36,
+    dasHalfWidthCh: 4,
+    dasStrength: 0.242,
   },
   truck: {
     lengthM: 9.0,
@@ -92,8 +92,8 @@ export const VEHICLE_SPECS = {
     heightM: 3.2,
     color: '#ffb74d',
     label: 'Pickup',
-    dasHalfWidthCh: 6,
-    dasStrength: 0.46,
+    dasHalfWidthCh: 4,
+    dasStrength: 0.243,
   },
   semi_truck: {
     lengthM: 22,
@@ -101,8 +101,8 @@ export const VEHICLE_SPECS = {
     heightM: 4.0,
     color: '#ff8a65',
     label: 'Semi',
-    dasHalfWidthCh: 7,
-    dasStrength: 0.58,
+    dasHalfWidthCh: 4,
+    dasStrength: 0.244,
   },
 };
 
@@ -126,17 +126,17 @@ export function vehicleDasFootprint(type) {
   return { halfWidth: s.dasHalfWidthCh, strength: s.dasStrength };
 }
 
-/** Extra waterfall intensity for heavier classes (multiplies sim peak before diagonal spread). */
+/** Near-unity: class ladder is already in `dasStrength`; keep heat almost invisible. */
 export function vehicleDasClassHeat(type) {
   const t = normalizeVehicleType(type);
   const m = {
     bicycle: 1.0,
-    motorcycle: 1.08,
-    car: 1.18,
-    truck: 1.32,
-    semi_truck: 1.48,
+    motorcycle: 1.002,
+    car: 1.004,
+    truck: 1.006,
+    semi_truck: 1.008,
   };
-  return m[t] ?? 1.12;
+  return m[t] ?? 1.003;
 }
 
 /**
