@@ -310,17 +310,18 @@ export function createSimulation(data, targets) {
 
     const row = new Float32Array(totalChannels);
     noiseSeed += 0.1;
-    const idleNoFleet = vehicles.length === 0;
 
+    // Ambient noise uses the same calm floor with or without vehicles so the jet stretch
+    // stays in the blue band; vehicle/anomaly stamps below provide contrast.
     for (let i = 0; i < totalChannels; i++) {
-      noiseState[i] += (Math.random() - 0.5) * (idleNoFleet ? 0.0024 : 0.0048);
-      noiseState[i] *= idleNoFleet ? 0.982 : 0.972;
+      noiseState[i] += (Math.random() - 0.5) * 0.0024;
+      noiseState[i] *= 0.982;
       const spatial =
         0.0028 * Math.sin(i * 0.01 + noiseSeed) + 0.0018 * Math.sin(i * 0.037 + noiseSeed * 1.7);
       const coup = channelRoadCoupling[i];
       let ambient =
         (channelBias[i] * (0.52 + 0.48 * coup) + spatial + Math.random() * 0.018) * (0.52 + 0.48 * coup);
-      if (idleNoFleet) ambient *= 0.45;
+      ambient *= 0.45;
       row[i] = Math.max(0, ambient + noiseState[i]);
     }
 
