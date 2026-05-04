@@ -654,11 +654,25 @@ export function initWaterfall(canvasId, data, options = {}) {
     plotChannelPickCallback = typeof fn === 'function' ? fn : null;
   }
 
+  /** Programmatically zoom so [start, end) channels are visible. */
+  function setViewRange(start, end) {
+    const lo = Math.max(0, Math.floor(start));
+    const hi = Math.min(totalChannels, Math.ceil(end));
+    const range = Math.max(MIN_VIEW_CHANNELS, hi - lo);
+    viewStart = lo;
+    viewEnd = Math.min(totalChannels, lo + range);
+    if (viewEnd > totalChannels) {
+      viewEnd = totalChannels;
+      viewStart = Math.max(0, viewEnd - range);
+    }
+  }
+
   return {
     pushRow,
     render,
     channelBias,
     getViewRange: () => [viewStart, viewEnd],
+    setViewRange,
     setHighlightChannel,
     scrollChannelIntoView,
     resize,

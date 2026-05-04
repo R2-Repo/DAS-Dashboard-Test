@@ -702,6 +702,14 @@ export function createSimulation(data, targets) {
       spawnUserVehicleLegacy(totalChannels * 0.08, 'up_canyon', { forceSpeed: 40, vehicleType: 'motorcycle', userPlaced: true });
     }
     setSelectedVehicleId(vehicles[0]?.id ?? null);
+
+    // Zoom the waterfall to the region around the first vehicle so diagonal
+    // traces are visible immediately instead of being compressed at full-route zoom.
+    if (vehicles.length > 0) {
+      const ch = Math.floor(vehicles[0].channelPos);
+      const pad = 600;
+      targets.waterfall.setViewRange?.(ch - pad, ch + pad);
+    }
   }
 
   function setVehicleDesiredSpeed(id, mph) {
