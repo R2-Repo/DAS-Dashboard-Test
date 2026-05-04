@@ -108,8 +108,6 @@ export function initWaterfall(canvasId, data, options = {}) {
   const ctx = canvas.getContext('2d');
   const totalChannels = data.channels.length;
 
-  const crossingChannels = collectCrossingChannelIndices(data);
-
   /** Horizontal window in channel index space (half-open [viewStart, viewEnd)). */
   let viewStart = 0;
   let viewEnd = totalChannels;
@@ -565,21 +563,10 @@ export function initWaterfall(canvasId, data, options = {}) {
       ctx.stroke();
     }
 
-    // Fiber–road crossings (vertical guides)
-    if (crossingChannels.length > 0) {
-      ctx.save();
-      for (const ch of crossingChannels) {
-        if (ch < viewStart || ch >= viewEnd) continue;
-        const x = ((viewEnd - 1 - ch) / chanRange) * width;
-        ctx.strokeStyle = 'rgba(255, 193, 7, 0.22)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x + 0.5, 0);
-        ctx.lineTo(x + 0.5, height);
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
+    // Fiber–road crossing guides are available in `crossingChannels` but omitted
+    // from the default view to keep the plot clean for educational use.  They add
+    // vertical amber lines at every road crossing and are distracting when the
+    // primary goal is spotting vehicle diagonal traces.
 
     // Crosshair
     if (hoveredChannel !== null && hoveredChannel >= viewStart && hoveredChannel < viewEnd) {
@@ -630,13 +617,6 @@ export function initWaterfall(canvasId, data, options = {}) {
     ctx.fillStyle = 'rgba(150, 156, 172, 0.75)';
     ctx.textAlign = 'left';
     ctx.fillText('Horizontal = distance along fiber (not lane map)', 4, height - bottomPad - 1);
-    if (crossingChannels.length > 0) {
-      const cmsg = `Crossings: ${crossingChannels.length}`;
-      ctx.fillStyle = 'rgba(255, 193, 7, 0.45)';
-      ctx.textAlign = 'right';
-      ctx.fillText(cmsg, width - 4, height - bottomPad - 1);
-      ctx.textAlign = 'left';
-    }
 
     if (hoveredChannel !== null && data.channels[hoveredChannel]) {
       const ch = data.channels[hoveredChannel];
