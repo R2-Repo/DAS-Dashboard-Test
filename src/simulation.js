@@ -334,8 +334,7 @@ export function createSimulation(data, targets) {
         const t = dist / Math.max(0.5, halfWidth);
         const amplitude = peakStrength * Math.max(0, 1 - t * t);
         if (amplitude < 0.001) continue;
-        const roadC = channelRoadCoupling[idx];
-        row[idx] = Math.min(1.0, row[idx] + amplitude * (0.45 + 0.55 * roadC));
+        row[idx] = Math.min(1.0, row[idx] + amplitude);
       }
     }
 
@@ -346,11 +345,8 @@ export function createSimulation(data, targets) {
 
       const { halfWidth, strength } = vehicleDasFootprint(v.vehicleType);
       const mph = Math.max(0, v.speedMph);
-      const speedCoupling = 0.22 + 0.78 * Math.min(1, mph / 42);
-      const ci = Math.min(Math.max(0, Math.floor(center)), totalChannels - 1);
-      const roadC0 = channelRoadCoupling[ci];
-      let peakStrength =
-        strength * (0.92 + Math.random() * 0.08) * speedCoupling * (0.55 + 0.45 * roadC0);
+      const speedCoupling = 0.35 + 0.65 * Math.min(1, mph / 30);
+      let peakStrength = strength * (0.94 + Math.random() * 0.06) * speedCoupling;
 
       const cpt =
         typeof v.channelsPerTick === 'number' && v.channelsPerTick > 0
@@ -370,7 +366,7 @@ export function createSimulation(data, targets) {
         for (let s = 0; s < nSteps; s++) {
           const u = nSteps === 1 ? 1 : s / (nSteps - 1);
           const pos = stampPrev + delta * u;
-          const along = 0.88 + 0.12 * (1 - Math.abs(u - 0.5) * 2);
+          const along = 0.92 + 0.08 * (1 - Math.abs(u - 0.5) * 2);
           stampVehicleEnergyAt(pos, peakStrength * along, halfWidth);
         }
       }

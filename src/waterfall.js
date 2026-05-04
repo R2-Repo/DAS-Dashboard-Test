@@ -486,13 +486,13 @@ export function initWaterfall(canvasId, data, options = {}) {
     const chanRange = viewEnd - viewStart;
     const rowH = height / HISTORY_ROWS;
 
-    // Fixed reference range: ambient noise (0–0.03) → dark blue, vehicle energy (0.05–0.5+)
-    // → cyan / green / yellow / red.  This keeps the noise floor in the bottom ~8% of the
+    // Fixed reference range: ambient noise (0–0.02) → dark blue, vehicle energy (0.1–0.4+)
+    // → cyan / green / yellow / red.  This keeps the noise floor in the bottom ~6% of the
     // colour-map so diagonal vehicle traces are immediately visible.
     const vmin = 0.0;
-    const vmax = 0.45;
+    const vmax = 0.35;
     const span = vmax - vmin;
-    const gamma = 0.55;
+    const gamma = 0.5;
 
     // When zoomed out, many channels map to a single pixel.  Point-sampling
     // one channel per pixel misses narrow vehicle traces entirely.  Instead,
