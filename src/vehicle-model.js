@@ -100,7 +100,7 @@ export const VEHICLE_SPECS = {
     widthM: 2.55,
     heightM: 4.0,
     color: '#ff8a65',
-    label: 'Semi',
+    label: 'City bus',
     dasHalfWidthCh: 4,
     dasStrength: 0.244,
   },
