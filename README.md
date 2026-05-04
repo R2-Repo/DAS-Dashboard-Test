@@ -1,15 +1,13 @@
-# DAS Canyon Dashboard
+# SR-190 Big Cottonwood Canyon
 
-**Distributed Acoustic Sensing (DAS) monitoring dashboard for SR-190 Big Cottonwood Canyon, Utah.**
-
-A front-end prototype that simulates a real-world DAS system monitoring a fiber optic cable along a canyon roadway. Designed so real vendor DAS data can replace the simulation later with minimal frontend changes.
+A small **web app** for SR-190 Big Cottonwood Canyon, Utah: a map of the road and a simple synthetic view along the fiber. You can add vehicles and see how they might show up. Built so real sensing data could plug in later.
 
 ## Features
 
 - **3D MapLibre map** with terrain and hillshade (AWS Terrarium tiles, no API key)
 - **Real-time waterfall heatmap** with jet colormap and physics-based diagonal vehicle tracks
 - **Live event feed** showing vehicle detections and anomaly alerts by route + milepost
-- **Stats dashboard** with active vehicle count, average speed, directional counts, anomalies
+- **Sidebar stats** (vehicles, speed, direction counts, alerts)
 - **Simulation engine** calibrated to real SR-190 canyon road physics
 - **Python preprocessing pipeline** for GIS data (fiber stitching, channel generation, milepost interpolation)
 
@@ -66,7 +64,7 @@ Scope/           → Full design spec and domain research
    python3 scripts/preprocess_fiber.py
    ```
 
-3. Start the dashboard:
+3. Run the app:
    ```bash
    npm run dev
    ```

@@ -39,7 +39,7 @@ export async function runSplashGate(loadData) {
       root.setAttribute('aria-hidden', 'true');
       app.removeAttribute('inert');
       btn.disabled = false;
-      btn.textContent = 'Continue to dashboard';
+      btn.textContent = 'Continue';
     },
     { once: true },
   );
