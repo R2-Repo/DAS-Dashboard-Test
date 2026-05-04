@@ -484,13 +484,19 @@ export function initWaterfall(canvasId, data, options = {}) {
     const chanRange = viewEnd - viewStart;
     const rowH = height / HISTORY_ROWS;
 
-    // Fixed reference range: ambient noise (0–0.02) → dark blue, vehicle energy (0.1–0.4+)
-    // → cyan / green / yellow / red.  This keeps the noise floor in the bottom ~6% of the
-    // colour-map so diagonal vehicle traces are immediately visible.
+    // Fixed reference range chosen so each vehicle class maps to a distinct colour
+    // band in the jet colormap:
+    //   ambient noise (0–0.02) → deep blue (quiet floor)
+    //   bicycle  ~0.12         → cyan
+    //   motorcycle ~0.22       → green
+    //   car      ~0.38         → yellow
+    //   truck    ~0.58         → orange
+    //   semi     ~0.82         → red
+    // Only genuinely strong signals (anomalies, heavy trucks) reach deep red.
     const vmin = 0.0;
-    const vmax = 0.35;
+    const vmax = 0.90;
     const span = vmax - vmin;
-    const gamma = 0.5;
+    const gamma = 0.85;
 
     // When zoomed out, many channels map to a single pixel.  Point-sampling
     // one channel per pixel misses narrow vehicle traces entirely.  Instead,

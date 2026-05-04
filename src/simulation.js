@@ -345,8 +345,8 @@ export function createSimulation(data, targets) {
 
       const { halfWidth, strength } = vehicleDasFootprint(v.vehicleType);
       const mph = Math.max(0, v.speedMph);
-      const speedCoupling = 0.35 + 0.65 * Math.min(1, mph / 30);
-      let peakStrength = strength * (0.94 + Math.random() * 0.06) * speedCoupling;
+      const speedCoupling = 0.55 + 0.45 * Math.min(1, mph / 25);
+      let peakStrength = strength * (0.96 + Math.random() * 0.04) * speedCoupling;
 
       const cpt =
         typeof v.channelsPerTick === 'number' && v.channelsPerTick > 0
