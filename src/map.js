@@ -5,7 +5,7 @@
  *   - Base map: Esri World Imagery + reference overlays (transportation, boundaries/places) — hybrid satellite
  *   - Terrain: AWS Terrarium RGB elevation tiles (for 3D + hillshade)
  *
- * GIS layers on load: road centerlines (EB/WB), fiber path (soft glow), milepost markers.
+ * GIS layers on load: road centerlines (EB/WB), fiber path, milepost markers (optional overlays).
  * Dynamic layers: anomaly pulses, then vehicles as fill-extrusion blocks on terrain.
  *
  * Reference rasters are pre-rendered tiles: opacity and color tuning are available; per-feature
@@ -34,14 +34,16 @@ const ESRI_ATTRIBUTION =
   + '<a href="https://goto.arcgisonline.com/maps/Reference/World_Transportation" target="_blank" rel="noopener">Transport</a>, '
   + '<a href="https://goto.arcgisonline.com/maps/Reference/World_Boundaries_and_Places" target="_blank" rel="noopener">Labels</a>)';
 
-/** Bearing in degrees: 90° = map north at top → camera looks toward east. */
-const DEFAULT_VIEW_BEARING = 90;
-const DEFAULT_VIEW_PITCH = 52;
-/** Zoom out slightly after fitting route bounds so the canyon has more breathing room. */
-const FIT_BOUNDS_ZOOM_OUT = 0.38;
-const FIT_BOUNDS_MAX_ZOOM = 11.2;
+/** Bearing in degrees (MapLibre): 0 = north up; ~45° ≈ northeast-facing view. */
+const DEFAULT_VIEW_BEARING = 45;
+const DEFAULT_VIEW_PITCH = 42;
+/** Subtracted from fitBounds zoom; smaller value = stay zoomed in closer to the route. */
+const FIT_BOUNDS_ZOOM_OUT = 0.12;
+const FIT_BOUNDS_MAX_ZOOM = 11.55;
 
 const LAYER_TOGGLE_IDS = {
+  road: ['road-wb-centerline', 'road-eb-centerline'],
+  overlays: ['esri-transport', 'esri-boundaries'],
   fiber: 'fiber-glow',
   mileposts: ['milepost-markers', 'milepost-labels'],
 };
@@ -168,13 +170,19 @@ export function initMap(containerId, data) {
     addMilepostLayers(map, data.mileposts);
     addAnomalyLayer(map);
     addVehicleLayers(map);
+    applyDefaultLayerVisibility(map);
+    const attrib = map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact');
+    if (attrib) {
+      attrib.classList.remove('maplibregl-compact-show');
+      attrib.removeAttribute('open');
+    }
   });
 
   return map;
 }
 
 /**
- * Fit the camera to the route with padding, east-facing bearing, then nudge zoom out slightly.
+ * Fit the camera to the route with padding, default bearing/pitch, then nudge zoom slightly.
  */
 function applyRouteBoundsCamera(map, bounds) {
   if (!bounds || bounds[0] > bounds[2] || bounds[1] > bounds[3]) return;
@@ -200,6 +208,19 @@ function setLayerVisibility(map, layerId, visible) {
   map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
 }
 
+function applyDefaultLayerVisibility(map) {
+  for (const id of LAYER_TOGGLE_IDS.road) {
+    setLayerVisibility(map, id, false);
+  }
+  for (const id of LAYER_TOGGLE_IDS.overlays) {
+    setLayerVisibility(map, id, false);
+  }
+  setLayerVisibility(map, LAYER_TOGGLE_IDS.fiber, false);
+  for (const id of LAYER_TOGGLE_IDS.mileposts) {
+    setLayerVisibility(map, id, false);
+  }
+}
+
 function addMapLayerPanel(hostEl, map) {
   const wrap = document.createElement('div');
   wrap.className = 'map-layer-control';
@@ -211,11 +232,19 @@ function addMapLayerPanel(hostEl, map) {
     <div id="map-layer-panel" class="map-layer-panel" role="group" aria-label="Map layers" hidden>
       <div class="map-layer-panel-title">Layers</div>
       <label class="map-layer-row">
-        <input type="checkbox" data-layer-toggle="fiber" checked />
+        <input type="checkbox" data-layer-toggle="road" />
+        <span>Road centerlines</span>
+      </label>
+      <label class="map-layer-row">
+        <input type="checkbox" data-layer-toggle="overlays" />
+        <span>Reference overlay</span>
+      </label>
+      <label class="map-layer-row">
+        <input type="checkbox" data-layer-toggle="fiber" />
         <span>Fiber route</span>
       </label>
       <label class="map-layer-row">
-        <input type="checkbox" data-layer-toggle="mileposts" checked />
+        <input type="checkbox" data-layer-toggle="mileposts" />
         <span>Mileposts</span>
       </label>
     </div>
@@ -260,6 +289,14 @@ function addMapLayerPanel(hostEl, map) {
         setLayerVisibility(map, LAYER_TOGGLE_IDS.fiber, on);
       } else if (key === 'mileposts') {
         for (const id of LAYER_TOGGLE_IDS.mileposts) {
+          setLayerVisibility(map, id, on);
+        }
+      } else if (key === 'road') {
+        for (const id of LAYER_TOGGLE_IDS.road) {
+          setLayerVisibility(map, id, on);
+        }
+      } else if (key === 'overlays') {
+        for (const id of LAYER_TOGGLE_IDS.overlays) {
           setLayerVisibility(map, id, on);
         }
       }
@@ -393,10 +430,10 @@ function addFiberLayer(map, fiberRoute) {
     type: 'line',
     source: 'fiber',
     paint: {
-      'line-color': '#4fc3f7',
-      'line-width': 6,
-      'line-opacity': 0.3,
-      'line-blur': 4,
+      'line-color': '#ff1744',
+      'line-width': 4.5,
+      'line-opacity': 1,
+      'line-blur': 0,
     },
   });
 }
@@ -418,10 +455,10 @@ function addMilepostLayers(map, milepostsGeojson) {
     type: 'circle',
     source: 'mileposts',
     paint: {
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3, 14, 5.5, 17, 7],
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 1.6, 14, 2.8, 17, 3.8],
       'circle-color': '#e8ecf4',
       'circle-opacity': 0.88,
-      'circle-stroke-width': 1.5,
+      'circle-stroke-width': 1,
       'circle-stroke-color': '#4fc3f7',
     },
   });
@@ -432,8 +469,8 @@ function addMilepostLayers(map, milepostsGeojson) {
     source: 'mileposts',
     layout: {
       'text-field': ['get', 'mp_label'],
-      'text-size': ['interpolate', ['linear'], ['zoom'], 11, 9, 14, 11, 17, 12],
-      'text-offset': [0, 1.15],
+      'text-size': ['interpolate', ['linear'], ['zoom'], 11, 6.5, 14, 8, 17, 9],
+      'text-offset': [0, 0.85],
       'text-anchor': 'top',
       'text-allow-overlap': false,
       'text-ignore-placement': false,

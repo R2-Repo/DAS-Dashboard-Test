@@ -124,7 +124,7 @@ html, body {
 
 .map-layer-panel {
   margin-top: 6px;
-  min-width: 168px;
+  min-width: 188px;
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -153,10 +153,21 @@ html, body {
   accent-color: var(--accent);
 }
 
-/* Compact attribution (MapLibre + Esri links) */
+/* Compact attribution: collapsed = info button only (MapLibre opens details on click) */
 .maplibregl-ctrl-attrib.maplibregl-compact {
   margin: 6px 8px 8px;
   min-height: auto;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  overflow: hidden;
 }
 
 .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-inner {
@@ -164,15 +175,18 @@ html, body {
   line-height: 1.35;
   max-width: 240px;
   padding: 4px 8px;
-  background: rgba(12, 14, 20, 0.82);
+  background: rgba(12, 14, 20, 0.92);
   border-radius: 4px;
 }
 
 .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   font-size: 12px;
-  line-height: 20px;
+  line-height: 22px;
+  background-color: rgba(20, 23, 34, 0.92) !important;
+  border: 1px solid var(--border);
+  border-radius: 6px;
 }
 
 .maplibregl-ctrl-attrib.maplibregl-compact a {
