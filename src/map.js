@@ -38,10 +38,21 @@ const ESRI_ATTRIBUTION =
 const DEFAULT_VIEW_BEARING = 45;
 /** Initial / reset pitch; `fitBounds` uses this so framing accounts for tilted horizon. */
 const DEFAULT_VIEW_PITCH = 55;
-/** Subtracted from fitBounds zoom; smaller value = stay zoomed in closer to the route. */
-const FIT_BOUNDS_ZOOM_OUT = 0.02;
+/** Nudges zoom after fitBounds: positive = zoom out, negative = zoom in from the fitted level. */
+const FIT_BOUNDS_ZOOM_NUDGE = -0.22;
 /** Upper cap for auto-fit zoom (road + fiber union); raised so steeper pitch can still zoom in. */
-const FIT_BOUNDS_MAX_ZOOM = 12.35;
+const FIT_BOUNDS_MAX_ZOOM = 13.45;
+
+/** Bright intro-only route highlight (dismissed after the user leaves the initial framing). */
+const CANYON_INTRO_LAYER_GLOW = 'canyon-intro-highlight-glow';
+const CANYON_INTRO_LAYER_CORE = 'canyon-intro-highlight-core';
+/** Hide the intro line after this many screen pixels of pan from the post-load center. */
+const CANYON_INTRO_PAN_PX = 78;
+/** Hide once zoom drops this far below the initial fitted zoom (user zoomed out past the intro extent). */
+const CANYON_INTRO_ZOOM_OUT_DELTA = 0.55;
+/** Bearing / pitch change from load also dismisses the highlight. */
+const CANYON_INTRO_BEARING_DELTA_DEG = 16;
+const CANYON_INTRO_PITCH_DELTA_DEG = 10;
 
 const LAYER_TOGGLE_IDS = {
   road: ['road-wb-centerline', 'road-eb-centerline'],
@@ -172,6 +183,8 @@ export function initMap(containerId, data) {
     addMilepostLayers(map, data.mileposts);
     addAnomalyLayer(map);
     addVehicleLayers(map);
+    addCanyonIntroHighlightLayers(map);
+    setupCanyonIntroHighlightLifecycle(map);
     applyDefaultLayerVisibility(map);
     const attrib = map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact');
     if (attrib) {
@@ -185,7 +198,7 @@ export function initMap(containerId, data) {
 
 /**
  * Fit the camera to the route with padding and default bearing/pitch (pitch affects visible area).
- * Nudges zoom out slightly so the union of road + fiber centerlines stays inside the viewport.
+ * Applies a small zoom nudge after fit so the route fills more of the screen when capped by maxZoom.
  */
 function applyRouteBoundsCamera(map, bounds) {
   if (!bounds || bounds[0] > bounds[2] || bounds[1] > bounds[3]) return;
@@ -194,7 +207,7 @@ function applyRouteBoundsCamera(map, bounds) {
     [bounds[2], bounds[3]],
   ];
   map.fitBounds(b, {
-    padding: { top: 44, bottom: 52, left: 52, right: 52 },
+    padding: { top: 36, bottom: 44, left: 44, right: 44 },
     bearing: DEFAULT_VIEW_BEARING,
     pitch: DEFAULT_VIEW_PITCH,
     maxZoom: FIT_BOUNDS_MAX_ZOOM,
@@ -203,7 +216,7 @@ function applyRouteBoundsCamera(map, bounds) {
   });
   const z = map.getZoom();
   const minZ = map.getMinZoom?.() ?? 0;
-  map.setZoom(Math.max(minZ, z - FIT_BOUNDS_ZOOM_OUT));
+  map.setZoom(Math.max(minZ, z + FIT_BOUNDS_ZOOM_NUDGE));
 }
 
 function setLayerVisibility(map, layerId, visible) {
@@ -439,6 +452,135 @@ function addFiberLayer(map, fiberRoute) {
       'line-blur': 0,
     },
   });
+}
+
+/**
+ * Purely decorative bright red route pulse on first paint; hidden after the user pans/zooms/rotates
+ * away from the initial framing (see setupCanyonIntroHighlightLifecycle).
+ * Drawn under vehicle layers so drops stay readable.
+ */
+function addCanyonIntroHighlightLayers(map) {
+  if (!map.getSource('fiber') || !map.getLayer('vehicle-glow')) return;
+  map.addLayer(
+    {
+      id: CANYON_INTRO_LAYER_GLOW,
+      type: 'line',
+      source: 'fiber',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': '#ff0000',
+        'line-width': 14,
+        'line-opacity': 0.52,
+        'line-blur': 4.5,
+      },
+    },
+    'vehicle-glow',
+  );
+  map.addLayer(
+    {
+      id: CANYON_INTRO_LAYER_CORE,
+      type: 'line',
+      source: 'fiber',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': '#ff1a1a',
+        'line-width': 5,
+        'line-opacity': 0.95,
+        'line-blur': 0.35,
+      },
+    },
+    'vehicle-glow',
+  );
+}
+
+function setupCanyonIntroHighlightLifecycle(map) {
+  if (!map.getLayer(CANYON_INTRO_LAYER_GLOW) || !map.getLayer(CANYON_INTRO_LAYER_CORE)) return;
+
+  let introActive = true;
+  let rafId = 0;
+  /** @type {{ lng: number, lat: number, zoom: number, bearing: number, pitch: number } | null} */
+  let baseline = null;
+
+  const dismissEvents = ['move', 'zoom', 'rotate', 'pitch', 'drag'];
+
+  function hideIntroHighlight() {
+    if (!introActive) return;
+    introActive = false;
+    if (rafId) globalThis.cancelAnimationFrame(rafId);
+    rafId = 0;
+    for (const ev of dismissEvents) {
+      map.off(ev, checkDismissFromViewChange);
+    }
+    for (const id of [CANYON_INTRO_LAYER_GLOW, CANYON_INTRO_LAYER_CORE]) {
+      if (map.getLayer(id)) {
+        map.setLayoutProperty(id, 'visibility', 'none');
+      }
+    }
+  }
+
+  function snapshotBaseline() {
+    const c = map.getCenter();
+    baseline = {
+      lng: c.lng,
+      lat: c.lat,
+      zoom: map.getZoom(),
+      bearing: map.getBearing(),
+      pitch: map.getPitch(),
+    };
+  }
+
+  function bearingDeltaDeg(a, b) {
+    let d = Math.abs(a - b) % 360;
+    if (d > 180) d = 360 - d;
+    return d;
+  }
+
+  function checkDismissFromViewChange() {
+    if (!introActive || !baseline) return;
+    const c = map.getCenter();
+    const p0 = map.project([baseline.lng, baseline.lat]);
+    const p1 = map.project([c.lng, c.lat]);
+    const panPx = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+    if (panPx >= CANYON_INTRO_PAN_PX) {
+      hideIntroHighlight();
+      return;
+    }
+    if (map.getZoom() < baseline.zoom - CANYON_INTRO_ZOOM_OUT_DELTA) {
+      hideIntroHighlight();
+      return;
+    }
+    if (bearingDeltaDeg(map.getBearing(), baseline.bearing) > CANYON_INTRO_BEARING_DELTA_DEG) {
+      hideIntroHighlight();
+      return;
+    }
+    if (Math.abs(map.getPitch() - baseline.pitch) > CANYON_INTRO_PITCH_DELTA_DEG) {
+      hideIntroHighlight();
+    }
+  }
+
+  function animatePulse() {
+    if (!introActive || !map.getLayer(CANYON_INTRO_LAYER_GLOW)) return;
+    const t = globalThis.performance.now() * 0.001;
+    const pulse = 0.5 + 0.5 * Math.sin(t * 2.75);
+    map.setPaintProperty(CANYON_INTRO_LAYER_GLOW, 'line-width', 11 + pulse * 7);
+    map.setPaintProperty(CANYON_INTRO_LAYER_GLOW, 'line-opacity', 0.32 + pulse * 0.38);
+    map.setPaintProperty(CANYON_INTRO_LAYER_GLOW, 'line-blur', 2.2 + pulse * 3.2);
+    map.setPaintProperty(CANYON_INTRO_LAYER_CORE, 'line-width', 3.8 + pulse * 1.9);
+    map.setPaintProperty(CANYON_INTRO_LAYER_CORE, 'line-opacity', 0.78 + pulse * 0.2);
+    rafId = globalThis.requestAnimationFrame(animatePulse);
+  }
+
+  function onIdleOnce() {
+    map.off('idle', onIdleOnce);
+    snapshotBaseline();
+    rafId = globalThis.requestAnimationFrame(animatePulse);
+  }
+
+  map.once('idle', onIdleOnce);
+
+  for (const ev of dismissEvents) {
+    map.on(ev, checkDismissFromViewChange);
+  }
 }
 
 function addMilepostLayers(map, milepostsGeojson) {
