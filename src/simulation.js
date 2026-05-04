@@ -23,6 +23,7 @@ import {
   mapVehicleFootprintDims,
   normalizeVehicleType,
   vehicleDasFootprint,
+  vehicleDasClassHeat,
   vehicleSpec,
 } from './vehicle-model.js';
 import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
@@ -346,7 +347,10 @@ export function createSimulation(data, targets) {
       const { halfWidth, strength } = vehicleDasFootprint(v.vehicleType);
       const mph = Math.max(0, v.speedMph);
       const speedCoupling = 0.82 + 0.18 * Math.min(1, mph / 42);
-      let peakStrength = strength * (0.96 + Math.random() * 0.04) * speedCoupling;
+      const classHeat = vehicleDasClassHeat(v.vehicleType);
+      const microRipple = 0.92 + 0.08 * Math.sin(center * 0.11 + tickCount * 0.17 + v.id.length * 0.31);
+      let peakStrength =
+        strength * classHeat * microRipple * (0.96 + Math.random() * 0.04) * speedCoupling;
 
       const cpt =
         typeof v.channelsPerTick === 'number' && v.channelsPerTick > 0
@@ -363,7 +367,8 @@ export function createSimulation(data, targets) {
         stampVehicleEnergyAt(stampCenter, peakStrength, halfWidth);
       } else {
         const nSteps = Math.min(40, Math.max(2, Math.ceil(pathLen * 3 + 4)));
-        const stackScale = 1 / Math.sqrt(nSteps);
+        // Old 1/sqrt(n) made each sub-step so weak that diagonals sat in cyan/green only.
+        const stackScale = 1 / Math.pow(nSteps, 0.15);
         for (let s = 0; s < nSteps; s++) {
           const u = nSteps === 1 ? 1 : s / (nSteps - 1);
           const pos = stampPrev + delta * u;

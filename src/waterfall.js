@@ -505,12 +505,12 @@ export function initWaterfall(canvasId, data, options = {}) {
     const chanRange = viewEnd - viewStart;
     const rowH = height / HISTORY_ROWS;
 
-    // Fixed reference range: ambient stays deep blue; vehicle peaks span cyan→yellow→orange
-    // with stronger peaks touching red; only anomalies sit at the capped high end.
+    // Fixed reference range: ambient stays deep blue; vehicle peaks use most of the jet
+    // (greens through oranges/reds) with class + speed spread; capped tail avoids maroon slab.
     const vmin = 0.0;
-    const vmax = 0.86;
+    const vmax = 1.02;
     const span = vmax - vmin;
-    const gamma = 0.96;
+    const gamma = 0.84;
 
     // When zoomed out, many channels map to a single pixel.  Point-sampling
     // one channel per pixel misses narrow vehicle traces entirely.  Instead,
