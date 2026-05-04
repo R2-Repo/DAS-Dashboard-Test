@@ -9,6 +9,32 @@
   <link rel="stylesheet" href="./src/styles.css" />
 </head>
 <body>
+  <div
+    id="splash-screen"
+    class="splash-screen"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="splash-title"
+    aria-describedby="splash-disclaimer splash-about splash-signature"
+  >
+    <div class="splash-backdrop" aria-hidden="true"></div>
+    <div class="splash-card">
+      <h1 id="splash-title" class="splash-title">Distributed Acoustics Sensing Roadway Simulation</h1>
+      <p id="splash-disclaimer" class="splash-disclaimer">
+        This web app is not associated with, and was requested by any official organization. At this time it is intended to be an experimental demonstration of the technology
+      </p>
+      <div id="splash-about" class="splash-about">
+        <p>
+          This dashboard combines a map of the canyon route with a synthetic DAS-style waterfall so you can place vehicles and watch how motion might appear along the fiber.
+        </p>
+        <p>
+          Distributed Acoustic Sensing (DAS) uses pulses in an optical fiber to sense vibration along its length; many short “listening” points are created along one cable, which is useful for monitoring roads, utilities, or the environment.
+        </p>
+      </div>
+      <p id="splash-signature" class="splash-signature">Ryan Romney</p>
+      <button type="button" id="splash-dismiss" class="splash-dismiss lab-btn">Continue to dashboard</button>
+    </div>
+  </div>
   <div id="app">
     <main id="main">
       <div id="left-panel">
