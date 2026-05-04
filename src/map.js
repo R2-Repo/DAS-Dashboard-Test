@@ -38,7 +38,7 @@ const ESRI_ATTRIBUTION =
 const DEFAULT_VIEW_BEARING = 45;
 const DEFAULT_VIEW_PITCH = 42;
 /** Subtracted from fitBounds zoom; smaller value = stay zoomed in closer to the route. */
-const FIT_BOUNDS_ZOOM_OUT = 0.12;
+const FIT_BOUNDS_ZOOM_OUT = 0.04;
 const FIT_BOUNDS_MAX_ZOOM = 11.55;
 
 const LAYER_TOGGLE_IDS = {
@@ -210,10 +210,10 @@ function setLayerVisibility(map, layerId, visible) {
 
 function applyDefaultLayerVisibility(map) {
   for (const id of LAYER_TOGGLE_IDS.road) {
-    setLayerVisibility(map, id, false);
+    setLayerVisibility(map, id, true);
   }
   for (const id of LAYER_TOGGLE_IDS.overlays) {
-    setLayerVisibility(map, id, false);
+    setLayerVisibility(map, id, true);
   }
   setLayerVisibility(map, LAYER_TOGGLE_IDS.fiber, false);
   for (const id of LAYER_TOGGLE_IDS.mileposts) {
@@ -232,11 +232,11 @@ function addMapLayerPanel(hostEl, map) {
     <div id="map-layer-panel" class="map-layer-panel" role="group" aria-label="Map layers" hidden>
       <div class="map-layer-panel-title">Layers</div>
       <label class="map-layer-row">
-        <input type="checkbox" data-layer-toggle="road" />
+        <input type="checkbox" data-layer-toggle="road" checked />
         <span>Road centerlines</span>
       </label>
       <label class="map-layer-row">
-        <input type="checkbox" data-layer-toggle="overlays" />
+        <input type="checkbox" data-layer-toggle="overlays" checked />
         <span>Reference overlay</span>
       </label>
       <label class="map-layer-row">
@@ -431,7 +431,7 @@ function addFiberLayer(map, fiberRoute) {
     source: 'fiber',
     paint: {
       'line-color': '#ff1744',
-      'line-width': 4.5,
+      'line-width': 3.2,
       'line-opacity': 1,
       'line-blur': 0,
     },
