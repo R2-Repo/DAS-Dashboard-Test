@@ -8,8 +8,8 @@
  * Display levels use percentile stretch (≈5th–95th) over visible history so outliers do not
  * wash out the noise floor. Gamma is adaptive: a narrow value range (ambient noise only) uses a
  * higher gamma so the stretch maps mostly into the blue/cyan end of jet; strong events widen the
- * range and restore the lower gamma used for traffic visualization. Idle pre-fill uses a low
- * variance fiber bias + fine speckle so the default view stays calm (mostly blue static).
+ * range and restore the lower gamma used for traffic visualization. Pre-fill uses the same
+ * low ambient row model as the simulator (calm blue static) with light deterministic grain.
  *
  * Sim / display (not interrogator PRF):
  *   - 2m channel spacing
@@ -205,21 +205,32 @@ export function initWaterfall(canvasId, data, options = {}) {
     channelBias[i] += 0.004 * (1 - i / 400);
   }
 
-  // Pre-fill buffer with speckled baseline noise (fine grain + weak horizontal micro-streaks)
+  // Same road–coupling weights as simulation.js so pre-fill matches live idle ambient rows.
+  const channelRoadCoupling = new Float32Array(totalChannels);
+  for (let i = 0; i < totalChannels; i++) {
+    const rd = data.channels[i]?.nearest_road_distance_m;
+    const d = typeof rd === 'number' && Number.isFinite(rd) ? Math.max(0, rd) : 6;
+    const t = Math.min(1, d / 22);
+    channelRoadCoupling[i] = Math.max(0.12, 1 - t * t);
+  }
+
+  // Pre-fill with the same ambient row shape as the simulator (calm blue floor), plus tiny
+  // deterministic grain so startup history does not scroll away into a different texture.
+  let prefillNoiseSeed = hash01(totalChannels + 90211) * 1000;
   for (let row = 0; row < HISTORY_ROWS; row++) {
+    prefillNoiseSeed += 0.1;
     const offset = row * totalChannels;
-    const rowPhase = row * 0.29;
-    const rowFlutter = (hash01(row * 27644437 + 9001) - 0.5) * 0.002;
     for (let i = 0; i < totalChannels; i++) {
-      const speckle = (hash01(i * 7919 + row * 31337) - 0.5) * 0.011;
-      const micro =
-        0.0035 * Math.sin(i * 0.079 + rowPhase)
-        + 0.0022 * Math.sin(i * 0.0173 + row * 0.51)
-        + 0.0014 * Math.sin(i * 0.0024 + row * 0.11);
-      buffer[offset + i] = Math.max(
-        0,
-        channelBias[i] + speckle + micro + rowFlutter,
-      );
+      const spatial =
+        0.0028 * Math.sin(i * 0.01 + prefillNoiseSeed)
+        + 0.0018 * Math.sin(i * 0.037 + prefillNoiseSeed * 1.7);
+      const coup = channelRoadCoupling[i];
+      const rnd = hash01(i * 374761393 + row * 668265263 + totalChannels);
+      let ambient =
+        (channelBias[i] * (0.52 + 0.48 * coup) + spatial + rnd * 0.018) * (0.52 + 0.48 * coup);
+      ambient *= 0.45;
+      const grain = (hash01(i * 7919 + row * 31337) - 0.5) * 0.0035;
+      buffer[offset + i] = Math.max(0, ambient + grain);
     }
   }
 
