@@ -59,8 +59,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.6,
     color: '#26c6da',
     label: 'Bicycle',
-    dasHalfWidthCh: 1,
-    dasStrength: 0.18,
+    dasHalfWidthCh: 3,
+    dasStrength: 0.22,
   },
   motorcycle: {
     lengthM: 2.2,
@@ -68,8 +68,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.45,
     color: '#ba68c8',
     label: 'Motorcycle',
-    dasHalfWidthCh: 1,
-    dasStrength: 0.28,
+    dasHalfWidthCh: 4,
+    dasStrength: 0.32,
   },
   car: {
     lengthM: 4.6,
@@ -77,8 +77,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.5,
     color: '#90caf9',
     label: 'Car',
-    dasHalfWidthCh: 1.5,
-    dasStrength: 0.45,
+    dasHalfWidthCh: 5,
+    dasStrength: 0.48,
   },
   truck: {
     lengthM: 9.0,
@@ -86,8 +86,8 @@ export const VEHICLE_SPECS = {
     heightM: 3.2,
     color: '#ffb74d',
     label: 'Pickup',
-    dasHalfWidthCh: 2.5,
-    dasStrength: 0.62,
+    dasHalfWidthCh: 7,
+    dasStrength: 0.65,
   },
   semi_truck: {
     lengthM: 22,
@@ -95,8 +95,8 @@ export const VEHICLE_SPECS = {
     heightM: 4.0,
     color: '#ff8a65',
     label: 'Semi',
-    dasHalfWidthCh: 3,
-    dasStrength: 0.82,
+    dasHalfWidthCh: 10,
+    dasStrength: 0.85,
   },
 };
 

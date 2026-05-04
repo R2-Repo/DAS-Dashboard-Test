@@ -494,17 +494,37 @@ export function initWaterfall(canvasId, data, options = {}) {
     const span = vmax - vmin;
     const gamma = 0.55;
 
+    // When zoomed out, many channels map to a single pixel.  Point-sampling
+    // one channel per pixel misses narrow vehicle traces entirely.  Instead,
+    // take the MAX value across the channel span covered by each pixel so
+    // vehicle energy is never discarded during down-sampling.
+    const channelsPerPx = chanRange / Math.max(1, width);
+
     for (let row = 0; row < HISTORY_ROWS; row++) {
       const bufRow = (currentRow - 1 - row + HISTORY_ROWS * 2) % HISTORY_ROWS;
       const y0 = Math.floor(row * rowH);
       const y1 = Math.max(y0 + 1, Math.floor((row + 1) * rowH));
+      const rowOff = bufRow * totalChannels;
 
       for (let px = 0; px < width; px++) {
-        const t = Math.min(1 - Number.EPSILON, px / width);
-        const ch = viewEnd - 1 - Math.floor(t * chanRange);
-        if (ch < 0 || ch >= totalChannels) continue;
+        const tL = px / width;
+        const tR = (px + 1) / width;
+        const chHi = viewEnd - 1 - Math.floor(tL * chanRange);
+        const chLo = viewEnd - 1 - Math.floor(tR * chanRange);
+        const lo = Math.max(0, Math.min(chLo, chHi));
+        const hi = Math.min(totalChannels - 1, Math.max(chLo, chHi));
 
-        const raw = buffer[bufRow * totalChannels + ch];
+        let raw;
+        if (channelsPerPx <= 1.5) {
+          raw = buffer[rowOff + Math.min(totalChannels - 1, Math.max(0, lo))];
+        } else {
+          raw = 0;
+          for (let c = lo; c <= hi; c++) {
+            const v = buffer[rowOff + c];
+            if (v > raw) raw = v;
+          }
+        }
+
         const norm = (Math.min(vmax, Math.max(vmin, raw)) - vmin) / span;
         const val = Math.pow(Math.min(1, Math.max(0, norm)), gamma);
         const lutIdx = Math.min(LUT_SIZE - 1, Math.floor(val * (LUT_SIZE - 1)));

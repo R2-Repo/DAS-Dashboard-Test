@@ -325,21 +325,15 @@ export function createSimulation(data, targets) {
     function stampVehicleEnergyAt(pos, peakStrength, halfWidth) {
       const ci = Math.floor(pos);
       const frac = pos - ci;
-      const hw = Math.ceil(halfWidth) + 1;
+      const hw = Math.ceil(halfWidth) + 2;
       for (let d = -hw; d <= hw; d++) {
         const idx = ci + d;
         if (idx < 0 || idx >= totalChannels) continue;
         const dist = Math.abs(d - frac);
-        let amplitude;
-        if (dist < 0.5) {
-          amplitude = peakStrength;
-        } else if (dist < 1.5) {
-          amplitude = peakStrength * (1.5 - dist);
-        } else if (dist < 2.5) {
-          amplitude = peakStrength * 0.15 * (2.5 - dist);
-        } else {
-          continue;
-        }
+        if (dist > halfWidth + 1) continue;
+        const t = dist / Math.max(0.5, halfWidth);
+        const amplitude = peakStrength * Math.max(0, 1 - t * t);
+        if (amplitude < 0.001) continue;
         const roadC = channelRoadCoupling[idx];
         row[idx] = Math.min(1.0, row[idx] + amplitude * (0.45 + 0.55 * roadC));
       }
