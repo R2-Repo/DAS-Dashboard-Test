@@ -222,21 +222,24 @@ export function initWaterfall(canvasId, data, options = {}) {
     const rect = canvas.getBoundingClientRect();
     const x = clientX - rect.left;
     const w = canvas.width || rect.width;
-    if (w <= 0) return null;
+    if (!(w > 0)) return null;
     const seg = viewEnd - viewStart;
-    if (seg <= 0) return null;
+    if (!(seg > 0)) return null;
     const t = Math.max(0, Math.min(1 - 1e-9, x / w));
-    return viewEnd - 1 - Math.floor(t * seg);
+    const ch = viewEnd - 1 - Math.floor(t * seg);
+    if (!Number.isFinite(ch)) return null;
+    return ch;
   }
 
   function floatChannelFromClientX(clientX) {
     const rect = canvas.getBoundingClientRect();
     const x = clientX - rect.left;
     const w = canvas.width || rect.width;
-    if (w <= 0) return null;
+    if (!(w > 0)) return null;
     const seg = viewEnd - viewStart;
-    if (seg <= 0) return null;
+    if (!(seg > 0)) return null;
     const ch = viewEnd - 1 - (x / w) * seg;
+    if (!Number.isFinite(ch)) return null;
     return Math.max(0, Math.min(totalChannels - 1, ch));
   }
 
@@ -247,8 +250,18 @@ export function initWaterfall(canvasId, data, options = {}) {
   /** Most zoomed-out = full route (all mileposts along the fiber in channel table). */
   const MAX_VIEW_CHANNELS = totalChannels;
 
+  /** Reset view to known-good defaults if state is corrupted. */
+  function resetViewIfInvalid() {
+    if (!Number.isFinite(viewStart) || !Number.isFinite(viewEnd)
+        || viewStart < 0 || viewEnd > totalChannels || viewEnd <= viewStart) {
+      viewStart = 0;
+      viewEnd = totalChannels;
+    }
+  }
+
   /** Scroll/pan horizontally by channel delta (positive = view moves toward higher channel indices / right side of plot). */
   function applyHorizontalScroll(deltaCh) {
+    resetViewIfInvalid();
     const range = viewEnd - viewStart;
     if (range <= 0) return;
     viewStart = Math.max(0, viewStart + deltaCh);
@@ -262,16 +275,18 @@ export function initWaterfall(canvasId, data, options = {}) {
   /** Zoom so channel under `clientX` stays fixed; `deltaY` > 0 zooms out (wider view). */
   function applyWheelZoomAtClientX(clientX, deltaY, shiftKey) {
     const range = viewEnd - viewStart;
-    if (range <= 0) return;
+    if (!(range > 0)) return;
     const focal = floatChannelFromClientX(clientX);
-    if (focal === null) return;
+    if (focal === null || !Number.isFinite(focal)) return;
     const sign = Math.sign(deltaY);
     const strong = shiftKey ? 1.14 : 1.09;
     let newRange = sign > 0 ? range * strong : range / strong;
     newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(MAX_VIEW_CHANNELS, Math.round(newRange)));
+    if (!Number.isFinite(newRange) || newRange < 1) return;
     const frac = (viewEnd - 1 - focal) / range;
     let newEnd = focal + 1 + frac * newRange;
     let newStart = newEnd - newRange;
+    if (!Number.isFinite(newStart) || !Number.isFinite(newEnd)) return;
     if (newStart < 0) {
       newStart = 0;
       newEnd = Math.min(totalChannels, newStart + newRange);
@@ -280,8 +295,8 @@ export function initWaterfall(canvasId, data, options = {}) {
       newEnd = totalChannels;
       newStart = Math.max(0, newEnd - newRange);
     }
-    viewStart = newStart;
-    viewEnd = newEnd;
+    viewStart = Math.floor(newStart);
+    viewEnd = Math.ceil(newEnd);
   }
 
   function schedulePlotChannelPick(clientX) {
@@ -405,9 +420,11 @@ export function initWaterfall(canvasId, data, options = {}) {
           let newRange = Math.round(wfPinch.range0 * (wfPinch.dist0 / dist));
           newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(totalChannels, newRange));
           const c = wfPinch.centerCh;
-          viewStart = Math.max(0, Math.floor(c - newRange / 2));
-          viewEnd = Math.min(totalChannels, viewStart + newRange);
-          if (viewEnd - viewStart < newRange) viewStart = Math.max(0, viewEnd - newRange);
+          if (Number.isFinite(c) && Number.isFinite(newRange)) {
+            viewStart = Math.max(0, Math.floor(c - newRange / 2));
+            viewEnd = Math.min(totalChannels, viewStart + newRange);
+            if (viewEnd - viewStart < newRange) viewStart = Math.max(0, viewEnd - newRange);
+          }
         }
       } else if (wfTouchPan && e.pointerId === wfTouchPan.pointerId && activeTouchX.size === 1) {
         const w = canvas.width || canvas.getBoundingClientRect().width;
@@ -479,10 +496,7 @@ export function initWaterfall(canvasId, data, options = {}) {
     const { width, height } = canvas;
     if (width === 0 || height === 0) return;
 
-    // Clamp view to valid integer range before rendering
-    viewStart = Math.max(0, Math.floor(viewStart));
-    viewEnd = Math.min(totalChannels, Math.ceil(viewEnd));
-    if (viewEnd <= viewStart) { viewStart = 0; viewEnd = totalChannels; }
+    resetViewIfInvalid();
 
     const imageData = ctx.createImageData(width, height);
     const pix = imageData.data;
@@ -647,6 +661,7 @@ export function initWaterfall(canvasId, data, options = {}) {
 
   /** Programmatically zoom so [start, end) channels are visible. */
   function setViewRange(start, end) {
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return;
     const lo = Math.max(0, Math.floor(start));
     const hi = Math.min(totalChannels, Math.ceil(end));
     const range = Math.max(MIN_VIEW_CHANNELS, hi - lo);
