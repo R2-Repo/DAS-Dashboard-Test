@@ -510,12 +510,12 @@ export function initWaterfall(canvasId, data, options = {}) {
     //   motorcycle ~0.22       → green
     //   car      ~0.38         → yellow
     //   truck    ~0.58         → orange
-    //   semi     ~0.82         → red
-    // Only genuinely strong signals (anomalies, heavy trucks) reach deep red.
+    //   semi     ~0.82         → bright red / orange-red (not jet's darkest band)
+    // Only unusually strong signals (anomalies, clipping) reach solid dark red.
     const vmin = 0.0;
-    const vmax = 0.90;
+    const vmax = 1.05;
     const span = vmax - vmin;
-    const gamma = 0.85;
+    const gamma = 0.88;
 
     // When zoomed out, many channels map to a single pixel.  Point-sampling
     // one channel per pixel misses narrow vehicle traces entirely.  Instead,

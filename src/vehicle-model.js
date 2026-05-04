@@ -59,8 +59,8 @@ export function mapVehicleFootprintDims(typeOrSpec, opts = {}) {
  *   truck     0.58 → orange band       (jet ~65–75%)
  *   semi      0.82 → red band          (jet ~80–90%)
  *
- * The waterfall render uses vmax = 0.90, gamma = 0.85 so these strengths spread
- * across the full colour range instead of all clipping to solid red.
+ * The waterfall render uses vmax ≈ 1.05, gamma ≈ 0.88 so these strengths sit
+ * slightly below jet's darkest reds; extreme values still reach solid dark red.
  *
  * @type {Record<string, { lengthM: number; widthM: number; heightM: number; color: string; label: string; dasHalfWidthCh: number; dasStrength: number }>}
  */
