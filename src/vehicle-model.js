@@ -52,15 +52,9 @@ export function mapVehicleFootprintDims(typeOrSpec, opts = {}) {
 }
 
 /**
- * DAS strength targets (peak value written to row buffer, before speed coupling):
- *   bicycle   0.12 → cyan band        (jet ~20–30%)
- *   motorcycle 0.22 → green band       (jet ~35–45%)
- *   car       0.38 → yellow band       (jet ~50–60%)
- *   truck     0.58 → orange band       (jet ~65–75%)
- *   semi      0.82 → red band          (jet ~80–90%)
- *
- * The waterfall render uses vmax ≈ 1.05, gamma ≈ 0.88 so these strengths sit
- * slightly below jet's darkest reds; extreme values still reach solid dark red.
+ * DAS strength targets (peak row value before speed coupling; see simulation stamp):
+ *   Tuned so traces sit in cyan→green→yellow→light orange with only a touch of red
+ *   on the heaviest class. Types stay close in hue; semi is marginally stronger/wider.
  *
  * @type {Record<string, { lengthM: number; widthM: number; heightM: number; color: string; label: string; dasHalfWidthCh: number; dasStrength: number }>}
  */
@@ -71,8 +65,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.6,
     color: '#26c6da',
     label: 'Bicycle',
-    dasHalfWidthCh: 3,
-    dasStrength: 0.12,
+    dasHalfWidthCh: 4,
+    dasStrength: 0.15,
   },
   motorcycle: {
     lengthM: 2.2,
@@ -80,8 +74,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.45,
     color: '#ba68c8',
     label: 'Motorcycle',
-    dasHalfWidthCh: 4,
-    dasStrength: 0.22,
+    dasHalfWidthCh: 5,
+    dasStrength: 0.185,
   },
   car: {
     lengthM: 4.6,
@@ -90,7 +84,7 @@ export const VEHICLE_SPECS = {
     color: '#90caf9',
     label: 'Car',
     dasHalfWidthCh: 5,
-    dasStrength: 0.38,
+    dasStrength: 0.22,
   },
   truck: {
     lengthM: 9.0,
@@ -98,8 +92,8 @@ export const VEHICLE_SPECS = {
     heightM: 3.2,
     color: '#ffb74d',
     label: 'Pickup',
-    dasHalfWidthCh: 7,
-    dasStrength: 0.58,
+    dasHalfWidthCh: 6,
+    dasStrength: 0.255,
   },
   semi_truck: {
     lengthM: 22,
@@ -107,8 +101,8 @@ export const VEHICLE_SPECS = {
     heightM: 4.0,
     color: '#ff8a65',
     label: 'Semi',
-    dasHalfWidthCh: 10,
-    dasStrength: 0.82,
+    dasHalfWidthCh: 7,
+    dasStrength: 0.29,
   },
 };
 
