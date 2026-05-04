@@ -5,7 +5,7 @@
  * Axes: X = milepost increasing left → right (fiber channel index runs opposite along SR-190,
  *   so the horizontal axis is mirrored: low milepost on the left, high on the right).
  *   Y = time (vertical, newest at top flowing downward — matches common DAS waterfall plots).
- * Colormap: jet-like scale — deep blue → cyan → green → yellow → orange → light red (high end softened).
+ * Colormap: jet-like scale — deep blue → cyan → green → yellow → orange → red (high end capped, not maroon).
  *
  * Display scaling uses a **fixed reference range** so that ambient noise stays in the dark-blue
  * band and vehicle/anomaly energy pops into green → yellow → red.  This avoids the problem with
@@ -64,16 +64,16 @@ const JET_B = new Uint8Array(LUT_SIZE);
       JET_R[i] = Math.floor((t - 0.5) / 0.15 * 255);
       JET_G[i] = 255;
       JET_B[i] = 0;
-    } else if (t < 0.88) {
+    } else if (t < 0.86) {
       JET_R[i] = 255;
-      JET_G[i] = Math.floor(255 - (t - 0.65) / 0.23 * 255);
+      JET_G[i] = Math.floor(255 - (t - 0.65) / 0.21 * 255);
       JET_B[i] = 0;
     } else {
       // Cap jet's high end: warm red / light brick, not heavy maroon
-      const u = (t - 0.88) / (1 - 0.88);
-      JET_R[i] = Math.floor(230 + u * 25);
-      JET_G[i] = Math.floor(18 * (1 - u));
-      JET_B[i] = Math.floor(12 * (1 - u));
+      const u = (t - 0.86) / (1 - 0.86);
+      JET_R[i] = Math.floor(228 + u * 27);
+      JET_G[i] = Math.floor(22 * (1 - u));
+      JET_B[i] = Math.floor(14 * (1 - u));
     }
   }
 })();
@@ -505,12 +505,12 @@ export function initWaterfall(canvasId, data, options = {}) {
     const chanRange = viewEnd - viewStart;
     const rowH = height / HISTORY_ROWS;
 
-    // Fixed reference range: ambient stays deep blue; vehicle peaks use the mid jet
-    // (cyan→yellow→orange) with only the strongest events reaching red.
+    // Fixed reference range: ambient stays deep blue; vehicle peaks span cyan→yellow→orange
+    // with stronger peaks touching red; only anomalies sit at the capped high end.
     const vmin = 0.0;
-    const vmax = 0.78;
+    const vmax = 0.86;
     const span = vmax - vmin;
-    const gamma = 1.02;
+    const gamma = 0.96;
 
     // When zoomed out, many channels map to a single pixel.  Point-sampling
     // one channel per pixel misses narrow vehicle traces entirely.  Instead,
