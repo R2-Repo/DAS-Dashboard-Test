@@ -6,7 +6,9 @@
  *   Y = time (vertical, newest at top flowing downward — matches common DAS waterfall plots).
  * Colormap: standard jet — deep blue → cyan → green → yellow → orange → red.
  * Display levels use percentile stretch (≈5th–95th) over visible history so outliers do not
- * wash out the noise floor; gamma biases the jet toward deep blues for ambient DAS.
+ * wash out the noise floor. Gamma is adaptive: a narrow value range (ambient noise only) uses a
+ * higher gamma so the stretch maps mostly into the blue/cyan end of jet; strong events widen the
+ * range and restore the lower gamma used for traffic visualization.
  *
  * Sim / display (not interrogator PRF):
  *   - 2m channel spacing
@@ -552,7 +554,19 @@ export function initWaterfall(canvasId, data, options = {}) {
       }
     }
     const span = Math.max(vmax - vmin, 1e-8);
-    const gamma = 0.72;
+    // Fixed γ<1 (e.g. 0.72) lifts dark pixels toward mid jet — fine for high-contrast traffic,
+    // but it turns quiet percentile-stretched noise green/yellow/red. Widen γ when the visible
+    // history has little dynamic range so ambient reads as blue static.
+    let gamma;
+    if (span < 0.048) {
+      gamma = 2.35;
+    } else if (span < 0.095) {
+      gamma = 1.62;
+    } else if (span < 0.2) {
+      gamma = 1.05;
+    } else {
+      gamma = 0.72;
+    }
 
     for (let row = 0; row < HISTORY_ROWS; row++) {
       // Newest sample at top (row 0); ring slot about to be overwritten (currentRow) at bottom.
