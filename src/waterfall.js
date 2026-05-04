@@ -479,6 +479,11 @@ export function initWaterfall(canvasId, data, options = {}) {
     const { width, height } = canvas;
     if (width === 0 || height === 0) return;
 
+    // Clamp view to valid integer range before rendering
+    viewStart = Math.max(0, Math.floor(viewStart));
+    viewEnd = Math.min(totalChannels, Math.ceil(viewEnd));
+    if (viewEnd <= viewStart) { viewStart = 0; viewEnd = totalChannels; }
+
     const imageData = ctx.createImageData(width, height);
     const pix = imageData.data;
     const chanRange = viewEnd - viewStart;
