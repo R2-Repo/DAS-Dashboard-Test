@@ -69,6 +69,8 @@ export function initMap(containerId, data) {
     attributionControl: false,
     style: {
       version: 8,
+      /** Required for symbol layers (hazard markers). OpenMapTiles hosts Noto with broad emoji coverage. */
+      glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
       sources: {
         'esri-imagery': {
           type: 'raster',
@@ -877,31 +879,31 @@ function addAnomalyLayer(map, beforeLayerId) {
         'text-anchor': 'center',
         'text-allow-overlap': true,
         'text-ignore-placement': true,
-        'text-font': ['Noto Sans Medium', 'Arial Unicode MS Regular'],
+        'text-font': ['Noto Sans Medium', 'Noto Sans Regular'],
       },
       paint: {
         'text-color': [
           'case',
           ['==', ['coalesce', ['get', 'marker_role'], 'mass'], 'crash'],
-          '#141414',
+          '#1a1a1a',
           '#fff8e1',
         ],
         'text-halo-color': [
           'case',
           ['==', ['coalesce', ['get', 'marker_role'], 'mass'], 'crash'],
-          '#ffc107',
+          'rgba(255, 255, 255, 0.92)',
           '#1a120b',
         ],
         'text-halo-width': [
           'case',
           ['==', ['coalesce', ['get', 'marker_role'], 'mass'], 'crash'],
-          1.65,
+          0.85,
           2.1,
         ],
         'text-halo-blur': [
           'case',
           ['==', ['coalesce', ['get', 'marker_role'], 'mass'], 'crash'],
-          0.2,
+          0.35,
           0.35,
         ],
         'text-opacity': [

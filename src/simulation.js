@@ -149,6 +149,44 @@ function hash01(i, j, salt) {
 }
 
 /**
+ * Flat-top regular hexagon on the ground (WGS84), `circumRadiusM` center → vertex,
+ * first edge parallel to road tangent `bearingDeg` (clockwise from north).
+ */
+function buildRegularHexagonPolygon(centerLon, centerLat, circumRadiusM, bearingDegClockwiseFromNorth) {
+  const α = (bearingDegClockwiseFromNorth * Math.PI) / 180;
+  const fe = Math.sin(α);
+  const fn = Math.cos(α);
+  const re = Math.cos(α);
+  const rn = -Math.sin(α);
+  const R = Math.max(0.5, circumRadiusM);
+  const cosφ = Math.cos((centerLat * Math.PI) / 180);
+
+  function offset(dE, dN) {
+    const dLon = dE / (111320 * Math.max(0.25, Math.abs(cosφ)));
+    const dLat = dN / 111320;
+    return [centerLon + dLon, centerLat + dLat];
+  }
+
+  const angles = [
+    Math.PI / 2,
+    Math.PI / 6,
+    -Math.PI / 6,
+    -Math.PI / 2,
+    (-5 * Math.PI) / 6,
+    (5 * Math.PI) / 6,
+  ];
+  const ring = angles.map((θ) => {
+    const along = R * Math.cos(θ);
+    const right = R * Math.sin(θ);
+    const dE = along * fe + right * re;
+    const dN = along * fn + right * rn;
+    return offset(dE, dN);
+  });
+  ring.push(ring[0]);
+  return { type: 'Polygon', coordinates: [ring] };
+}
+
+/**
  * Tight hex-like pile of small extrusions (deck.gl HexagonLayer-style look without extra deps).
  */
 function buildHazardHexClusterFeatures(
@@ -218,7 +256,13 @@ function buildHazardHexClusterFeatures(
         fillHex = mixRgbWithHex(fillHex, '#efebe9', v * 0.25);
       }
 
-      const geom = buildVehicleFootprintPolygon(lon, lat, cellL, cellW, bearingDeg + (u - 0.5) * 14);
+      const circumR = Math.max(1.1, Math.min(cellL, cellW) * 0.58);
+      const geom = buildRegularHexagonPolygon(
+        lon,
+        lat,
+        circumR,
+        bearingDeg + (u - 0.5) * 14,
+      );
       features.push({
         type: 'Feature',
         properties: {
@@ -314,10 +358,8 @@ export function createSimulation(data, targets) {
       const tickAge = tickCount - (a.tickCreated ?? tickCount);
       const mag = a.magnitude ?? 0.5;
 
-      const markerGlyph =
-        kind === 'crash' ? '⚠️' : kind === 'avalanche' ? '❄' : '⛰';
-
       if (kind === 'crash') {
+        const markerGlyph = '⚠️🚗';
         const lane = a.laneKey === 'wb' ? laneWb : laneEb;
         let bearingDeg;
         if (roadOk && lane && typeof a.roadDistM === 'number' && a.laneKey) {
@@ -402,7 +444,7 @@ export function createSimulation(data, targets) {
       const lon = a.lon ?? ch.lon;
       const lat = a.lat ?? ch.lat;
 
-      const cells = buildHazardHexClusterFeatures(
+      return buildHazardHexClusterFeatures(
         lon,
         lat,
         bearingDeg,
@@ -414,20 +456,6 @@ export function createSimulation(data, targets) {
         a.id,
         zBoost,
       );
-
-      const marker = {
-        type: 'Feature',
-        properties: {
-          hazard_kind: kind,
-          id: a.id,
-          decay,
-          hazard_marker: 1,
-          marker_glyph: markerGlyph,
-          marker_role: 'mass',
-        },
-        geometry: { type: 'Point', coordinates: [lon, lat] },
-      };
-      return [...cells, marker];
     });
   }
 
