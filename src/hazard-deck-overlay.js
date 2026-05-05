@@ -2,33 +2,18 @@
  * deck.gl mass hazards (rock slide / avalanche) — extruded hex columns on MapLibre terrain.
  *
  * - MapLibre fill-extrusion on hundreds of tiny polygons is unreliable on terrain.
- * - Overlaid deck.gl + MapLibre 3D terrain often fails depth/compositing (columns invisible on some GPUs).
- * - Interleaved MapboxOverlay shares WebGL with the map so extruded columns participate in the same depth buffer.
- * - Turn off deck's MapController + internal picking + Hammer manager: interleaved mode binds
- *   mjolnir to MapLibre's canvas; without fully disabling Hammer, touch can still be captured.
+ * - **Non-interleaved** MapboxOverlay: a separate deck canvas stacked on the map. `styles.css` sets
+ *   `#map .deck-widget-container { pointer-events: none }` so **touch/scroll still reach MapLibre**.
+ *   Interleaved mode shares MapLibre's canvas/WebGL and repeatedly broke **mobile** pan/pinch (mjolnir/Hammer on the same element).
  * - Positions use LNGLAT + terrain altitude (meters); plain lng/lat extrusions sit at sea level and disappear under terrain.
  */
-import { COORDINATE_SYSTEM, MapView } from '@deck.gl/core';
+import { COORDINATE_SYSTEM } from '@deck.gl/core';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import { ColumnLayer } from '@deck.gl/layers';
 
 const overlays = new WeakMap();
 const deckHexColumnCounts = new WeakMap();
 const lastMassHexFeatures = new WeakMap();
-
-/**
- * Interleaved deck.gl attaches mjolnir/Hammer to the same element as MapLibre. Even with
- * `controller: false`, the HammerManager may still listen and interfere with touch pan/pinch.
- * We only use deck for drawing; disable gesture recognition at the source.
- */
-function releaseDeckPointerCaptureFromMapLibreCanvas(map) {
-  try {
-    const deck = map?.__deck;
-    deck?.eventManager?.manager?.set?.({ enable: false });
-  } catch {
-    /* ignore */
-  }
-}
 
 /** When DEM not loaded yet — canyon interior ASL (avoids sea-level basement). */
 const FALLBACK_TERRAIN_M = 2750;
@@ -147,13 +132,10 @@ export function attachHazardDeckOverlay(map) {
   deckHexColumnCounts.set(map, 0);
   lastMassHexFeatures.set(map, []);
   const overlay = new MapboxOverlay({
-    interleaved: true,
-    _pickable: false,
-    views: new MapView({ id: 'mapbox', controller: false }),
+    interleaved: false,
+    useDevicePixels: true,
     layers: [],
-    onLoad: () => releaseDeckPointerCaptureFromMapLibreCanvas(map),
   });
-  // Control slot only affects empty placeholder div in interleaved mode; deck draws into the map GL context.
   map.addControl(overlay, 'bottom-left');
   overlays.set(map, overlay);
   globalThis.requestAnimationFrame?.(() => {
