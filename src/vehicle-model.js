@@ -3,6 +3,7 @@
  * Length/width are approximate real-world meters for car-following and extruded blocks.
  */
 
+/** Ordered list of vehicle class keys (used for palettes, demo randomization, etc.). */
 export const VEHICLE_TYPES = ['bicycle', 'motorcycle', 'car', 'truck', 'semi_truck'];
 
 /**
