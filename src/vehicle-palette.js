@@ -17,14 +17,7 @@ function useTapPlacePalette() {
   return Boolean(coarse || narrow);
 }
 
-export function createVehiclePalette({
-  map,
-  sim,
-  paletteRoot,
-  onVehicleArm,
-  onVehicleDragStart,
-  onAfterVehiclePlaced,
-}) {
+export function createVehiclePalette({ map, sim, paletteRoot }) {
   if (!paletteRoot) {
     return {
       getPendingPlaceType: () => null,
@@ -57,14 +50,12 @@ export function createVehiclePalette({
       touchHint.hidden = false;
       touchHint.textContent = 'Tap the map to place this vehicle (snaps to the route).';
     }
-    onVehicleArm?.();
   }
 
   paletteRoot.querySelectorAll('[data-vehicle-type]').forEach((btn) => {
     btn.addEventListener('dragstart', (e) => {
       const t = btn.dataset.vehicleType;
       if (!t) return;
-      onVehicleDragStart?.();
       e.dataTransfer?.setData(DRAG_MIME, t);
       e.dataTransfer?.setData('text/plain', t);
       if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
@@ -94,7 +85,6 @@ export function createVehiclePalette({
         if (v) {
           sim.setDefaultVehicleType(raw);
           sim.syncFleetPanel?.();
-          onAfterVehiclePlaced?.();
         }
       };
 
@@ -137,7 +127,6 @@ export function createVehiclePalette({
     if (v) {
       sim.setDefaultVehicleType(raw);
       sim.syncFleetPanel?.();
-      onAfterVehiclePlaced?.();
     }
   }
 
@@ -172,7 +161,6 @@ export function createVehiclePalette({
     if (v) {
       sim.setDefaultVehicleType(v.vehicleType);
       sim.syncFleetPanel?.();
-      onAfterVehiclePlaced?.();
       return true;
     }
     return false;

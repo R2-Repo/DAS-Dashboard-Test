@@ -4,21 +4,14 @@
  */
 import { registerSW } from 'virtual:pwa-register';
 import { initMap, setupTrafficSimulatorMapInteractions } from './map.js';
-import { getHazardDeckHexColumnCount, refreshHazardDeckHexLayer } from './hazard-deck-overlay.js';
 import { initWaterfall } from './waterfall.js';
 import { createSimulation } from './simulation.js';
 import { initUI } from './ui.js';
 import { loadData } from './data-loader.js';
 import { createVehiclePalette } from './vehicle-palette.js';
-import { createHazardController } from './hazard-controller.js';
 import { runSplashGate } from './splash.js';
 
-registerSW({
-  immediate: true,
-  onNeedRefresh() {
-    globalThis.location?.reload?.();
-  },
-});
+registerSW({ immediate: true });
 
 async function boot() {
   const data = await runSplashGate(loadData);
@@ -34,35 +27,10 @@ async function boot() {
 
   map.on('load', () => {
     const paletteRoot = document.getElementById('vehicle-palette');
-    const hazardPanel = document.getElementById('hazard-panel');
-    let hazardsRef = { disarm: () => {} };
-    const palette = createVehiclePalette({
-      map,
-      sim,
-      paletteRoot,
-      onVehicleArm: () => hazardsRef.disarm?.(),
-      onVehicleDragStart: () => hazardsRef.disarm?.(),
-      onAfterVehiclePlaced: () => hazardsRef.disarm?.(),
-    });
-    const hazards = createHazardController({ map, sim, panelRoot: hazardPanel, vehiclePalette: palette });
-    hazardsRef = hazards;
+    const palette = createVehiclePalette({ map, sim, paletteRoot });
     setupTrafficSimulatorMapInteractions(map, sim, {
-      tryConsumeMapClick: (e) => palette.tryConsumeMapClick(e) || hazards.tryConsumeMapClick(e),
+      tryConsumeMapClick: (e) => palette.tryConsumeMapClick(e),
     });
-    map.on('zoomend', () => {
-      sim.syncHazardMapLayer?.();
-    });
-    map.on('moveend', () => {
-      refreshHazardDeckHexLayer(map);
-    });
-    map.on('idle', () => {
-      refreshHazardDeckHexLayer(map);
-    });
-
-    // Headless / local: scripts/e2e-hazard-deck.mjs (dev server only) reads deck column count.
-    if (import.meta.env.DEV) {
-      window.__dasExposeForAutomation = { map, sim, getHazardDeckHexColumnCount };
-    }
   });
 
   sim.start();
@@ -71,7 +39,7 @@ async function boot() {
   const mapHint = document.getElementById('traffic-map-hint');
   if (mapHint) {
     mapHint.textContent = sim.isRoadOk()
-      ? 'Hazards: pick crash / rock / snow, tap the map once. Rock & snow: fixed ~500×500 ft hex block at the click (Size ignored); view zooms in after place. Clear removes hazards. Vehicles: drag or tap an icon then tap the map.'
+      ? 'Drag a vehicle onto the map, or tap an icon then tap the map. New vehicles snap to the nearest lane by the drop point. Use the list to set direction (EB/WB) and speed; drag on the map to move.'
       : 'Drag an icon onto the map (snaps to fiber). On a phone: tap an icon, then tap the map.';
   }
 
