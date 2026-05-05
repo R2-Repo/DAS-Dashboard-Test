@@ -27,6 +27,11 @@ npm run test:e2e-hazard-deck
 
 This asserts that placing a rock slide creates many deck.gl columns (`getHazardDeckHexColumnCount`).
 
+## Troubleshooting
+
+- **No visible columns at first**: Terrain DEM can return 0 before tiles load; the overlay now falls back to a plausible elevation and scales column width at low zoom. After placing rock or snow, the map **auto-zooms** toward the hazard. If columns still look small, zoom in further (≥15).
+- **deck.gl vs MapLibre**: Mass hazard cells are drawn by deck (`ColumnLayer`), not the fiber layer. Toggle fiber visibility does not affect hazards.
+
 ## Road data requirement
 
 Mass hazards use **EB/WB road centerlines** from processed `road.geojson`. If lane geometry is missing or too short, placement falls back to channel-only span around the snapped fiber point.

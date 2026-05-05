@@ -52,6 +52,9 @@ async function boot() {
     map.on('zoomend', () => {
       sim.syncHazardMapLayer?.();
     });
+    map.on('moveend', () => {
+      refreshHazardDeckHexLayer(map);
+    });
     map.on('idle', () => {
       refreshHazardDeckHexLayer(map);
     });
@@ -68,7 +71,7 @@ async function boot() {
   const mapHint = document.getElementById('traffic-map-hint');
   if (mapHint) {
     mapHint.textContent = sim.isRoadOk()
-      ? 'Hazards: pick crash / rock / snow, set Size, tap the map once (extent follows the road centerline for rock and snow). Clear removes hazards. Vehicles: drag or tap an icon then tap the map.'
+      ? 'Hazards: pick crash / rock / snow, set Size, tap the map once (rock & snow follow the road). After placing rock or snow, the view zooms in so deck.gl columns are visible; you can still zoom and pan. Clear removes hazards. Vehicles: drag or tap an icon then tap the map.'
       : 'Drag an icon onto the map (snaps to fiber). On a phone: tap an icon, then tap the map.';
   }
 

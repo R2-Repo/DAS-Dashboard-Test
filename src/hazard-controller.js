@@ -148,7 +148,18 @@ export function createHazardController({ map, sim, panelRoot, vehiclePalette }) 
     }
 
     const a = sim.addHazardAtLngLat(armedKind, e.lngLat.lng, e.lngLat.lat, { magnitude });
-    if (a) disarm();
+    if (a) {
+      if (armedKind === 'rock_slide' || armedKind === 'avalanche') {
+        map.easeTo({
+          center: [a.lon, a.lat],
+          zoom: Math.max(map.getZoom(), 15.25),
+          pitch: Math.max(map.getPitch(), 52),
+          duration: 900,
+          essential: true,
+        });
+      }
+      disarm();
+    }
     return Boolean(a);
   }
 
