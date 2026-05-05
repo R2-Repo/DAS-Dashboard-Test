@@ -11,6 +11,8 @@ import {
   maxCurvatureAhead,
   roadForwardSignForDirection,
   lonLatAtRoadDistance,
+  nearestPointOnLane,
+  nearestPointOnLanes,
   nearestPointOnLanesPrefer,
   travelBearingDegAtRoadDistance,
   bearingDegClockwiseFromNorthLonLat,
@@ -148,11 +150,15 @@ export function createSimulation(data, targets) {
   }
   let noiseSeed = Math.random() * 1000;
   let defaultVehicleType = 'car';
-  let defaultPlacementLane = 'auto';
 
   function vehicleById(id) {
     return vehicles.find((v) => v.id === id) ?? null;
   }
+
+  const fleetPanelSimView = {
+    getVehicles: () => vehicles,
+    getSelectedVehicleId: () => selectedVehicleId,
+  };
 
   let syncFleetPanelFn = () => {};
   let plotFocusChannel = null;
@@ -500,14 +506,7 @@ export function createSimulation(data, targets) {
       simTimeS: tickCount * (TICK_MS / MS_PER_S),
     });
 
-    if (tickCount % 25 === 0 && vehicles.length > 0) {
-      const v = vehicles[Math.floor(Math.random() * vehicles.length)];
-      targets.ui.addEvent('vehicle', v);
-    }
-
-    if (tickCount % 8 === 0) {
-      syncFleetPanelFn();
-    }
+    targets.ui.updateFleetMileposts?.(fleetPanelSimView);
   }
 
   function spawnUserVehicleAtRoad(laneKey, roadDistM, opts = {}) {
@@ -578,8 +577,10 @@ export function createSimulation(data, targets) {
 
   function placeVehicleAtLngLat(lng, lat, opts = {}) {
     if (!roadOk) return false;
-    const prefer = opts.placementLane ?? 'auto';
-    const snap = nearestPointOnLanesPrefer(laneEb, laneWb, lng, lat, prefer);
+    const prefer = opts.placementLane;
+    const snap = prefer && prefer !== 'auto'
+      ? nearestPointOnLanesPrefer(laneEb, laneWb, lng, lat, prefer)
+      : nearestPointOnLanes(laneEb, laneWb, lng, lat);
     if (!snap || snap.distanceM > LAB_SNAP_MAX_M) return false;
     const id = opts.vehicleId;
     const existing = id ? vehicleById(id) : null;
@@ -649,8 +650,10 @@ export function createSimulation(data, targets) {
       vehicleType: normalizeVehicleType(opts.vehicleType ?? defaultVehicleType),
     };
     if (roadOk) {
-      const prefer = merged.placementLane ?? 'auto';
-      const snap = nearestPointOnLanesPrefer(laneEb, laneWb, lng, lat, prefer);
+      const prefer = merged.placementLane;
+      const snap = prefer && prefer !== 'auto'
+        ? nearestPointOnLanesPrefer(laneEb, laneWb, lng, lat, prefer)
+        : nearestPointOnLanes(laneEb, laneWb, lng, lat);
       if (!snap || snap.distanceM > LAB_SNAP_MAX_M) return null;
       const v = spawnUserVehicleAtRoad(snap.laneKey, snap.roadDistM, { ...merged, userPlaced: true });
       if (v) setSelectedVehicleId(v.id);
@@ -695,22 +698,78 @@ export function createSimulation(data, targets) {
     targets.ui.updateStats(vehicles, anomalies, { simTimeS: 0 });
   }
 
-  function applyQuickFleet() {
+  function demoQuarterCounts(total) {
+    const n = Math.max(1, Math.min(192, Math.floor(total)));
+    const base = Math.floor(n / 4);
+    let rem = n % 4;
+    const q = [base, base, base, base];
+    for (let i = 0; rem > 0; i++, rem--) q[i]++;
+    return q;
+  }
+
+  function spreadFracs(lo, hi, count) {
+    if (count <= 0) return [];
+    if (count === 1) return [(lo + hi) * 0.5];
+    const out = [];
+    for (let i = 0; i < count; i++) out.push(lo + ((hi - lo) * i) / (count - 1));
+    return out;
+  }
+
+  function applyQuickFleet(totalVehicles = 12) {
     clearFleet();
+    const demoTypes = ['bicycle', 'motorcycle', 'car', 'truck', 'semi_truck', 'car'];
+
     if (roadOk) {
-      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.08, { forceSpeed: 28, vehicleType: 'bicycle', userPlaced: true });
-      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.065, { forceSpeed: 38, vehicleType: 'motorcycle', userPlaced: true });
-      spawnUserVehicleAtRoad('eb', laneEb.totalM * 0.05, { forceSpeed: 34, vehicleType: 'car', userPlaced: true });
-      spawnUserVehicleAtRoad('wb', laneWb.totalM * 0.92, { forceSpeed: 35, vehicleType: 'truck', userPlaced: true });
-      spawnUserVehicleAtRoad('wb', laneWb.totalM * 0.88, { forceSpeed: 40, vehicleType: 'semi_truck', userPlaced: true });
+      const [nBottom, nTop, nEbMid, nWbMid] = demoQuarterCounts(totalVehicles);
+      let ti = 0;
+      const speedFor = (i, base) => base + (i % 3) * 2;
+
+      for (let i = 0; i < nBottom; i++) {
+        const fracs = spreadFracs(0.02, 0.12, nBottom);
+        spawnUserVehicleAtRoad('eb', laneEb.totalM * fracs[i], {
+          forceSpeed: speedFor(i, 30),
+          vehicleType: demoTypes[ti++ % demoTypes.length],
+          userPlaced: true,
+        });
+      }
+      for (let i = 0; i < nTop; i++) {
+        const fracs = spreadFracs(0.88, 0.98, nTop);
+        spawnUserVehicleAtRoad('wb', laneWb.totalM * fracs[i], {
+          forceSpeed: speedFor(i, 32),
+          vehicleType: demoTypes[ti++ % demoTypes.length],
+          userPlaced: true,
+        });
+      }
+      for (let i = 0; i < nEbMid; i++) {
+        const fracs = spreadFracs(0.4, 0.46, nEbMid);
+        spawnUserVehicleAtRoad('eb', laneEb.totalM * fracs[i], {
+          forceSpeed: speedFor(i, 38),
+          vehicleType: demoTypes[ti++ % demoTypes.length],
+          userPlaced: true,
+        });
+      }
+      for (let i = 0; i < nWbMid; i++) {
+        const fracs = spreadFracs(0.54, 0.6, nWbMid);
+        spawnUserVehicleAtRoad('wb', laneWb.totalM * fracs[i], {
+          forceSpeed: speedFor(i, 38),
+          vehicleType: demoTypes[ti++ % demoTypes.length],
+          userPlaced: true,
+        });
+      }
     } else {
-      spawnUserVehicleLegacy(totalChannels * 0.1, 'up_canyon', { forceSpeed: 32, vehicleType: 'car', userPlaced: true });
-      spawnUserVehicleLegacy(totalChannels * 0.08, 'up_canyon', { forceSpeed: 40, vehicleType: 'motorcycle', userPlaced: true });
+      const n = Math.max(1, Math.min(192, Math.floor(totalVehicles)));
+      for (let i = 0; i < n; i++) {
+        const t = n <= 1 ? 0.5 : i / (n - 1);
+        const dir = i % 2 === 0 ? 'up_canyon' : 'down_canyon';
+        spawnUserVehicleLegacy(totalChannels * (0.08 + t * 0.84), dir, {
+          forceSpeed: 34 + (i % 4) * 2,
+          vehicleType: demoTypes[i % demoTypes.length],
+          userPlaced: true,
+        });
+      }
     }
     setSelectedVehicleId(vehicles[0]?.id ?? null);
 
-    // Zoom the waterfall to the region around the first vehicle so diagonal
-    // traces are visible immediately instead of being compressed at full-route zoom.
     if (vehicles.length > 0) {
       const ch = Math.floor(vehicles[0].channelPos);
       const pad = 600;
@@ -732,6 +791,31 @@ export function createSimulation(data, targets) {
     const v = vehicleById(id);
     if (!v) return false;
     v.vehicleType = normalizeVehicleType(vehicleType);
+    return true;
+  }
+
+  function setVehicleLaneKey(id, laneKey) {
+    const v = vehicleById(id);
+    if (!v || !roadOk) return false;
+    if (laneKey !== 'eb' && laneKey !== 'wb') return false;
+    if (v.laneKey === laneKey) return true;
+    const newLane = laneKey === 'eb' ? laneEb : laneWb;
+    if (!newLane) return false;
+    const snap = nearestPointOnLane(newLane, v.lon, v.lat);
+    if (!snap) return false;
+    const roadM = Math.max(0, Math.min(newLane.totalM, snap.roadDistM));
+    v.laneKey = laneKey;
+    v.direction = directionForLane(laneKey);
+    v.roadDistM = roadM;
+    v.channelPos = clampChannelPosToFiber(
+      roadDistanceToChannelPos(newLane, roadM),
+      totalChannels,
+    );
+    v.prevChannelPos = v.channelPos;
+    const ll = lonLatAtRoadDistance(newLane, roadM);
+    v.lon = ll[0];
+    v.lat = ll[1];
+    v.channelsPerTick = mphToChannelsPerTick(v.speedMph);
     return true;
   }
 
@@ -772,13 +856,10 @@ export function createSimulation(data, targets) {
     applyQuickFleet,
     setVehicleDesiredSpeed,
     setVehicleType,
+    setVehicleLaneKey,
     getDefaultVehicleType: () => defaultVehicleType,
     setDefaultVehicleType: (t) => {
       defaultVehicleType = normalizeVehicleType(t);
-    },
-    getDefaultPlacementLane: () => defaultPlacementLane,
-    setDefaultPlacementLane: (lane) => {
-      if (lane === 'eb' || lane === 'wb' || lane === 'auto') defaultPlacementLane = lane;
     },
     getDragVehicleId: () => dragVehicleId,
     setDragVehicleId: (id) => {

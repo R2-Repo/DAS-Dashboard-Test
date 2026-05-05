@@ -81,7 +81,6 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
         const lngLat = map.unproject([ev.clientX - rect.left, ev.clientY - rect.top]);
         const v = sim.addVehicleNearLngLat(lngLat.lng, lngLat.lat, {
           vehicleType: raw,
-          placementLane: sim.getDefaultPlacementLane?.() ?? 'auto',
         });
         if (v) {
           sim.setDefaultVehicleType(raw);
@@ -124,7 +123,6 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
     const lngLat = e.lngLat ?? e;
     const v = sim.addVehicleNearLngLat(lngLat.lng, lngLat.lat, {
       vehicleType: raw,
-      placementLane: sim.getDefaultPlacementLane?.() ?? 'auto',
     });
     if (v) {
       sim.setDefaultVehicleType(raw);
@@ -158,7 +156,6 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
     }
     const v = sim.addVehicleNearLngLat(e.lngLat.lng, e.lngLat.lat, {
       vehicleType: pendingPlaceType,
-      placementLane: sim.getDefaultPlacementLane?.() ?? 'auto',
     });
     clearPending();
     if (v) {
