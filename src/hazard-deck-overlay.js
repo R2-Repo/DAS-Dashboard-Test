@@ -6,6 +6,8 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import { ColumnLayer } from '@deck.gl/layers';
 
 const overlays = new WeakMap();
+/** Last ColumnLayer instance count per map (for automated verification). */
+const deckHexColumnCounts = new WeakMap();
 
 function hexToRgb(hex) {
   const h = String(hex || '').replace('#', '');
@@ -74,6 +76,7 @@ function massHazardColumnData(map, cellFeatures) {
 
 export function attachHazardDeckOverlay(map) {
   if (!map || overlays.has(map)) return;
+  deckHexColumnCounts.set(map, 0);
   const overlay = new MapboxOverlay({
     interleaved: true,
     layers: [],
@@ -87,6 +90,7 @@ export function updateHazardDeckHexLayer(map, cellPolygonFeatures) {
   if (!overlay) return;
 
   const data = massHazardColumnData(map, cellPolygonFeatures);
+  deckHexColumnCounts.set(map, data.length);
   overlay.setProps({
     layers: [
       new ColumnLayer({
@@ -104,4 +108,9 @@ export function updateHazardDeckHexLayer(map, cellPolygonFeatures) {
       }),
     ],
   });
+}
+
+/** How many extruded hex columns the deck layer last built for `map` (0 if none / overlay missing). */
+export function getHazardDeckHexColumnCount(map) {
+  return deckHexColumnCounts.get(map) ?? 0;
 }
