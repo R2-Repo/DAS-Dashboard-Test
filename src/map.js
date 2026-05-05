@@ -176,8 +176,8 @@ export function initMap(containerId, data) {
     addRoadCenterlineLayers(map, data.road);
     addFiberLayer(map, data.fiberRoute);
     addMilepostLayers(map, data.mileposts);
-    addAnomalyLayer(map);
     addVehicleLayers(map);
+    addAnomalyLayer(map);
     addCanyonIntroHighlightLayers(map);
     setupCanyonIntroHighlightLifecycle(map);
     applyDefaultLayerVisibility(map);
@@ -653,7 +653,7 @@ function addVehicleLayers(map) {
  * Adding vehicles is done via the sidebar palette (drag-drop or touch place mode).
  */
 export function setupTrafficSimulatorMapInteractions(map, sim, options = {}) {
-  const { tryConsumeMapClick } = options;
+  const { tryConsumeMapClick, isMassHazardDrawing } = options;
 
   let dragging = false;
 
@@ -677,6 +677,7 @@ export function setupTrafficSimulatorMapInteractions(map, sim, options = {}) {
 
   map.on('mousedown', (e) => {
     if (e.originalEvent.button !== 0) return;
+    if (isMassHazardDrawing?.()) return;
     const feat = vehicleFeatureAtPoint(e);
     if (!feat) return;
     const dragId = feat.properties.id;
@@ -708,6 +709,7 @@ export function setupTrafficSimulatorMapInteractions(map, sim, options = {}) {
 
   map.on('touchstart', (e) => {
     if (e.points.length !== 1) return;
+    if (isMassHazardDrawing?.()) return;
     const hits = map.queryRenderedFeatures(e.point, { layers: VEHICLE_HIT_LAYERS });
     if (!hits.length) return;
     const dragId = hits[0].properties.id;
@@ -736,25 +738,51 @@ function addAnomalyLayer(map) {
     data: { type: 'FeatureCollection', features: [] },
   });
   map.addLayer({
-    id: 'anomaly-pulse',
-    type: 'circle',
+    id: 'anomaly-debris',
+    type: 'fill-extrusion',
     source: 'anomalies',
     paint: {
-      'circle-radius': 18,
-      'circle-color': '#ef5350',
-      'circle-opacity': 0.2,
-      'circle-blur': 1,
+      'fill-extrusion-height': ['coalesce', ['get', 'height_m'], 8],
+      'fill-extrusion-base': 0,
+      'fill-extrusion-color': [
+        'match',
+        ['get', 'hazard_kind'],
+        'crash',
+        '#e65100',
+        'avalanche',
+        '#0288d1',
+        '#6d4c41',
+      ],
+      'fill-extrusion-opacity': [
+        'interpolate',
+        ['linear'],
+        ['get', 'decay'],
+        0,
+        0.94,
+        1,
+        0.72,
+      ],
+      'fill-extrusion-vertical-gradient': true,
     },
   });
+
+  map.addSource('hazard-preview', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] },
+  });
   map.addLayer({
-    id: 'anomaly-markers',
-    type: 'circle',
-    source: 'anomalies',
+    id: 'hazard-preview-line',
+    type: 'line',
+    source: 'hazard-preview',
+    layout: {
+      'line-cap': 'round',
+      'line-join': 'round',
+    },
     paint: {
-      'circle-radius': 7,
-      'circle-color': '#ef5350',
-      'circle-stroke-width': 2,
-      'circle-stroke-color': '#fff',
+      'line-color': '#ffeb3b',
+      'line-width': 3,
+      'line-opacity': 0.75,
+      'line-dasharray': [2, 1],
     },
   });
 }
@@ -767,4 +795,9 @@ export function updateMapVehicles(map, vehicleFeatures) {
 export function updateMapAnomalies(map, anomalyFeatures) {
   const src = map.getSource('anomalies');
   if (src) src.setData({ type: 'FeatureCollection', features: anomalyFeatures });
+}
+
+export function updateHazardPreview(map, previewFeatures) {
+  const src = map.getSource('hazard-preview');
+  if (src) src.setData({ type: 'FeatureCollection', features: previewFeatures ?? [] });
 }

@@ -94,6 +94,37 @@
         <div id="traffic-panel-host-desktop" class="traffic-panel-host-desktop">
         <section id="traffic-control-panel" class="traffic-control-panel sidebar-mobile-panel sidebar-mobile-traffic">
           <p class="traffic-control-intro" id="traffic-map-hint"></p>
+          <div id="hazard-panel" class="hazard-panel" aria-label="Place hazards on the route">
+            <span class="hazard-panel-title">Hazards</span>
+            <div class="hazard-kind-row" role="group" aria-label="Hazard type">
+              <button type="button" class="palette-chip hazard-kind-btn" data-hazard-kind="crash" title="Crash">
+                <span class="palette-icon" aria-hidden="true">💥</span>
+              </button>
+              <button type="button" class="palette-chip hazard-kind-btn" data-hazard-kind="rock_slide" title="Rock slide">
+                <span class="palette-icon" aria-hidden="true">🪨</span>
+              </button>
+              <button type="button" class="palette-chip hazard-kind-btn" data-hazard-kind="avalanche" title="Avalanche">
+                <span class="palette-icon" aria-hidden="true">❄️</span>
+              </button>
+            </div>
+            <label class="hazard-magnitude-row" for="hazard-magnitude">
+              <span class="hazard-magnitude-label">Size</span>
+              <input type="range" id="hazard-magnitude" min="0" max="100" value="55" aria-valuetext="55 percent" />
+            </label>
+            <div id="hazard-crash-controls" class="hazard-subcontrols" hidden>
+              <span class="hazard-sub-label">Vehicles</span>
+              <div class="hazard-segment-row" role="group" aria-label="Vehicles involved">
+                <button type="button" class="hazard-segment hazard-segment-active" data-crash-vehicles="1">1</button>
+                <button type="button" class="hazard-segment" data-crash-vehicles="2">2</button>
+                <button type="button" class="hazard-segment" data-crash-vehicles="3">3</button>
+              </div>
+            </div>
+            <div id="hazard-mass-controls" class="hazard-subcontrols" hidden>
+              <p class="hazard-mass-hint">Desktop: drag on map for extent. Phone: tap map (size slider sets span).</p>
+            </div>
+            <p id="hazard-arm-hint" class="hazard-arm-hint" hidden></p>
+            <button type="button" id="hazard-cancel" class="lab-btn lab-btn-muted hazard-cancel-btn" hidden>Cancel hazard</button>
+          </div>
           <div id="vehicle-palette" class="vehicle-palette" aria-label="Add vehicles to the map">
             <span class="vehicle-palette-title">Vehicles</span>
             <div class="vehicle-palette-chips" role="group" aria-label="Vehicle types">
