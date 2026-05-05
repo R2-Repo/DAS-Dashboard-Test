@@ -2,8 +2,8 @@
  * deck.gl mass hazards (rock slide / avalanche) — extruded hex columns on MapLibre terrain.
  *
  * - MapLibre fill-extrusion on hundreds of tiny polygons is unreliable on terrain.
- * - Interleaved MapboxOverlay + terrain depth often hides deck layers; use overlaid mode.
- * - Overlaid canvas must sit above MapLibre canvases (see styles.css z-index).
+ * - Overlaid deck.gl + MapLibre 3D terrain often fails depth/compositing (columns invisible on some GPUs).
+ * - Interleaved MapboxOverlay shares WebGL with the map so extruded columns participate in the same depth buffer.
  * - Positions use LNGLAT + terrain altitude (meters); plain lng/lat extrusions sit at sea level and disappear under terrain.
  */
 import { COORDINATE_SYSTEM } from '@deck.gl/core';
@@ -131,11 +131,10 @@ export function attachHazardDeckOverlay(map) {
   deckHexColumnCounts.set(map, 0);
   lastMassHexFeatures.set(map, []);
   const overlay = new MapboxOverlay({
-    interleaved: false,
-    useDevicePixels: true,
+    interleaved: true,
     layers: [],
   });
-  // Default top-left stacks under MapLibre controls; bottom-left keeps the deck canvas above base layers.
+  // Control slot only affects empty placeholder div in interleaved mode; deck draws into the map GL context.
   map.addControl(overlay, 'bottom-left');
   overlays.set(map, overlay);
   globalThis.requestAnimationFrame?.(() => {
