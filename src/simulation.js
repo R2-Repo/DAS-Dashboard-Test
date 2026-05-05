@@ -24,6 +24,7 @@ import {
   mapVehicleExtentBoostFromZoom,
   mapVehicleFootprintDims,
   normalizeVehicleType,
+  VEHICLE_TYPES,
   vehicleDasFootprint,
   vehicleDasClassHeat,
   vehicleSpec,
@@ -698,72 +699,37 @@ export function createSimulation(data, targets) {
     targets.ui.updateStats(vehicles, anomalies, { simTimeS: 0 });
   }
 
-  function demoQuarterCounts(total) {
-    const n = Math.max(1, Math.min(192, Math.floor(total)));
-    const base = Math.floor(n / 4);
-    let rem = n % 4;
-    const q = [base, base, base, base];
-    for (let i = 0; rem > 0; i++, rem--) q[i]++;
-    return q;
-  }
+  const DEMO_FLEET_MAX = 300;
+  const DEMO_ROAD_FRAC_MARGIN = 0.02;
 
-  function spreadFracs(lo, hi, count) {
-    if (count <= 0) return [];
-    if (count === 1) return [(lo + hi) * 0.5];
-    const out = [];
-    for (let i = 0; i < count; i++) out.push(lo + ((hi - lo) * i) / (count - 1));
-    return out;
+  function randomDemoSpeedMph() {
+    return 22 + Math.random() * 38;
   }
 
   function applyQuickFleet(totalVehicles = 12) {
     clearFleet();
-    const demoTypes = ['bicycle', 'motorcycle', 'car', 'truck', 'semi_truck', 'car'];
+    const n = Math.max(1, Math.min(DEMO_FLEET_MAX, Math.floor(totalVehicles)));
 
     if (roadOk) {
-      const [nBottom, nTop, nEbMid, nWbMid] = demoQuarterCounts(totalVehicles);
-      let ti = 0;
-      const speedFor = (i, base) => base + (i % 3) * 2;
-
-      for (let i = 0; i < nBottom; i++) {
-        const fracs = spreadFracs(0.02, 0.12, nBottom);
-        spawnUserVehicleAtRoad('eb', laneEb.totalM * fracs[i], {
-          forceSpeed: speedFor(i, 30),
-          vehicleType: demoTypes[ti++ % demoTypes.length],
-          userPlaced: true,
-        });
-      }
-      for (let i = 0; i < nTop; i++) {
-        const fracs = spreadFracs(0.88, 0.98, nTop);
-        spawnUserVehicleAtRoad('wb', laneWb.totalM * fracs[i], {
-          forceSpeed: speedFor(i, 32),
-          vehicleType: demoTypes[ti++ % demoTypes.length],
-          userPlaced: true,
-        });
-      }
-      for (let i = 0; i < nEbMid; i++) {
-        const fracs = spreadFracs(0.4, 0.46, nEbMid);
-        spawnUserVehicleAtRoad('eb', laneEb.totalM * fracs[i], {
-          forceSpeed: speedFor(i, 38),
-          vehicleType: demoTypes[ti++ % demoTypes.length],
-          userPlaced: true,
-        });
-      }
-      for (let i = 0; i < nWbMid; i++) {
-        const fracs = spreadFracs(0.54, 0.6, nWbMid);
-        spawnUserVehicleAtRoad('wb', laneWb.totalM * fracs[i], {
-          forceSpeed: speedFor(i, 38),
-          vehicleType: demoTypes[ti++ % demoTypes.length],
+      const lo = DEMO_ROAD_FRAC_MARGIN;
+      const hi = 1 - DEMO_ROAD_FRAC_MARGIN;
+      for (let i = 0; i < n; i++) {
+        const laneKey = Math.random() < 0.5 ? 'eb' : 'wb';
+        const lane = laneKey === 'eb' ? laneEb : laneWb;
+        const roadFrac = lo + Math.random() * (hi - lo);
+        spawnUserVehicleAtRoad(laneKey, lane.totalM * roadFrac, {
+          forceSpeed: randomDemoSpeedMph(),
+          vehicleType: VEHICLE_TYPES[Math.floor(Math.random() * VEHICLE_TYPES.length)],
           userPlaced: true,
         });
       }
     } else {
-      const n = Math.max(1, Math.min(192, Math.floor(totalVehicles)));
       for (let i = 0; i < n; i++) {
-        const t = n <= 1 ? 0.5 : i / (n - 1);
-        const dir = i % 2 === 0 ? 'up_canyon' : 'down_canyon';
-        spawnUserVehicleLegacy(totalChannels * (0.08 + t * 0.84), dir, {
-          forceSpeed: 34 + (i % 4) * 2,
-          vehicleType: demoTypes[i % demoTypes.length],
+        const dir = Math.random() < 0.5 ? 'up_canyon' : 'down_canyon';
+        const t = 0.06 + Math.random() * 0.88;
+        spawnUserVehicleLegacy(totalChannels * t, dir, {
+          forceSpeed: randomDemoSpeedMph(),
+          vehicleType: VEHICLE_TYPES[Math.floor(Math.random() * VEHICLE_TYPES.length)],
           userPlaced: true,
         });
       }
