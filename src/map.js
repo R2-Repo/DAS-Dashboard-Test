@@ -17,6 +17,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
 import { VEHICLE_HIT_LAYERS } from './map-constants.js';
+import { attachHazardDeckOverlay, updateHazardDeckHexLayer } from './hazard-deck-overlay.js';
 
 const TERRAIN_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 
@@ -183,6 +184,7 @@ export function initMap(containerId, data) {
     // Hazards must draw above vehicle fill-extrusions; passing a `beforeId` of `vehicle-glow` would
     // stack them underneath `vehicle-blocks-*` and hide mass-hazard hex clusters.
     addAnomalyLayer(map);
+    attachHazardDeckOverlay(map);
     setupCanyonIntroHighlightLifecycle(map);
     applyDefaultLayerVisibility(map);
     const attrib = map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact');
@@ -749,11 +751,6 @@ function addAnomalyLayer(map, beforeLayerId) {
     data: { type: 'FeatureCollection', features: [] },
   });
   const hazardPolygonFilter = ['==', ['geometry-type'], 'Polygon'];
-  const hazardCellPoly = [
-    'all',
-    hazardPolygonFilter,
-    ['==', ['coalesce', ['get', 'hazard_cell'], 0], 1],
-  ];
   const hazardFootprintPoly = [
     'all',
     hazardPolygonFilter,
@@ -791,28 +788,6 @@ function addAnomalyLayer(map, beforeLayerId) {
   });
 
   addHazardLayer({
-    id: 'anomaly-debris-cells',
-    type: 'fill-extrusion',
-    source: 'anomalies',
-    filter: hazardCellPoly,
-    paint: {
-      'fill-extrusion-height': ['coalesce', ['get', 'height_m'], 6],
-      'fill-extrusion-base': 0,
-      'fill-extrusion-color': ['coalesce', ['get', 'cell_fill'], '#a1887f'],
-      'fill-extrusion-opacity': [
-        'interpolate',
-        ['linear'],
-        ['get', 'decay'],
-        0,
-        0.94,
-        1,
-        0.76,
-      ],
-      'fill-extrusion-vertical-gradient': true,
-    },
-  });
-
-  addHazardLayer({
     id: 'anomaly-debris-rim',
     type: 'fill-extrusion',
     source: 'anomalies',
@@ -837,28 +812,6 @@ function addAnomalyLayer(map, beforeLayerId) {
         0.55,
         1,
         0.38,
-      ],
-      'fill-extrusion-vertical-gradient': false,
-    },
-  });
-
-  addHazardLayer({
-    id: 'anomaly-debris-rim-cells',
-    type: 'fill-extrusion',
-    source: 'anomalies',
-    filter: hazardCellPoly,
-    paint: {
-      'fill-extrusion-height': ['+', ['coalesce', ['get', 'height_m'], 6], 0.45],
-      'fill-extrusion-base': ['coalesce', ['get', 'height_m'], 6],
-      'fill-extrusion-color': '#fafafa',
-      'fill-extrusion-opacity': [
-        'interpolate',
-        ['linear'],
-        ['get', 'decay'],
-        0,
-        0.42,
-        1,
-        0.28,
       ],
       'fill-extrusion-vertical-gradient': false,
     },
@@ -942,7 +895,19 @@ export function updateMapVehicles(map, vehicleFeatures) {
 
 export function updateMapAnomalies(map, anomalyFeatures) {
   const src = map.getSource('anomalies');
-  if (src) src.setData({ type: 'FeatureCollection', features: anomalyFeatures });
+  const list = anomalyFeatures ?? [];
+  const mapLibreFeatures = [];
+  const massHexCells = [];
+  for (const f of list) {
+    const cell = f?.properties?.hazard_cell;
+    const isMassHex =
+      f?.geometry?.type === 'Polygon' &&
+      (cell === 1 || cell === '1');
+    if (isMassHex) massHexCells.push(f);
+    else mapLibreFeatures.push(f);
+  }
+  if (src) src.setData({ type: 'FeatureCollection', features: mapLibreFeatures });
+  updateHazardDeckHexLayer(map, massHexCells);
 }
 
 export function updateHazardPreview(map, previewFeatures) {
