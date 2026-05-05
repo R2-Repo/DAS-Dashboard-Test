@@ -9,6 +9,7 @@ import { createSimulation } from './simulation.js';
 import { initUI } from './ui.js';
 import { loadData } from './data-loader.js';
 import { createVehiclePalette } from './vehicle-palette.js';
+import { createHazardController } from './hazard-controller.js';
 import { runSplashGate } from './splash.js';
 
 registerSW({ immediate: true });
@@ -27,9 +28,21 @@ async function boot() {
 
   map.on('load', () => {
     const paletteRoot = document.getElementById('vehicle-palette');
-    const palette = createVehiclePalette({ map, sim, paletteRoot });
+    const hazardPanel = document.getElementById('hazard-panel');
+    let hazardsRef = { disarm: () => {} };
+    const palette = createVehiclePalette({
+      map,
+      sim,
+      paletteRoot,
+      onVehicleArm: () => hazardsRef.disarm?.(),
+      onVehicleDragStart: () => hazardsRef.disarm?.(),
+      onAfterVehiclePlaced: () => hazardsRef.disarm?.(),
+    });
+    const hazards = createHazardController({ map, sim, panelRoot: hazardPanel, vehiclePalette: palette });
+    hazardsRef = hazards;
     setupTrafficSimulatorMapInteractions(map, sim, {
-      tryConsumeMapClick: (e) => palette.tryConsumeMapClick(e),
+      tryConsumeMapClick: (e) => palette.tryConsumeMapClick(e) || hazards.tryConsumeMapClick(e),
+      isMassHazardDrawing: () => hazards.isMassExtending(),
     });
   });
 
@@ -39,7 +52,7 @@ async function boot() {
   const mapHint = document.getElementById('traffic-map-hint');
   if (mapHint) {
     mapHint.textContent = sim.isRoadOk()
-      ? 'Drag a vehicle onto the map, or tap an icon then tap the map. New vehicles snap to the nearest lane by the drop point. Use the list to set direction (EB/WB) and speed; drag on the map to move.'
+      ? 'Hazards: tap crash / rock / snow, adjust size, then tap the map (crash) or drag along the route (rock & snow on desktop). Clear removes hazards too. Vehicles: drag or tap an icon then tap the map.'
       : 'Drag an icon onto the map (snaps to fiber). On a phone: tap an icon, then tap the map.';
   }
 

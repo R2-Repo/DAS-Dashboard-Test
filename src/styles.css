@@ -338,6 +338,96 @@ html, body {
   padding: 0 0.75rem 0.5rem;
 }
 
+.hazard-panel {
+  padding: 0 0.75rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.hazard-panel-title {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.hazard-kind-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.hazard-kind-btn {
+  cursor: pointer;
+}
+
+.hazard-magnitude-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.hazard-magnitude-label {
+  font-weight: 600;
+}
+
+.hazard-subcontrols {
+  margin-bottom: 0.35rem;
+}
+
+.hazard-sub-label {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.hazard-segment-row {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.hazard-segment {
+  flex: 1;
+  min-height: 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hazard-segment-active {
+  border-color: var(--accent);
+  background: var(--bg-card-hover);
+}
+
+.hazard-mass-hint {
+  font-size: 0.62rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  margin: 0;
+}
+
+.hazard-arm-hint {
+  font-size: 0.65rem;
+  color: var(--accent);
+  margin: 0.35rem 0 0.35rem;
+  line-height: 1.35;
+}
+
+.hazard-cancel-btn {
+  width: 100%;
+  margin-top: 0.15rem;
+}
+
 .vehicle-palette {
   padding: 0 0.75rem 0.65rem;
   border-bottom: 1px solid var(--border);
@@ -381,6 +471,15 @@ html, body {
 .palette-icon {
   font-size: 1.45rem;
   line-height: 1;
+}
+
+/* Hazard crash: warning triangle + car (two glyphs, no impact emoji). */
+.palette-icon-hazard-crash {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.06em;
+  font-size: 1.12rem;
 }
 
 .palette-chip:hover {
@@ -832,6 +931,11 @@ html, body {
 
   #app.app-mobile-layout .palette-icon {
     font-size: 1.55rem;
+  }
+
+  #app.app-mobile-layout .palette-icon-hazard-crash {
+    font-size: 1.22rem;
+    gap: 0.08em;
   }
 
   #app.app-mobile-layout .fleet-row-speed {
