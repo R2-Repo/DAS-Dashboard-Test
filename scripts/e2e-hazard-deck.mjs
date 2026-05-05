@@ -65,6 +65,22 @@ async function main() {
 
   await sleep(1800);
 
+  // Pan slightly so the recording / screenshot is clearly exercising the camera, not a static frame.
+  await page.evaluate(() => {
+    const { map } = window.__dasExposeForAutomation;
+    const c = map.getCenter();
+    map.panBy([140, -40], { duration: 600 });
+    return { lng: c.lng, lat: c.lat };
+  });
+  await sleep(900);
+
+  const deckDom = await page.evaluate(() => {
+    const el = document.querySelector('#map .deck-widget-container canvas');
+    if (!el) return { ok: false };
+    const r = el.getBoundingClientRect();
+    return { ok: true, w: Math.round(r.width), h: Math.round(r.height) };
+  });
+
   if (!result.placedId) {
     console.error('FAIL: hazard was not placed (snap failed?)', result);
     await browser.close();
@@ -72,6 +88,12 @@ async function main() {
   }
   if (result.after < 50) {
     console.error('FAIL: expected many deck.gl hex columns after rock slide; got', result);
+    await browser.close();
+    process.exit(1);
+  }
+
+  if (!deckDom?.ok || deckDom.w < 100 || deckDom.h < 100) {
+    console.error('FAIL: deck.gl canvas missing or zero size', deckDom);
     await browser.close();
     process.exit(1);
   }
@@ -103,7 +125,16 @@ async function main() {
 
   await browser.close();
 
-  console.log('PASS: deck.gl mass-hazard columns:', result.after, '(before:', `${result.before})`, 'hazard:', result.placedId);
+  console.log(
+    'PASS: deck.gl mass-hazard columns:',
+    result.after,
+    '(before:',
+    `${result.before})`,
+    'hazard:',
+    result.placedId,
+    'deck canvas:',
+    `${deckDom.w}x${deckDom.h}`,
+  );
 }
 
 main().catch((e) => {
