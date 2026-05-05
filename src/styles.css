@@ -63,6 +63,12 @@ html, body {
   height: 100%;
 }
 
+/* deck.gl MapboxOverlay (non-interleaved): canvas must paint above MapLibre terrain/GPU layers */
+#map .deck-widget-container {
+  z-index: 3;
+  pointer-events: none;
+}
+
 /* Map layer toggle (fiber, mileposts) */
 .map-layer-control {
   position: absolute;

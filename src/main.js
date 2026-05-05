@@ -13,7 +13,12 @@ import { createVehiclePalette } from './vehicle-palette.js';
 import { createHazardController } from './hazard-controller.js';
 import { runSplashGate } from './splash.js';
 
-registerSW({ immediate: true });
+registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    globalThis.location?.reload?.();
+  },
+});
 
 async function boot() {
   const data = await runSplashGate(loadData);
