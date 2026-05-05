@@ -17,6 +17,18 @@ const lastMassHexFeatures = new WeakMap();
 /** When DEM not loaded yet — canyon interior ASL (avoids sea-level basement). */
 const FALLBACK_TERRAIN_M = 2750;
 
+/** `queryTerrainElevation` often returns 0 / NaN before terrain tiles load — columns would sit under the mesh. */
+function isPlausibleTerrainElevationM(z) {
+  return typeof z === 'number' && Number.isFinite(z) && z > 800;
+}
+
+function lowZoomColumnBoost(map) {
+  const z = typeof map?.getZoom === 'function' ? map.getZoom() : 12;
+  // At route overview (~11–13) 2–4 m radius is sub-pixel; inflate so mass hazards read as a pile.
+  if (z >= 15.2) return 1;
+  return Math.min(8, Math.pow(1.42, Math.max(0, 15.2 - z)));
+}
+
 function hexToRgb(hex) {
   const h = String(hex || '').replace('#', '');
   if (h.length !== 6) return [141, 110, 99];
@@ -55,7 +67,7 @@ function hexCircumRadiusMeters(centerLat, centerLon, ring) {
 function terrainMetersAt(map, lon, lat) {
   try {
     const z = map.queryTerrainElevation?.([lon, lat]);
-    if (typeof z === 'number' && Number.isFinite(z)) return z;
+    if (isPlausibleTerrainElevationM(z)) return z;
   } catch {
     /* ignore */
   }
@@ -63,6 +75,7 @@ function terrainMetersAt(map, lon, lat) {
 }
 
 function massHazardColumnData(map, cellFeatures) {
+  const zoomBoost = lowZoomColumnBoost(map);
   const out = [];
   for (const f of cellFeatures) {
     const ring = f.geometry?.coordinates?.[0];
@@ -75,10 +88,12 @@ function massHazardColumnData(map, cellFeatures) {
     const decay = typeof props.decay === 'number' && Number.isFinite(props.decay) ? props.decay : 1;
     const opacity = 0.94 - 0.18 * Math.min(1, Math.max(0, decay));
     const rgb = hexToRgb(props.cell_fill);
+    const rM = Math.max(4.5, radius * 1.08 * zoomBoost);
+    const elevM = Math.max(42, h * 5 * Math.min(2.2, 0.65 + zoomBoost * 0.22));
     out.push({
       position: [lon, lat, altM],
-      radius: Math.max(3.5, radius * 1.08),
-      elevation: Math.max(35, h * 5),
+      radius: rM,
+      elevation: elevM,
       fillColor: [...rgb, Math.round(255 * opacity)],
     });
   }
