@@ -738,13 +738,23 @@ function addAnomalyLayer(map, beforeLayerId) {
     data: { type: 'FeatureCollection', features: [] },
   });
   const hazardPolygonFilter = ['==', ['geometry-type'], 'Polygon'];
+  const hazardCellPoly = [
+    'all',
+    hazardPolygonFilter,
+    ['==', ['coalesce', ['get', 'hazard_cell'], 0], 1],
+  ];
+  const hazardFootprintPoly = [
+    'all',
+    hazardPolygonFilter,
+    ['!=', ['coalesce', ['get', 'hazard_cell'], 0], 1],
+  ];
 
   map.addLayer(
     {
       id: 'anomaly-debris',
       type: 'fill-extrusion',
       source: 'anomalies',
-      filter: hazardPolygonFilter,
+      filter: hazardFootprintPoly,
       paint: {
         'fill-extrusion-height': ['coalesce', ['get', 'height_m'], 8],
         'fill-extrusion-base': 0,
@@ -774,10 +784,35 @@ function addAnomalyLayer(map, beforeLayerId) {
 
   map.addLayer(
     {
+      id: 'anomaly-debris-cells',
+      type: 'fill-extrusion',
+      source: 'anomalies',
+      filter: hazardCellPoly,
+      paint: {
+        'fill-extrusion-height': ['coalesce', ['get', 'height_m'], 6],
+        'fill-extrusion-base': 0,
+        'fill-extrusion-color': ['coalesce', ['get', 'cell_fill'], '#a1887f'],
+        'fill-extrusion-opacity': [
+          'interpolate',
+          ['linear'],
+          ['get', 'decay'],
+          0,
+          0.94,
+          1,
+          0.76,
+        ],
+        'fill-extrusion-vertical-gradient': true,
+      },
+    },
+    beforeLayerId,
+  );
+
+  map.addLayer(
+    {
       id: 'anomaly-debris-rim',
       type: 'fill-extrusion',
       source: 'anomalies',
-      filter: hazardPolygonFilter,
+      filter: hazardFootprintPoly,
       paint: {
         'fill-extrusion-height': ['+', ['coalesce', ['get', 'height_m'], 8], 0.85],
         'fill-extrusion-base': ['coalesce', ['get', 'height_m'], 8],
@@ -807,6 +842,31 @@ function addAnomalyLayer(map, beforeLayerId) {
 
   map.addLayer(
     {
+      id: 'anomaly-debris-rim-cells',
+      type: 'fill-extrusion',
+      source: 'anomalies',
+      filter: hazardCellPoly,
+      paint: {
+        'fill-extrusion-height': ['+', ['coalesce', ['get', 'height_m'], 6], 0.45],
+        'fill-extrusion-base': ['coalesce', ['get', 'height_m'], 6],
+        'fill-extrusion-color': '#fafafa',
+        'fill-extrusion-opacity': [
+          'interpolate',
+          ['linear'],
+          ['get', 'decay'],
+          0,
+          0.42,
+          1,
+          0.28,
+        ],
+        'fill-extrusion-vertical-gradient': false,
+      },
+    },
+    beforeLayerId,
+  );
+
+  map.addLayer(
+    {
       id: 'hazard-marker-symbol',
       type: 'symbol',
       source: 'anomalies',
@@ -820,10 +880,30 @@ function addAnomalyLayer(map, beforeLayerId) {
         'text-font': ['Noto Sans Medium', 'Arial Unicode MS Regular'],
       },
       paint: {
-        'text-color': '#fff8e1',
-        'text-halo-color': '#1a120b',
-        'text-halo-width': 2.1,
-        'text-halo-blur': 0.35,
+        'text-color': [
+          'case',
+          ['==', ['coalesce', ['get', 'marker_role'], 'mass'], 'crash'],
+          '#141414',
+          '#fff8e1',
+        ],
+        'text-halo-color': [
+          'case',
+          ['==', ['coalesce', ['get', 'marker_role'], 'mass'], 'crash'],
+          '#ffc107',
+          '#1a120b',
+        ],
+        'text-halo-width': [
+          'case',
+          ['==', ['coalesce', ['get', 'marker_role'], 'mass'], 'crash'],
+          1.65,
+          2.1,
+        ],
+        'text-halo-blur': [
+          'case',
+          ['==', ['coalesce', ['get', 'marker_role'], 'mass'], 'crash'],
+          0.2,
+          0.35,
+        ],
         'text-opacity': [
           'interpolate',
           ['linear'],

@@ -133,6 +133,110 @@ function mixRgbWithHex(baseHex, tintHex, t) {
   return `#${[r, g, bl].map((x) => x.toString(16).padStart(2, '0')).join('')}`;
 }
 
+/** Offset in meters along road forward and to the driver's right (ENU, WGS84). */
+function offsetLonLatMeters(centerLon, centerLat, bearingDeg, alongM, rightM) {
+  const br = (bearingDeg * Math.PI) / 180;
+  const dE = alongM * Math.sin(br) + rightM * Math.cos(br);
+  const dN = alongM * Math.cos(br) - rightM * Math.sin(br);
+  const cosφ = Math.cos((centerLat * Math.PI) / 180);
+  return [centerLon + dE / (111320 * Math.max(0.25, Math.abs(cosφ))), centerLat + dN / 111320];
+}
+
+function hash01(i, j, salt) {
+  let h = (i * 374761393 + j * 668265263 + salt * 1442695041) | 0;
+  h = (h ^ (h >>> 13)) * 1274126177;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/**
+ * Tight hex-like pile of small extrusions (deck.gl HexagonLayer-style look without extra deps).
+ */
+function buildHazardHexClusterFeatures(
+  centerLon,
+  centerLat,
+  bearingDeg,
+  kind,
+  magnitude,
+  spanCh,
+  decay,
+  tickAge,
+  hazardId,
+  zBoost,
+) {
+  const isAvalanche = kind === 'avalanche';
+  const mag = Math.max(0, Math.min(1, magnitude));
+  const span = Math.max(1, spanCh);
+  const debrisBoost = zBoost * 1.12;
+
+  const halfLen = Math.min(
+    isAvalanche ? 118 : 96,
+    (10 + span * 0.42 + mag * 36) * debrisBoost * 0.5,
+  );
+  const halfW = Math.min(
+    isAvalanche ? 52 : 34,
+    (5 + span * 0.09 + mag * 16) * debrisBoost * 0.5,
+  );
+
+  const pitch = Math.max(2.1, Math.min(4.6, 2.35 + mag * 1.9 + span * 0.0018));
+  const dx = pitch * 0.866;
+  const dy = pitch * 0.75;
+  const rows = Math.ceil(halfW / dy) + 1;
+  const cols = Math.ceil(halfLen / dx) + 1;
+
+  const baseH = isAvalanche
+    ? Math.max(9, 6 + mag * 24 + span * 0.06)
+    : Math.max(7, 4.5 + mag * 19 + span * 0.05);
+
+  const features = [];
+  const salt = (String(hazardId).split('').reduce((s, c) => s + c.charCodeAt(0), 0) | 0) % 997;
+
+  for (let r = -rows; r <= rows; r++) {
+    const y = r * dy;
+    const x0 = (r % 2) * (dx * 0.5);
+    for (let c = -cols; c <= cols; c++) {
+      const x = c * dx + x0;
+      if ((x * x) / (halfLen * halfLen + 1e-6) + (y * y) / (halfW * halfW + 1e-6) > 1) continue;
+
+      const u = hash01(c, r, salt);
+      const v = hash01(c + 17, r - 3, salt + 1);
+      const wobble = (u - 0.5) * pitch * 0.22;
+      const [lon, lat] = offsetLonLatMeters(centerLon, centerLat, bearingDeg, x + wobble, y + (v - 0.5) * pitch * 0.18);
+
+      const cellW = pitch * (0.82 + u * 0.14);
+      const cellL = pitch * (0.78 + v * 0.16);
+      const hVar = baseH * (0.55 + u * 0.5) + (isAvalanche ? v * 5.5 : v * 4.2);
+      const cellH = Math.max(2.5, hVar);
+
+      let fillHex;
+      if (isAvalanche) {
+        const t = 0.35 + u * 0.45 + mag * 0.12;
+        fillHex = mixRgbWithHex('#eceff1', '#ffffff', t + (v - 0.5) * 0.08);
+        fillHex = mixRgbWithHex(fillHex, '#b0bec5', (1 - mag) * 0.12);
+      } else {
+        const t = 0.28 + u * 0.55 + mag * 0.1;
+        fillHex = mixRgbWithHex('#d7ccc8', '#8d6e63', t);
+        fillHex = mixRgbWithHex(fillHex, '#efebe9', v * 0.25);
+      }
+
+      const geom = buildVehicleFootprintPolygon(lon, lat, cellL, cellW, bearingDeg + (u - 0.5) * 14);
+      features.push({
+        type: 'Feature',
+        properties: {
+          hazard_kind: kind,
+          id: hazardId,
+          decay,
+          tick_age: tickAge,
+          hazard_cell: 1,
+          height_m: cellH,
+          cell_fill: fillHex,
+        },
+        geometry: geom,
+      });
+    }
+  }
+  return features;
+}
+
 export function createSimulation(data, targets) {
   const { channels, road } = data;
   const totalChannels = channels.length;
@@ -211,7 +315,7 @@ export function createSimulation(data, targets) {
       const mag = a.magnitude ?? 0.5;
 
       const markerGlyph =
-        kind === 'crash' ? '⚠' : kind === 'avalanche' ? '❄' : '⛰';
+        kind === 'crash' ? '⚠️' : kind === 'avalanche' ? '❄' : '⛰';
 
       if (kind === 'crash') {
         const lane = a.laneKey === 'wb' ? laneWb : laneEb;
@@ -247,18 +351,38 @@ export function createSimulation(data, targets) {
           },
           geometry: geom,
         };
-        const marker = {
-          type: 'Feature',
-          properties: {
-            hazard_kind: kind,
-            id: a.id,
-            decay,
-            hazard_marker: 1,
-            marker_glyph: markerGlyph,
-          },
-          geometry: { type: 'Point', coordinates: [lon, lat] },
-        };
-        return [footprint, marker];
+
+        const markers = [];
+        const stepM = Math.max(2.8, Math.min(5.2, 3.4 + mag * 1.1));
+        const half = (nVeh - 1) * 0.5;
+        for (let vi = 0; vi < nVeh; vi++) {
+          const along = (vi - half) * stepM;
+          let mLon;
+          let mLat;
+          if (roadOk && lane && typeof a.roadDistM === 'number') {
+            const roadM = Math.max(0, Math.min(lane.totalM, a.roadDistM + along));
+            const ll = lonLatAtRoadDistance(lane, roadM);
+            mLon = ll[0];
+            mLat = ll[1];
+          } else {
+            const o = offsetLonLatMeters(lon, lat, bearingDeg, along, 0);
+            mLon = o[0];
+            mLat = o[1];
+          }
+          markers.push({
+            type: 'Feature',
+            properties: {
+              hazard_kind: kind,
+              id: a.id,
+              decay,
+              hazard_marker: 1,
+              marker_glyph: markerGlyph,
+              marker_role: 'crash',
+            },
+            geometry: { type: 'Point', coordinates: [mLon, mLat] },
+          });
+        }
+        return [footprint, ...markers];
       }
 
       const lane = a.laneKey === 'wb' ? laneWb : laneEb;
@@ -274,39 +398,23 @@ export function createSimulation(data, targets) {
       }
 
       const spanCh = Math.max(1, Math.abs(a.endChannel - a.startChannel));
-      const spanM = Math.max(CHANNEL_SPACING_M, spanCh * CHANNEL_SPACING_M);
-      const isAvalanche = kind === 'avalanche';
-      const debrisBoost = zBoost * 1.12;
-      const lenM = Math.min(
-        isAvalanche ? 115 : 92,
-        (18 + spanM * 0.55 + mag * 40) * debrisBoost,
-      );
-      const widthM = Math.min(
-        isAvalanche ? 48 : 32,
-        (10 + spanM * 0.12 + mag * 18) * debrisBoost,
-      );
-      const heightM = isAvalanche
-        ? Math.max(10, 7 + mag * 26 + spanCh * 0.07)
-        : Math.max(8, 5 + mag * 20 + spanCh * 0.055);
 
       const lon = a.lon ?? ch.lon;
       const lat = a.lat ?? ch.lat;
-      const geom = buildVehicleFootprintPolygon(lon, lat, lenM, widthM, bearingDeg);
 
-      const footprint = {
-        type: 'Feature',
-        properties: {
-          hazard_kind: kind,
-          id: a.id,
-          subtype: a.subtype,
-          intensity: a.intensity,
-          milepost: ch.milepost.toFixed(1),
-          decay,
-          tick_age: tickAge,
-          height_m: heightM,
-        },
-        geometry: geom,
-      };
+      const cells = buildHazardHexClusterFeatures(
+        lon,
+        lat,
+        bearingDeg,
+        kind,
+        mag,
+        spanCh,
+        decay,
+        tickAge,
+        a.id,
+        zBoost,
+      );
+
       const marker = {
         type: 'Feature',
         properties: {
@@ -315,10 +423,11 @@ export function createSimulation(data, targets) {
           decay,
           hazard_marker: 1,
           marker_glyph: markerGlyph,
+          marker_role: 'mass',
         },
         geometry: { type: 'Point', coordinates: [lon, lat] },
       };
-      return [footprint, marker];
+      return [...cells, marker];
     });
   }
 
