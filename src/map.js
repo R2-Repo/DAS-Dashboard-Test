@@ -17,7 +17,6 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
 import { VEHICLE_HIT_LAYERS } from './map-constants.js';
-import { attachHazardDeckOverlay, updateHazardDeckHexLayer } from './hazard-deck-overlay.js';
 
 const TERRAIN_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 
@@ -70,8 +69,6 @@ export function initMap(containerId, data) {
     attributionControl: false,
     style: {
       version: 8,
-      /** Required for symbol layers (hazard markers). OpenMapTiles hosts Noto with broad emoji coverage. */
-      glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
       sources: {
         'esri-imagery': {
           type: 'raster',
@@ -179,12 +176,9 @@ export function initMap(containerId, data) {
     addRoadCenterlineLayers(map, data.road);
     addFiberLayer(map, data.fiberRoute);
     addMilepostLayers(map, data.mileposts);
+    addAnomalyLayer(map);
     addVehicleLayers(map);
     addCanyonIntroHighlightLayers(map);
-    // Hazards must draw above vehicle fill-extrusions; passing a `beforeId` of `vehicle-glow` would
-    // stack them underneath `vehicle-blocks-*` and hide mass-hazard hex clusters.
-    addAnomalyLayer(map);
-    attachHazardDeckOverlay(map);
     setupCanyonIntroHighlightLifecycle(map);
     applyDefaultLayerVisibility(map);
     const attrib = map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact');
@@ -736,152 +730,31 @@ export function setupTrafficSimulatorMapInteractions(map, sim, options = {}) {
   map.on('touchcancel', endDrag);
 }
 
-function addAnomalyLayer(map, beforeLayerId) {
-  const insertBefore =
-    typeof beforeLayerId === 'string' && map.getLayer(beforeLayerId) ? beforeLayerId : undefined;
-  function addHazardLayer(layerDef) {
-    if (insertBefore) map.addLayer(layerDef, insertBefore);
-    else map.addLayer(layerDef);
-  }
-
+function addAnomalyLayer(map) {
   map.addSource('anomalies', {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
   });
-  const hazardPolygonFilter = ['==', ['geometry-type'], 'Polygon'];
-  const hazardFootprintPoly = [
-    'all',
-    hazardPolygonFilter,
-    ['!=', ['coalesce', ['get', 'hazard_cell'], 0], 1],
-  ];
-
-  addHazardLayer({
-    id: 'anomaly-debris',
-    type: 'fill-extrusion',
+  map.addLayer({
+    id: 'anomaly-pulse',
+    type: 'circle',
     source: 'anomalies',
-    filter: hazardFootprintPoly,
     paint: {
-      'fill-extrusion-height': ['coalesce', ['get', 'height_m'], 8],
-      'fill-extrusion-base': 0,
-      'fill-extrusion-color': [
-        'match',
-        ['get', 'hazard_kind'],
-        'crash',
-        '#ff6f00',
-        'avalanche',
-        '#29b6f6',
-        '#8d6e63',
-      ],
-      'fill-extrusion-opacity': [
-        'interpolate',
-        ['linear'],
-        ['get', 'decay'],
-        0,
-        0.96,
-        1,
-        0.78,
-      ],
-      'fill-extrusion-vertical-gradient': true,
+      'circle-radius': 18,
+      'circle-color': '#ef5350',
+      'circle-opacity': 0.2,
+      'circle-blur': 1,
     },
-  });
-
-  addHazardLayer({
-    id: 'anomaly-debris-rim',
-    type: 'fill-extrusion',
-    source: 'anomalies',
-    filter: hazardFootprintPoly,
-    paint: {
-      'fill-extrusion-height': ['+', ['coalesce', ['get', 'height_m'], 8], 0.85],
-      'fill-extrusion-base': ['coalesce', ['get', 'height_m'], 8],
-      'fill-extrusion-color': [
-        'match',
-        ['get', 'hazard_kind'],
-        'crash',
-        '#fff3e0',
-        'avalanche',
-        '#e1f5fe',
-        '#efebe9',
-      ],
-      'fill-extrusion-opacity': [
-        'interpolate',
-        ['linear'],
-        ['get', 'decay'],
-        0,
-        0.55,
-        1,
-        0.38,
-      ],
-      'fill-extrusion-vertical-gradient': false,
-    },
-  });
-
-  addHazardLayer({
-    id: 'hazard-marker-symbol',
-    type: 'symbol',
-    source: 'anomalies',
-    filter: ['==', ['get', 'hazard_marker'], 1],
-    layout: {
-      'text-field': ['get', 'marker_glyph'],
-      'text-size': ['interpolate', ['linear'], ['zoom'], 10, 18, 13, 26, 16, 32],
-      'text-anchor': 'center',
-      'text-allow-overlap': true,
-      'text-ignore-placement': true,
-      'text-font': ['Noto Sans Medium', 'Noto Sans Regular'],
-    },
-    paint: {
-      'text-color': [
-        'case',
-        ['==', ['coalesce', ['get', 'marker_role'], 'mass'], 'crash'],
-        '#1a1a1a',
-        '#fff8e1',
-      ],
-      'text-halo-color': [
-        'case',
-        ['==', ['coalesce', ['get', 'marker_role'], 'mass'], 'crash'],
-        'rgba(255, 255, 255, 0.92)',
-        '#1a120b',
-      ],
-      'text-halo-width': [
-        'case',
-        ['==', ['coalesce', ['get', 'marker_role'], 'mass'], 'crash'],
-        0.85,
-        2.1,
-      ],
-      'text-halo-blur': [
-        'case',
-        ['==', ['coalesce', ['get', 'marker_role'], 'mass'], 'crash'],
-        0.35,
-        0.35,
-      ],
-      'text-opacity': [
-        'interpolate',
-        ['linear'],
-        ['get', 'decay'],
-        0,
-        1,
-        1,
-        0.82,
-      ],
-    },
-  });
-
-  map.addSource('hazard-preview', {
-    type: 'geojson',
-    data: { type: 'FeatureCollection', features: [] },
   });
   map.addLayer({
-    id: 'hazard-preview-line',
-    type: 'line',
-    source: 'hazard-preview',
-    layout: {
-      'line-cap': 'round',
-      'line-join': 'round',
-    },
+    id: 'anomaly-markers',
+    type: 'circle',
+    source: 'anomalies',
     paint: {
-      'line-color': '#ffeb3b',
-      'line-width': 3,
-      'line-opacity': 0.75,
-      'line-dasharray': [2, 1],
+      'circle-radius': 7,
+      'circle-color': '#ef5350',
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#fff',
     },
   });
 }
@@ -893,22 +766,5 @@ export function updateMapVehicles(map, vehicleFeatures) {
 
 export function updateMapAnomalies(map, anomalyFeatures) {
   const src = map.getSource('anomalies');
-  const list = anomalyFeatures ?? [];
-  const mapLibreFeatures = [];
-  const massHexCells = [];
-  for (const f of list) {
-    const cell = f?.properties?.hazard_cell;
-    const isMassHex =
-      f?.geometry?.type === 'Polygon' &&
-      (cell === 1 || cell === '1');
-    if (isMassHex) massHexCells.push(f);
-    else mapLibreFeatures.push(f);
-  }
-  if (src) src.setData({ type: 'FeatureCollection', features: mapLibreFeatures });
-  updateHazardDeckHexLayer(map, massHexCells);
-}
-
-export function updateHazardPreview(map, previewFeatures) {
-  const src = map.getSource('hazard-preview');
-  if (src) src.setData({ type: 'FeatureCollection', features: previewFeatures ?? [] });
+  if (src) src.setData({ type: 'FeatureCollection', features: anomalyFeatures });
 }

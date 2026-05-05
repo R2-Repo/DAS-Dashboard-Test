@@ -31,7 +31,6 @@ import {
 } from './vehicle-model.js';
 import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
 import { syncVehicleCallouts, clearVehicleCallouts } from './vehicle-callouts.js';
-import { stampHazardOntoRow, hazardInitialTtl, hazardSpanChannels } from './hazard-stamp.js';
 
 const CHANNEL_SPACING_M = 2.0;
 const TICK_MS = 100;
@@ -88,7 +87,6 @@ const LAB_SNAP_MAX_M = 650;
 let vehicles = [];
 let anomalies = [];
 let nextFleetId = 1;
-let nextHazardId = 1;
 let tickCount = 0;
 let intervalId = null;
 
@@ -133,242 +131,6 @@ function mixRgbWithHex(baseHex, tintHex, t) {
   return `#${[r, g, bl].map((x) => x.toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** Offset in meters along road forward and to the driver's right (ENU, WGS84). */
-function offsetLonLatMeters(centerLon, centerLat, bearingDeg, alongM, rightM) {
-  const br = (bearingDeg * Math.PI) / 180;
-  const dE = alongM * Math.sin(br) + rightM * Math.cos(br);
-  const dN = alongM * Math.cos(br) - rightM * Math.sin(br);
-  const cosφ = Math.cos((centerLat * Math.PI) / 180);
-  return [centerLon + dE / (111320 * Math.max(0.25, Math.abs(cosφ))), centerLat + dN / 111320];
-}
-
-function hash01(i, j, salt) {
-  let h = (i * 374761393 + j * 668265263 + salt * 1442695041) | 0;
-  h = (h ^ (h >>> 13)) * 1274126177;
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
-
-/**
- * Flat-top regular hexagon on the ground (WGS84), `circumRadiusM` center → vertex,
- * first edge parallel to road tangent `bearingDeg` (clockwise from north).
- */
-function buildRegularHexagonPolygon(centerLon, centerLat, circumRadiusM, bearingDegClockwiseFromNorth) {
-  const α = (bearingDegClockwiseFromNorth * Math.PI) / 180;
-  const fe = Math.sin(α);
-  const fn = Math.cos(α);
-  const re = Math.cos(α);
-  const rn = -Math.sin(α);
-  const R = Math.max(0.5, circumRadiusM);
-  const cosφ = Math.cos((centerLat * Math.PI) / 180);
-
-  function offset(dE, dN) {
-    const dLon = dE / (111320 * Math.max(0.25, Math.abs(cosφ)));
-    const dLat = dN / 111320;
-    return [centerLon + dLon, centerLat + dLat];
-  }
-
-  const angles = [
-    Math.PI / 2,
-    Math.PI / 6,
-    -Math.PI / 6,
-    -Math.PI / 2,
-    (-5 * Math.PI) / 6,
-    (5 * Math.PI) / 6,
-  ];
-  const ring = angles.map((θ) => {
-    const along = R * Math.cos(θ);
-    const right = R * Math.sin(θ);
-    const dE = along * fe + right * re;
-    const dN = along * fn + right * rn;
-    return offset(dE, dN);
-  });
-  ring.push(ring[0]);
-  return { type: 'Polygon', coordinates: [ring] };
-}
-
-/**
- * Tight hex-like pile of small extrusions (deck.gl HexagonLayer-style look without extra deps).
- */
-function buildHazardHexClusterFeatures(
-  centerLon,
-  centerLat,
-  bearingDeg,
-  kind,
-  magnitude,
-  spanCh,
-  decay,
-  tickAge,
-  hazardId,
-  zBoost,
-) {
-  const isAvalanche = kind === 'avalanche';
-  const mag = Math.max(0, Math.min(1, magnitude));
-  const span = Math.max(1, spanCh);
-  const debrisBoost = zBoost * 1.12;
-
-  const halfLen = Math.min(
-    isAvalanche ? 118 : 96,
-    (10 + span * 0.42 + mag * 36) * debrisBoost * 0.5,
-  );
-  const halfW = Math.min(
-    isAvalanche ? 52 : 34,
-    (5 + span * 0.09 + mag * 16) * debrisBoost * 0.5,
-  );
-
-  const pitch = Math.max(2.1, Math.min(4.6, 2.35 + mag * 1.9 + span * 0.0018));
-  const dx = pitch * 0.866;
-  const dy = pitch * 0.75;
-  const rows = Math.ceil(halfW / dy) + 1;
-  const cols = Math.ceil(halfLen / dx) + 1;
-
-  const baseH = isAvalanche
-    ? Math.max(9, 6 + mag * 24 + span * 0.06)
-    : Math.max(7, 4.5 + mag * 19 + span * 0.05);
-
-  const features = [];
-  const salt = (String(hazardId).split('').reduce((s, c) => s + c.charCodeAt(0), 0) | 0) % 997;
-
-  for (let r = -rows; r <= rows; r++) {
-    const y = r * dy;
-    const x0 = (r % 2) * (dx * 0.5);
-    for (let c = -cols; c <= cols; c++) {
-      const x = c * dx + x0;
-      if ((x * x) / (halfLen * halfLen + 1e-6) + (y * y) / (halfW * halfW + 1e-6) > 1) continue;
-
-      const u = hash01(c, r, salt);
-      const v = hash01(c + 17, r - 3, salt + 1);
-      const wobble = (u - 0.5) * pitch * 0.22;
-      const [lon, lat] = offsetLonLatMeters(centerLon, centerLat, bearingDeg, x + wobble, y + (v - 0.5) * pitch * 0.18);
-
-      const cellW = pitch * (0.82 + u * 0.14);
-      const cellL = pitch * (0.78 + v * 0.16);
-      const hVar = baseH * (0.55 + u * 0.5) + (isAvalanche ? v * 5.5 : v * 4.2);
-      const cellH = Math.max(2.5, hVar);
-
-      let fillHex;
-      if (isAvalanche) {
-        const t = 0.35 + u * 0.45 + mag * 0.12;
-        fillHex = mixRgbWithHex('#eceff1', '#ffffff', t + (v - 0.5) * 0.08);
-        fillHex = mixRgbWithHex(fillHex, '#b0bec5', (1 - mag) * 0.12);
-      } else {
-        const t = 0.28 + u * 0.55 + mag * 0.1;
-        fillHex = mixRgbWithHex('#d7ccc8', '#8d6e63', t);
-        fillHex = mixRgbWithHex(fillHex, '#efebe9', v * 0.25);
-      }
-
-      const circumR = Math.max(1.1, Math.min(cellL, cellW) * 0.58);
-      const geom = buildRegularHexagonPolygon(
-        lon,
-        lat,
-        circumR,
-        bearingDeg + (u - 0.5) * 14,
-      );
-      features.push({
-        type: 'Feature',
-        properties: {
-          hazard_kind: kind,
-          id: hazardId,
-          decay,
-          tick_age: tickAge,
-          hazard_cell: 1,
-          height_m: cellH,
-          cell_fill: fillHex,
-        },
-        geometry: geom,
-      });
-    }
-  }
-  return features;
-}
-
-/** Troubleshooting: fixed ~500×500 ft axis-aligned hex patch at map click (ENU square, bearing 0). */
-const FEET_TO_M = 0.3048;
-const DEBUG_HAZARD_PATCH_FT = 500;
-
-function buildFixedFootHexPatchFeatures(
-  centerLon,
-  centerLat,
-  bearingDeg,
-  kind,
-  magnitude,
-  decay,
-  tickAge,
-  hazardId,
-  zBoost,
-) {
-  const isAvalanche = kind === 'avalanche';
-  const mag = Math.max(0, Math.min(1, magnitude));
-  const halfM = (DEBUG_HAZARD_PATCH_FT * FEET_TO_M) / 2;
-  const halfLen = halfM * zBoost * 1.05;
-  const halfW = halfM * zBoost * 1.05;
-  const debrisBoost = zBoost * 1.12;
-
-  const pitch = Math.max(2.8, Math.min(5.2, 3.2 + mag * 0.5));
-  const dx = pitch * 0.866;
-  const dy = pitch * 0.75;
-  const rows = Math.ceil(halfW / dy) + 1;
-  const cols = Math.ceil(halfLen / dx) + 1;
-
-  const baseH = isAvalanche
-    ? Math.max(11, 8 + mag * 18)
-    : Math.max(9, 6 + mag * 16);
-
-  const features = [];
-  const salt = (String(hazardId).split('').reduce((s, c) => s + c.charCodeAt(0), 0) | 0) % 997;
-
-  for (let r = -rows; r <= rows; r++) {
-    const y = r * dy;
-    const x0 = (r % 2) * (dx * 0.5);
-    for (let c = -cols; c <= cols; c++) {
-      const x = c * dx + x0;
-      if ((x * x) / (halfLen * halfLen + 1e-6) + (y * y) / (halfW * halfW + 1e-6) > 1) continue;
-
-      const u = hash01(c, r, salt);
-      const v = hash01(c + 17, r - 3, salt + 1);
-      const wobble = (u - 0.5) * pitch * 0.18;
-      const [lon, lat] = offsetLonLatMeters(centerLon, centerLat, bearingDeg, x + wobble, y + (v - 0.5) * pitch * 0.14);
-
-      const cellW = pitch * (0.82 + u * 0.14);
-      const cellL = pitch * (0.78 + v * 0.16);
-      const hVar = baseH * debrisBoost * (0.55 + u * 0.5) + (isAvalanche ? v * 5.5 : v * 4.2);
-      const cellH = Math.max(3, hVar);
-
-      let fillHex;
-      if (isAvalanche) {
-        const t = 0.35 + u * 0.45 + mag * 0.12;
-        fillHex = mixRgbWithHex('#eceff1', '#ffffff', t + (v - 0.5) * 0.08);
-        fillHex = mixRgbWithHex(fillHex, '#b0bec5', (1 - mag) * 0.12);
-      } else {
-        const t = 0.28 + u * 0.55 + mag * 0.1;
-        fillHex = mixRgbWithHex('#d7ccc8', '#8d6e63', t);
-        fillHex = mixRgbWithHex(fillHex, '#efebe9', v * 0.25);
-      }
-
-      const circumR = Math.max(1.4, Math.min(cellL, cellW) * 0.58);
-      const geom = buildRegularHexagonPolygon(
-        lon,
-        lat,
-        circumR,
-        bearingDeg + (u - 0.5) * 12,
-      );
-      features.push({
-        type: 'Feature',
-        properties: {
-          hazard_kind: kind,
-          id: hazardId,
-          decay,
-          tick_age: tickAge,
-          hazard_cell: 1,
-          height_m: cellH,
-          cell_fill: fillHex,
-        },
-        geometry: geom,
-      });
-    }
-  }
-  return features;
-}
-
 export function createSimulation(data, targets) {
   const { channels, road } = data;
   const totalChannels = channels.length;
@@ -389,404 +151,6 @@ export function createSimulation(data, targets) {
   }
   let noiseSeed = Math.random() * 1000;
   let defaultVehicleType = 'car';
-
-  /** Square outline (~500×500 ft) at lng/lat for mass-hazard preview. */
-  function fixedSquarePreviewCoords(lon, lat) {
-    const half = (DEBUG_HAZARD_PATCH_FT * FEET_TO_M) / 2;
-    const b = 0;
-    const c1 = offsetLonLatMeters(lon, lat, b, -half, -half);
-    const c2 = offsetLonLatMeters(lon, lat, b, half, -half);
-    const c3 = offsetLonLatMeters(lon, lat, b, half, half);
-    const c4 = offsetLonLatMeters(lon, lat, b, -half, half);
-    return [c1, c2, c3, c4, c1];
-  }
-
-  /**
-   * Preview for rock / avalanche: fixed 500×500 ft square at cursor or map center.
-   * @param {'rock_slide'|'avalanche'} kind
-   * @param {number} [_magnitude unused]
-   * @param {number} [lng]
-   * @param {number} [lat]
-   */
-  function getMassHazardPreviewLine(kind, _magnitude, lng, lat) {
-    if (kind !== 'rock_slide' && kind !== 'avalanche') return [];
-    let lon = lng;
-    let lat0 = lat;
-    if (!Number.isFinite(lon) || !Number.isFinite(lat0)) {
-      const c = targets.map?.getCenter?.();
-      if (!c) return [];
-      lon = c.lng;
-      lat0 = c.lat;
-    }
-    let snap = snapIntentToFiber(lon, lat0);
-    if (!snap) snap = nearestFiberSnapFromLngLat(lon, lat0);
-    if (!snap) return [];
-    return fixedSquarePreviewCoords(lon, lat0);
-  }
-
-  function snapIntentToFiber(lng, lat) {
-    if (roadOk && laneEb && laneWb) {
-      const snap = nearestPointOnLanes(laneEb, laneWb, lng, lat);
-      if (!snap || snap.distanceM > LAB_SNAP_MAX_M) return null;
-      const lane = snap.laneKey === 'eb' ? laneEb : laneWb;
-      const roadM = Math.max(0, Math.min(lane.totalM, snap.roadDistM));
-      const channelPos = clampChannelPosToFiber(
-        roadDistanceToChannelPos(lane, roadM),
-        totalChannels,
-      );
-      return {
-        channelPos,
-        lon: snap.lon,
-        lat: snap.lat,
-        roadDistM: roadM,
-        laneKey: snap.laneKey,
-      };
-    }
-    let best = -1;
-    let bestD = Infinity;
-    for (let i = 0; i < totalChannels; i++) {
-      const ch = channels[i];
-      const d =
-        (ch.lon - lng) * (ch.lon - lng) * Math.cos((ch.lat * Math.PI) / 180) +
-        (ch.lat - lat) * (ch.lat - lat);
-      if (d < bestD) {
-        bestD = d;
-        best = i;
-      }
-    }
-    if (best < 0) return null;
-    const ch = channels[best];
-    return {
-      channelPos: best,
-      lon: ch.lon,
-      lat: ch.lat,
-      roadDistM: best * CHANNEL_SPACING_M,
-      laneKey: null,
-    };
-  }
-
-  function buildHazardMapFeatures(anoms) {
-    const z = targets.map?.getZoom?.();
-    const zBoost = mapVehicleExtentBoostFromZoom(z);
-
-    return anoms.flatMap((a) => {
-      const kind = a.kind || a.subtype || 'rock_slide';
-      const midIdx = Math.min(
-        Math.max(0, Math.floor((a.startChannel + a.endChannel) / 2)),
-        totalChannels - 1,
-      );
-      const ch = channels[midIdx];
-      const decay = a.initialTtl > 0 ? a.ttl / a.initialTtl : 0;
-      const tickAge = tickCount - (a.tickCreated ?? tickCount);
-      const mag = a.magnitude ?? 0.5;
-
-      if (kind === 'crash') {
-        const markerGlyph = '⚠️🚗';
-        const lane = a.laneKey === 'wb' ? laneWb : laneEb;
-        let bearingDeg;
-        if (roadOk && lane && typeof a.roadDistM === 'number' && a.laneKey) {
-          const dir = a.laneKey === 'wb' ? 'down_canyon' : 'up_canyon';
-          bearingDeg = travelBearingDegAtRoadDistance(lane, a.roadDistM, dir);
-        } else {
-          const i0 = Math.max(0, Math.min(totalChannels - 2, midIdx));
-          const c0 = channels[i0];
-          const c1 = channels[Math.min(i0 + 1, totalChannels - 1)];
-          bearingDeg = bearingDegClockwiseFromNorthLonLat(c0.lon, c0.lat, c1.lon, c1.lat);
-        }
-        const nVeh = a.vehicleCount ?? 1;
-        const lenM = (5.5 + nVeh * 3.2 + mag * 4) * zBoost * 1.22;
-        const widthM = (3.2 + nVeh * 0.9) * zBoost * 1.18;
-        const heightM = Math.max(5, 3.2 + nVeh * 1.8 + mag * 5 + nVeh * 1.2);
-        const lon = a.lon ?? ch.lon;
-        const lat = a.lat ?? ch.lat;
-        const geom = buildVehicleFootprintPolygon(lon, lat, lenM, widthM, bearingDeg);
-        const footprint = {
-          type: 'Feature',
-          properties: {
-            hazard_kind: kind,
-            id: a.id,
-            subtype: a.subtype,
-            intensity: a.intensity,
-            milepost: ch.milepost.toFixed(1),
-            decay,
-            tick_age: tickAge,
-            height_m: heightM,
-            vehicles: nVeh,
-          },
-          geometry: geom,
-        };
-
-        const markers = [];
-        const stepM = Math.max(2.8, Math.min(5.2, 3.4 + mag * 1.1));
-        const half = (nVeh - 1) * 0.5;
-        for (let vi = 0; vi < nVeh; vi++) {
-          const along = (vi - half) * stepM;
-          let mLon;
-          let mLat;
-          if (roadOk && lane && typeof a.roadDistM === 'number') {
-            const roadM = Math.max(0, Math.min(lane.totalM, a.roadDistM + along));
-            const ll = lonLatAtRoadDistance(lane, roadM);
-            mLon = ll[0];
-            mLat = ll[1];
-          } else {
-            const o = offsetLonLatMeters(lon, lat, bearingDeg, along, 0);
-            mLon = o[0];
-            mLat = o[1];
-          }
-          markers.push({
-            type: 'Feature',
-            properties: {
-              hazard_kind: kind,
-              id: a.id,
-              decay,
-              hazard_marker: 1,
-              marker_glyph: markerGlyph,
-              marker_role: 'crash',
-            },
-            geometry: { type: 'Point', coordinates: [mLon, mLat] },
-          });
-        }
-        return [footprint, ...markers];
-      }
-
-      const lane = a.laneKey === 'wb' ? laneWb : laneEb;
-      let bearingDeg;
-      const roadMForBearing =
-        typeof a.roadCenterM === 'number' && Number.isFinite(a.roadCenterM)
-          ? a.roadCenterM
-          : a.roadDistM;
-      if (roadOk && lane && typeof roadMForBearing === 'number' && a.laneKey) {
-        const dir = a.laneKey === 'wb' ? 'down_canyon' : 'up_canyon';
-        bearingDeg = travelBearingDegAtRoadDistance(lane, roadMForBearing, dir);
-      } else {
-        const i0 = Math.max(0, Math.min(totalChannels - 2, midIdx));
-        const c0 = channels[i0];
-        const c1 = channels[Math.min(i0 + 1, totalChannels - 1)];
-        bearingDeg = bearingDegClockwiseFromNorthLonLat(c0.lon, c0.lat, c1.lon, c1.lat);
-      }
-
-      const spanCh = Math.max(1, Math.abs(a.endChannel - a.startChannel));
-
-      const lon = a.lon ?? ch.lon;
-      const lat = a.lat ?? ch.lat;
-
-      if (a.debugFixedFootPatch) {
-        return buildFixedFootHexPatchFeatures(
-          lon,
-          lat,
-          0,
-          kind,
-          mag,
-          decay,
-          tickAge,
-          a.id,
-          zBoost,
-        );
-      }
-
-      return buildHazardHexClusterFeatures(
-        lon,
-        lat,
-        bearingDeg,
-        kind,
-        mag,
-        spanCh,
-        decay,
-        tickAge,
-        a.id,
-        zBoost,
-      );
-    });
-  }
-
-  function syncHazardMapLayer() {
-    const m = targets.map;
-    if (!m?.getSource?.('anomalies')) return;
-    updateMapAnomalies(m, buildHazardMapFeatures(anomalies));
-  }
-
-  function nearestFiberSnapFromLngLat(lng, lat) {
-    let best = -1;
-    let bestD = Infinity;
-    for (let i = 0; i < totalChannels; i++) {
-      const ch = channels[i];
-      const d =
-        (ch.lon - lng) * (ch.lon - lng) * Math.cos((ch.lat * Math.PI) / 180) +
-        (ch.lat - lat) * (ch.lat - lat);
-      if (d < bestD) {
-        bestD = d;
-        best = i;
-      }
-    }
-    if (best < 0) return null;
-    const ch = channels[best];
-    return {
-      channelPos: best,
-      lon: ch.lon,
-      lat: ch.lat,
-      roadDistM: best * CHANNEL_SPACING_M,
-      laneKey: null,
-    };
-  }
-
-  function addHazardAtLngLat(kind, lng, lat, opts = {}) {
-    const magnitude =
-      typeof opts.magnitude === 'number' && Number.isFinite(opts.magnitude)
-        ? Math.max(0, Math.min(1, opts.magnitude))
-        : 0.55;
-    const vehicleCount = Math.min(3, Math.max(1, Math.floor(opts.vehicleCount ?? 1)));
-
-    const isMassDebug = kind === 'rock_slide' || kind === 'avalanche';
-    let snap = snapIntentToFiber(lng, lat);
-    if (!snap && isMassDebug) {
-      snap = nearestFiberSnapFromLngLat(lng, lat);
-    } else if (!snap) {
-      return null;
-    }
-
-    let startChannel;
-    let endChannel;
-    let roadCenterM = snap.roadDistM;
-    let anchorLon;
-    let anchorLat;
-
-    if (kind === 'crash') {
-      anchorLon = snap.lon;
-      anchorLat = snap.lat;
-      const halfSpan = Math.floor(hazardSpanChannels(kind, magnitude, totalChannels));
-      startChannel = Math.floor(snap.channelPos) - halfSpan;
-      endChannel = Math.floor(snap.channelPos) + halfSpan;
-    } else if (isMassDebug) {
-      anchorLon = lng;
-      anchorLat = lat;
-      const halfCh = Math.ceil((DEBUG_HAZARD_PATCH_FT * FEET_TO_M * 0.5) / CHANNEL_SPACING_M);
-      const ci = Math.floor(snap.channelPos);
-      startChannel = Math.max(0, ci - halfCh);
-      endChannel = Math.min(totalChannels - 1, ci + halfCh);
-    } else {
-      return null;
-    }
-    startChannel = Math.max(0, Math.min(totalChannels - 1, startChannel));
-    endChannel = Math.max(0, Math.min(totalChannels - 1, endChannel));
-    if (endChannel < startChannel) {
-      const t = startChannel;
-      startChannel = endChannel;
-      endChannel = t;
-    }
-
-    const intensity =
-      kind === 'crash' ? 0.78 + vehicleCount * 0.07 : 0.68 + magnitude * 0.26;
-    const initialTtl = hazardInitialTtl(kind, magnitude, vehicleCount);
-
-    const id = `HAZ-${String(nextHazardId++).padStart(4, '0')}`;
-    const a = {
-      id,
-      kind,
-      subtype: kind,
-      startChannel,
-      endChannel,
-      anchorChannel: snap.channelPos,
-      channelCenter: snap.channelPos,
-      intensity,
-      initialTtl,
-      ttl: initialTtl,
-      phase: Math.random() * Math.PI * 2,
-      magnitude,
-      vehicleCount: kind === 'crash' ? vehicleCount : undefined,
-      tickCreated: tickCount,
-      lon: anchorLon,
-      lat: anchorLat,
-      laneKey: snap.laneKey,
-      roadDistM: kind === 'crash' ? snap.roadDistM : roadCenterM,
-      roadCenterM: kind === 'crash' ? undefined : roadCenterM,
-      debugFixedFootPatch: isMassDebug,
-    };
-    anomalies.push(a);
-    targets.waterfall.scrollChannelIntoView((startChannel + endChannel) * 0.5);
-    syncHazardMapLayer();
-    return a;
-  }
-
-  function extendHazardRange(id, lng, lat) {
-    const a = anomalies.find((x) => x.id === id);
-    if (!a || (a.kind !== 'rock_slide' && a.kind !== 'avalanche')) return false;
-    const snap = snapIntentToFiber(lng, lat);
-    if (!snap) return false;
-    const ci = Math.floor(snap.channelPos);
-    a.startChannel = Math.max(0, Math.min(totalChannels - 1, Math.min(a.startChannel, ci)));
-    a.endChannel = Math.max(0, Math.min(totalChannels - 1, Math.max(a.endChannel, ci)));
-    if (a.endChannel < a.startChannel) {
-      const t = a.startChannel;
-      a.startChannel = a.endChannel;
-      a.endChannel = t;
-    }
-    const mid = Math.floor((a.startChannel + a.endChannel) / 2);
-    const ch = channels[mid];
-    a.lon = ch.lon;
-    a.lat = ch.lat;
-    if (roadOk && a.laneKey && (a.laneKey === 'eb' || a.laneKey === 'wb')) {
-      const lane = a.laneKey === 'eb' ? laneEb : laneWb;
-      if (lane) {
-        const roadM = Math.max(0, Math.min(lane.totalM, snap.roadDistM));
-        a.roadDistM = roadM;
-        a.roadCenterM = roadM;
-      }
-    }
-    syncHazardMapLayer();
-    return true;
-  }
-
-  function setHazardChannelRange(id, channelPosA, channelPosB) {
-    const a = anomalies.find((x) => x.id === id);
-    if (!a) return false;
-    let lo = Math.floor(Math.min(channelPosA, channelPosB));
-    let hi = Math.ceil(Math.max(channelPosA, channelPosB));
-    lo = Math.max(0, Math.min(totalChannels - 1, lo));
-    hi = Math.max(0, Math.min(totalChannels - 1, hi));
-    a.startChannel = lo;
-    a.endChannel = hi;
-    const mid = Math.floor((lo + hi) / 2);
-    const ch = channels[mid];
-    a.lon = ch.lon;
-    a.lat = ch.lat;
-    if (roadOk && a.laneKey && (a.laneKey === 'eb' || a.laneKey === 'wb')) {
-      const lane = a.laneKey === 'eb' ? laneEb : laneWb;
-      if (lane && typeof a.roadCenterM === 'number') {
-        const ll = lonLatAtRoadDistance(lane, a.roadCenterM);
-        a.lon = ll[0];
-        a.lat = ll[1];
-      }
-    }
-    syncHazardMapLayer();
-    return true;
-  }
-
-  function getHazardById(id) {
-    return anomalies.find((x) => x.id === id) ?? null;
-  }
-
-  function nearestLaneSnap(lng, lat) {
-    if (!roadOk || !laneEb || !laneWb) return null;
-    const snap = nearestPointOnLanes(laneEb, laneWb, lng, lat);
-    if (!snap || snap.distanceM > LAB_SNAP_MAX_M) return null;
-    const lane = snap.laneKey === 'eb' ? laneEb : laneWb;
-    const roadM = Math.max(0, Math.min(lane.totalM, snap.roadDistM));
-    return {
-      laneKey: snap.laneKey,
-      roadDistM: roadM,
-      lon: snap.lon,
-      lat: snap.lat,
-      laneTotalM: lane.totalM,
-    };
-  }
-
-  function channelPosAtRoadDistance(laneKey, roadDistM) {
-    if (!roadOk) return null;
-    const lane = laneKey === 'wb' ? laneWb : laneEb;
-    if (!lane) return null;
-    const roadM = Math.max(0, Math.min(lane.totalM, roadDistM));
-    return clampChannelPosToFiber(roadDistanceToChannelPos(lane, roadM), totalChannels);
-  }
 
   function vehicleById(id) {
     return vehicles.find((v) => v.id === id) ?? null;
@@ -1022,7 +386,14 @@ export function createSimulation(data, targets) {
     }
 
     for (const a of anomalies) {
-      stampHazardOntoRow(row, a, totalChannels, tickCount);
+      const decay = Math.min(1, a.ttl / a.initialTtl);
+      const baseIntensity = a.intensity * decay;
+      for (let i = a.startChannel; i <= a.endChannel && i < totalChannels; i++) {
+        if (i < 0) continue;
+        const spatialVar = 0.35 + 0.65 * Math.abs(Math.sin(i * 0.12 + a.phase));
+        const temporalVar = 0.55 + 0.45 * Math.random();
+        row[i] = Math.min(1.0, row[i] + baseIntensity * spatialVar * temporalVar * 0.55);
+      }
     }
 
     targets.waterfall.pushRow(row);
@@ -1115,7 +486,18 @@ export function createSimulation(data, targets) {
         };
       });
 
-    const anomalyFeatures = buildHazardMapFeatures(anomalies);
+    const anomalyFeatures = anomalies.map((a) => {
+      const midIdx = Math.min(
+        Math.max(0, Math.floor((a.startChannel + a.endChannel) / 2)),
+        totalChannels - 1,
+      );
+      const ch = channels[midIdx];
+      return {
+        type: 'Feature',
+        properties: { id: a.id, subtype: a.subtype, intensity: a.intensity, milepost: ch.milepost.toFixed(1) },
+        geometry: { type: 'Point', coordinates: [ch.lon, ch.lat] },
+      };
+    });
 
     updateMapVehicles(targets.map, vehicleFeatures);
     syncVehicleCallouts(targets.map, vehicles);
@@ -1309,7 +691,6 @@ export function createSimulation(data, targets) {
   function clearFleet() {
     vehicles = [];
     anomalies = [];
-    nextHazardId = 1;
     setSelectedVehicleId(null);
     dragVehicleId = null;
     clearVehicleCallouts(targets.map);
@@ -1419,14 +800,12 @@ export function createSimulation(data, targets) {
     tickCount = 0;
     vehicles = [];
     anomalies = [];
-    nextHazardId = 1;
     selectedVehicleId = null;
     dragVehicleId = null;
     plotFocusChannel = null;
     intervalId = setInterval(tick, TICK_MS);
     targets.ui.updateChannelCount(totalChannels);
     targets.ui.updateStats(vehicles, anomalies, { simTimeS: 0 });
-    syncHazardMapLayer();
   }
 
   const api = {
@@ -1461,15 +840,6 @@ export function createSimulation(data, targets) {
     },
     moveVehicleToLngLat,
     releaseDragLocks,
-    addHazardAtLngLat,
-    extendHazardRange,
-    setHazardChannelRange,
-    getHazardById,
-    syncHazardMapLayer,
-    nearestLaneSnap,
-    channelPosAtRoadDistance,
-    getMassHazardPreviewLine,
-    getChannels: () => channels,
     syncFleetPanel: () => {},
   };
 
