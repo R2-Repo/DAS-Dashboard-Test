@@ -114,57 +114,31 @@
               </button>
             </div>
             <p id="vehicle-palette-touch-hint" class="vehicle-palette-touch-hint" hidden></p>
-            <div class="placement-lane-group" role="radiogroup" aria-label="Lane for new vehicles">
-              <span class="placement-lane-title">Lane</span>
-              <div class="placement-lane-buttons">
-                <button type="button" class="placement-lane-btn placement-lane-btn-active" data-placement-lane="auto" title="Snap to nearest centerline">Auto</button>
-                <button type="button" class="placement-lane-btn placement-lane-eb" data-placement-lane="eb" title="Eastbound (up canyon)">EB</button>
-                <button type="button" class="placement-lane-btn placement-lane-wb" data-placement-lane="wb" title="Westbound (down canyon)">WB</button>
-              </div>
-            </div>
           </div>
           <div class="traffic-control-actions traffic-control-actions-row">
-            <button type="button" id="btn-demo-fleet" class="lab-btn">Demo</button>
+            <button type="button" id="btn-demo-fleet" class="lab-btn" aria-expanded="false" aria-controls="demo-fleet-panel">Demo</button>
             <button type="button" id="btn-clear-fleet" class="lab-btn lab-btn-muted">Clear</button>
           </div>
-          <div id="fleet-selected-panel" class="fleet-selected-panel" hidden>
-            <div class="fleet-selected-label">Selected</div>
-            <div id="fleet-type-inline" class="fleet-type-inline" role="group" aria-label="Vehicle type">
-              <button type="button" class="fleet-type-btn" data-set-vehicle-type="bicycle" title="Bicycle"><span aria-hidden="true">🚴</span></button>
-              <button type="button" class="fleet-type-btn" data-set-vehicle-type="motorcycle" title="Motorcycle"><span aria-hidden="true">🏍</span></button>
-              <button type="button" class="fleet-type-btn" data-set-vehicle-type="car" title="Car"><span aria-hidden="true">🚗</span></button>
-              <button type="button" class="fleet-type-btn" data-set-vehicle-type="truck" title="Pickup truck"><span aria-hidden="true">🛻</span></button>
-              <button type="button" class="fleet-type-btn" data-set-vehicle-type="semi_truck" title="City bus"><span aria-hidden="true">🚌</span></button>
-            </div>
-            <label class="fleet-speed-slider-row">
-              <span class="fleet-speed-slider-label">Target speed <span id="fleet-speed-value" class="fleet-speed-value">38</span> mph</span>
-              <input type="range" id="fleet-speed-slider" min="0" max="85" step="1" value="38" aria-valuetext="38 miles per hour" />
+          <div id="demo-fleet-panel" class="demo-fleet-panel" hidden>
+            <label class="demo-fleet-slider-row" for="demo-fleet-intensity">
+              <span class="demo-fleet-slider-label">Demo vehicles <span id="demo-fleet-count-label" class="demo-fleet-count">12</span></span>
+              <input type="range" id="demo-fleet-intensity" min="1" max="48" step="1" value="12" aria-valuetext="12 vehicles" />
             </label>
-            <label class="fleet-speed-row">
-              <span class="fleet-speed-label">Exact</span>
-              <input type="number" id="fleet-speed-input" min="0" max="85" step="1" value="38" />
-              <button type="button" id="fleet-apply-btn" class="lab-btn lab-btn-inline">Apply</button>
-            </label>
+            <button type="button" id="btn-demo-fleet-run" class="lab-btn lab-btn-inline demo-fleet-run-btn">Run demo</button>
           </div>
           <div class="fleet-list-wrap">
             <div id="fleet-list" class="fleet-list" aria-label="Vehicles on route"></div>
           </div>
         </section>
         </div>
-        <section id="event-feed">
-          <ul id="event-list"></ul>
-        </section>
       </aside>
     </main>
-    <nav id="mobile-tabbar" class="mobile-tabbar" aria-label="Map, stats, and feed" hidden>
+    <nav id="mobile-tabbar" class="mobile-tabbar" aria-label="Map and stats" hidden>
       <button type="button" class="mobile-tab" data-mobile-tab="map" aria-selected="true">
         <span class="mobile-tab-label">Map</span>
       </button>
       <button type="button" class="mobile-tab" data-mobile-tab="stats" aria-selected="false">
         <span class="mobile-tab-label">Stats</span>
-      </button>
-      <button type="button" class="mobile-tab" data-mobile-tab="feed" aria-selected="false">
-        <span class="mobile-tab-label">Feed</span>
       </button>
     </nav>
   </div>

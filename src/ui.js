@@ -1,9 +1,7 @@
 /**
- * Sidebar UI — live stats, fleet controls, event feed.
+ * Sidebar UI — live stats, fleet controls.
  */
 import { normalizeVehicleType, vehicleSpec } from './vehicle-model.js';
-
-const MAX_EVENTS = 60;
 
 const VEHICLE_ICON = {
   bicycle: '🚴',
@@ -48,102 +46,116 @@ export function initUI() {
     el('stat-channels').textContent = count.toLocaleString();
   }
 
-  function addEvent(type, data) {
-    const list = el('event-list');
-    const li = document.createElement('li');
-    const time = new Date().toLocaleTimeString();
-
-    if (type === 'vehicle') {
-      const lane = data.laneKey === 'wb' ? 'WB' : 'EB';
-      const dirClass = data.laneKey === 'eb' ? 'up-canyon' : 'down-canyon';
-      const icon = vehicleIcon(data.vehicleType);
-      li.className = dirClass;
-      li.innerHTML = `
-        <span class="event-time">${time}</span>
-        <span class="event-type vehicle" title="${vehicleSpec(data.vehicleType).label}">${icon}</span>
-        ${data.id} · ${lane} · ${Math.round(data.speedMph)} mph · MP ${data.currentMilepost.toFixed(1)}
-      `;
-    } else if (type === 'anomaly') {
-      li.className = 'anomaly';
-      const label = data.subtype.replace(/_/g, ' ');
-      li.innerHTML = `
-        <span class="event-time">${time}</span>
-        <span class="event-type anomaly">\u26A0 ${label}</span> ${data.id}<br/>
-        SR-190 MP ${data.milepost.toFixed(1)} &bull; Intensity ${(data.intensity * 100).toFixed(0)}%
-      `;
-    }
-
-    list.prepend(li);
-    while (list.children.length > MAX_EVENTS) {
-      list.lastChild.remove();
+  function updateFleetMileposts(sim) {
+    const listEl = el('fleet-list');
+    if (!listEl || !sim) return;
+    const byId = new Map(sim.getVehicles().map((v) => [v.id, v]));
+    for (const row of listEl.querySelectorAll('[data-vehicle-id]')) {
+      const id = row.getAttribute('data-vehicle-id');
+      const v = byId.get(id);
+      if (!v) continue;
+      const mpEl = row.querySelector('.fleet-row-mp');
+      if (mpEl) {
+        mpEl.textContent =
+          v.currentMilepost != null ? `MP ${v.currentMilepost.toFixed(1)}` : 'MP \u2014';
+      }
+      const mphEl = row.querySelector('.fleet-row-mph');
+      if (mphEl) mphEl.textContent = `${Math.round(v.speedMph)} mph`;
+      const speedInp = row.querySelector('.fleet-row-speed');
+      if (speedInp && document.activeElement !== speedInp) {
+        const want = String(Math.round(v.desiredSpeedMph));
+        if (speedInp.value !== want) speedInp.value = want;
+      }
+      row.querySelectorAll('[data-set-lane]').forEach((btn) => {
+        const lk = btn.getAttribute('data-set-lane');
+        btn.classList.toggle('fleet-dir-btn-active', lk === v.laneKey);
+      });
+      const sel = sim.getSelectedVehicleId();
+      row.classList.toggle('fleet-row-selected', id === sel);
     }
   }
 
   function refreshFleetPanel(sim) {
     const listEl = el('fleet-list');
-    const selectedPanel = el('fleet-selected-panel');
     if (!listEl || !sim) return;
     listEl.replaceChildren();
     const list = sim.getVehicles();
     const sel = sim.getSelectedVehicleId();
 
     for (const v of list) {
-      const row = document.createElement('button');
-      row.type = 'button';
+      const row = document.createElement('div');
       row.className = 'fleet-row';
-      if (v.id === sel) row.classList.add('fleet-row-selected');
       row.dataset.vehicleId = v.id;
-      const lane = v.laneKey === 'wb' ? 'WB' : 'EB';
+      if (v.id === sel) row.classList.add('fleet-row-selected');
+
+      const selectBtn = document.createElement('button');
+      selectBtn.type = 'button';
+      selectBtn.className = 'fleet-row-select';
+      selectBtn.dataset.selectVehicleId = v.id;
       const icon = vehicleIcon(v.vehicleType);
-      row.innerHTML = `
+      const lane = v.laneKey === 'wb' ? 'WB' : 'EB';
+      selectBtn.innerHTML = `
         <span class="fleet-row-icon" aria-hidden="true">${icon}</span>
         <span class="fleet-row-meta">
-          <span class="fleet-row-line1">${lane} · ${Math.round(v.speedMph)} mph</span>
-          <span class="fleet-row-line2">MP ${v.currentMilepost != null ? v.currentMilepost.toFixed(1) : '\u2014'}</span>
+          <span class="fleet-row-line1">${vehicleSpec(v.vehicleType).label} · ${lane}</span>
+          <span class="fleet-row-line2"><span class="fleet-row-mp">MP ${v.currentMilepost != null ? v.currentMilepost.toFixed(1) : '\u2014'}</span> · <span class="fleet-row-mph">${Math.round(v.speedMph)} mph</span></span>
         </span>
-        <span class="fleet-row-remove" role="presentation" data-remove-id="${v.id}" title="Remove">×</span>
       `;
-      listEl.appendChild(row);
-    }
 
-    const speedInput = el('fleet-speed-input');
-    const speedSlider = el('fleet-speed-slider');
-    const speedValueEl = el('fleet-speed-value');
-    const applyBtn = el('fleet-apply-btn');
-    const selected = sel ? list.find((v) => v.id === sel) : null;
+      const controls = document.createElement('div');
+      controls.className = 'fleet-row-controls';
 
-    if (selectedPanel) {
-      selectedPanel.hidden = !selected;
-    }
-    if (speedInput) {
-      if (selected) speedInput.value = String(Math.round(selected.desiredSpeedMph));
-      speedInput.disabled = !selected;
-    }
-    if (speedSlider) {
-      if (selected) {
-        const v = Math.round(selected.desiredSpeedMph);
-        speedSlider.value = String(v);
-        speedSlider.setAttribute('aria-valuetext', `${v} miles per hour`);
+      const dirGroup = document.createElement('div');
+      dirGroup.className = 'fleet-dir-group';
+      dirGroup.setAttribute('role', 'group');
+      dirGroup.setAttribute('aria-label', 'Direction');
+
+      for (const lk of ['eb', 'wb']) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'fleet-dir-btn';
+        if (lk === 'eb') b.classList.add('fleet-dir-btn-eb');
+        else b.classList.add('fleet-dir-btn-wb');
+        b.dataset.setLane = lk;
+        b.textContent = lk.toUpperCase();
+        b.title = lk === 'eb' ? 'Eastbound (up canyon)' : 'Westbound (down canyon)';
+        if (v.laneKey === lk) b.classList.add('fleet-dir-btn-active');
+        dirGroup.appendChild(b);
       }
-      speedSlider.disabled = !selected;
-    }
-    if (speedValueEl && selected) {
-      speedValueEl.textContent = String(Math.round(selected.desiredSpeedMph));
-    }
-    if (speedValueEl && !selected) {
-      speedValueEl.textContent = '\u2014';
-    }
-    if (applyBtn) {
-      applyBtn.disabled = !selected;
-    }
 
-    if (selectedPanel) {
-      selectedPanel.querySelectorAll('.fleet-type-btn').forEach((b) => {
-        const t = b.getAttribute('data-set-vehicle-type');
-        b.classList.toggle('fleet-type-btn-active', selected && t === selected.vehicleType);
-      });
+      const speedWrap = document.createElement('label');
+      speedWrap.className = 'fleet-row-speed-wrap';
+      const speedInp = document.createElement('input');
+      speedInp.type = 'range';
+      speedInp.className = 'fleet-row-speed';
+      speedInp.min = '0';
+      speedInp.max = '85';
+      speedInp.step = '1';
+      speedInp.value = String(Math.round(v.desiredSpeedMph));
+      speedInp.setAttribute(
+        'aria-valuetext',
+        `${Math.round(v.desiredSpeedMph)} miles per hour`,
+      );
+      speedInp.setAttribute('aria-label', `Target speed for ${v.id}`);
+      speedWrap.appendChild(speedInp);
+
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'fleet-row-remove';
+      rm.dataset.removeId = v.id;
+      rm.title = 'Remove';
+      rm.setAttribute('aria-label', `Remove ${v.id}`);
+      rm.textContent = '\u00D7';
+
+      controls.appendChild(dirGroup);
+      controls.appendChild(speedWrap);
+      controls.appendChild(rm);
+
+      row.appendChild(selectBtn);
+      row.appendChild(controls);
+      listEl.appendChild(row);
     }
   }
 
-  return { updateStats, updateChannelCount, addEvent, refreshFleetPanel };
+  return { updateStats, updateChannelCount, refreshFleetPanel, updateFleetMileposts };
 }

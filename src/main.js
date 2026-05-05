@@ -36,88 +36,46 @@ async function boot() {
   sim.start();
   sim.syncFleetPanel();
 
-  const defaultLane = sim.getDefaultPlacementLane?.() ?? 'auto';
-  document.querySelectorAll('[data-placement-lane]').forEach((b) => {
-    b.classList.toggle('placement-lane-btn-active', b.getAttribute('data-placement-lane') === defaultLane);
-  });
-
   const mapHint = document.getElementById('traffic-map-hint');
   if (mapHint) {
     mapHint.textContent = sim.isRoadOk()
-      ? 'Drag a vehicle icon onto the map, or tap an icon then tap the map. Auto / EB / WB sets the lane for new drops. Select a vehicle to change speed; drag on the map to move.'
+      ? 'Drag a vehicle onto the map, or tap an icon then tap the map. New vehicles snap to the nearest lane by the drop point. Use the list to set direction (EB/WB) and speed; drag on the map to move.'
       : 'Drag an icon onto the map (snaps to fiber). On a phone: tap an icon, then tap the map.';
   }
 
-  document.querySelector('.placement-lane-group')?.addEventListener('click', (e) => {
-    const btn = e.target.closest?.('[data-placement-lane]');
-    if (!btn) return;
-    const lane = btn.getAttribute('data-placement-lane');
-    if (lane !== 'auto' && lane !== 'eb' && lane !== 'wb') return;
-    sim.setDefaultPlacementLane(lane);
-    document.querySelectorAll('[data-placement-lane]').forEach((b) => {
-      b.classList.toggle('placement-lane-btn-active', b.getAttribute('data-placement-lane') === lane);
-    });
-  });
+  const demoBtn = document.getElementById('btn-demo-fleet');
+  const demoPanel = document.getElementById('demo-fleet-panel');
+  const demoRunBtn = document.getElementById('btn-demo-fleet-run');
+  const demoSlider = document.getElementById('demo-fleet-intensity');
+  const demoCountLabel = document.getElementById('demo-fleet-count-label');
 
-  document.getElementById('btn-demo-fleet')?.addEventListener('click', () => {
-    sim.applyQuickFleet();
-    sim.syncFleetPanel();
-  });
-  document.getElementById('btn-clear-fleet')?.addEventListener('click', () => {
-    sim.clearFleet();
-    sim.syncFleetPanel();
-  });
-
-  function applySelectedVehicleSpeed() {
-    const id = sim.getSelectedVehicleId();
-    if (!id) return;
-    const mph = parseFloat(document.getElementById('fleet-speed-input')?.value ?? '38');
-    if (Number.isFinite(mph)) sim.setVehicleDesiredSpeed(id, mph);
-    sim.syncFleetPanel();
+  function setDemoPanelOpen(open) {
+    if (!demoPanel || !demoBtn) return;
+    demoPanel.hidden = !open;
+    demoBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
 
-  document.getElementById('fleet-apply-btn')?.addEventListener('click', () => {
-    applySelectedVehicleSpeed();
+  demoBtn?.addEventListener('click', () => {
+    const next = demoPanel?.hidden !== false;
+    setDemoPanelOpen(next);
   });
 
-  const speedSlider = document.getElementById('fleet-speed-slider');
-  const speedValueEl = document.getElementById('fleet-speed-value');
-  const speedInput = document.getElementById('fleet-speed-input');
+  demoSlider?.addEventListener('input', () => {
+    const n = Number(demoSlider.value);
+    if (!Number.isFinite(n)) return;
+    if (demoCountLabel) demoCountLabel.textContent = String(Math.round(n));
+    demoSlider.setAttribute('aria-valuetext', `${Math.round(n)} vehicles`);
+  });
 
-  speedSlider?.addEventListener('input', () => {
-    const id = sim.getSelectedVehicleId();
-    if (!id) return;
-    const mph = Number(speedSlider.value);
-    if (!Number.isFinite(mph)) return;
-    if (speedInput) speedInput.value = String(Math.round(mph));
-    if (speedValueEl) speedValueEl.textContent = String(Math.round(mph));
-    speedSlider.setAttribute('aria-valuetext', `${Math.round(mph)} miles per hour`);
-    sim.setVehicleDesiredSpeed(id, mph);
+  demoRunBtn?.addEventListener('click', () => {
+    const n = Number(demoSlider?.value ?? 12);
+    sim.applyQuickFleet(Number.isFinite(n) ? n : 12);
     sim.syncFleetPanel();
+    setDemoPanelOpen(false);
   });
 
-  speedInput?.addEventListener('change', () => {
-    applySelectedVehicleSpeed();
-  });
-
-  speedInput?.addEventListener('input', () => {
-    const id = sim.getSelectedVehicleId();
-    if (!id) return;
-    const mph = parseFloat(speedInput.value);
-    if (!Number.isFinite(mph)) return;
-    if (speedSlider) {
-      speedSlider.value = String(Math.max(0, Math.min(85, Math.round(mph))));
-      speedSlider.setAttribute('aria-valuetext', `${Math.round(mph)} miles per hour`);
-    }
-    if (speedValueEl) speedValueEl.textContent = String(Math.round(Math.max(0, Math.min(85, mph))));
-  });
-
-  document.getElementById('fleet-type-inline')?.addEventListener('click', (e) => {
-    const btn = e.target.closest?.('[data-set-vehicle-type]');
-    if (!btn) return;
-    const id = sim.getSelectedVehicleId();
-    if (!id) return;
-    sim.setVehicleType(id, btn.getAttribute('data-set-vehicle-type') ?? 'car');
+  document.getElementById('btn-clear-fleet')?.addEventListener('click', () => {
+    sim.clearFleet();
     sim.syncFleetPanel();
   });
 
@@ -131,16 +89,41 @@ async function boot() {
       }
       return;
     }
-    const row = e.target.closest?.('[data-vehicle-id]');
-    if (row) {
-      sim.setSelectedVehicleId(row.getAttribute('data-vehicle-id'));
-      sim.syncFleetPanel();
+    const laneBtn = e.target.closest?.('[data-set-lane]');
+    if (laneBtn) {
+      const row = laneBtn.closest?.('[data-vehicle-id]');
+      const id = row?.getAttribute('data-vehicle-id');
+      const lk = laneBtn.getAttribute('data-set-lane');
+      if (id && (lk === 'eb' || lk === 'wb')) {
+        sim.setVehicleLaneKey(id, lk);
+        sim.syncFleetPanel();
+      }
+      return;
+    }
+    const selBtn = e.target.closest?.('[data-select-vehicle-id]');
+    if (selBtn) {
+      const id = selBtn.getAttribute('data-select-vehicle-id');
+      if (id) {
+        sim.setSelectedVehicleId(id);
+        sim.syncFleetPanel();
+      }
     }
   });
 
+  document.getElementById('fleet-list')?.addEventListener('input', (e) => {
+    const inp = e.target;
+    if (!(inp instanceof HTMLElement) || inp.tagName !== 'INPUT' || !inp.classList.contains('fleet-row-speed')) return;
+    const row = inp.closest?.('[data-vehicle-id]');
+    const id = row?.getAttribute('data-vehicle-id');
+    if (!id) return;
+    const mph = Number(inp.value);
+    if (!Number.isFinite(mph)) return;
+    inp.setAttribute('aria-valuetext', `${Math.round(mph)} miles per hour`);
+    sim.setVehicleDesiredSpeed(id, mph);
+  });
 }
 
-const MOBILE_TAB_CLASSES = ['mobile-tab-map', 'mobile-tab-stats', 'mobile-tab-feed'];
+const MOBILE_TAB_CLASSES = ['mobile-tab-map', 'mobile-tab-stats'];
 
 /**
  * Move `#traffic-control-panel` under the waterfall on mobile Map tab so it stacks in document
@@ -161,7 +144,7 @@ function syncTrafficPanelHost(mobile, tab) {
 }
 
 /**
- * Narrow screens: stack map + waterfall; bottom tab bar switches Map | Stats | Feed.
+ * Narrow screens: stack map + waterfall; bottom tab bar switches Map | Stats.
  * Traffic controls sit on the Map tab under the waterfall (thumb reach).
  */
 function initResponsiveLayout(map, waterfall) {
@@ -175,9 +158,9 @@ function initResponsiveLayout(map, waterfall) {
   );
 
   function setMobileTab(tab) {
-    const allowed = new Set(['map', 'stats', 'feed']);
+    const allowed = new Set(['map', 'stats']);
     let t = allowed.has(tab) ? tab : 'map';
-    if (t === 'data' || t === 'fleet') t = 'map';
+    if (t === 'data' || t === 'fleet' || t === 'feed') t = 'map';
 
     sidebar.dataset.mobileTab = t;
     sidebar.classList.remove(...MOBILE_TAB_CLASSES);
@@ -202,8 +185,8 @@ function initResponsiveLayout(map, waterfall) {
 
     if (mobile) {
       let current = sidebar.dataset.mobileTab;
-      if (current === 'data' || current === 'fleet') current = 'map';
-      if (!['map', 'stats', 'feed'].includes(current)) current = 'map';
+      if (current === 'data' || current === 'fleet' || current === 'feed') current = 'map';
+      if (!['map', 'stats'].includes(current)) current = 'map';
       setMobileTab(current);
     } else {
       syncTrafficPanelHost(false, 'map');
