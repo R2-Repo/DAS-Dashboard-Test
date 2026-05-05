@@ -38,7 +38,7 @@ DAS (Distributed Acoustic Sensing) Canyon Dashboard for **SR-190 Big Cottonwood 
 │   ├── map.js              ← MapLibre 3D map: terrain, hillshade, road/fiber/milepost layers, vehicle/anomaly markers
 │   ├── waterfall.js         ← Canvas-based DAS waterfall: jet colormap LUT, per-channel noise, scroll/zoom
 │   ├── simulation.js        ← Physics engine: vehicle spawning, movement, anomalies, waterfall row generation
-│   ├── hazard-controller.js ← Hazards UI: tap map once; mass hazards span along road (see docs/HAZARDS.md)
+│   ├── hazard-controller.js ← Hazards UI: tap map once; rock/snow = fixed 500×500 ft hex patch at click (see docs/HAZARDS.md)
 │   ├── hazard-stamp.js      ← Hazard energy → waterfall row
 │   ├── hazard-deck-overlay.js ← deck.gl extruded columns for rock slide / avalanche on MapLibre
 │   ├── ui.js               ← Sidebar: stats cards, event feed
@@ -125,7 +125,7 @@ The GitHub Actions workflow **`.github/workflows/deploy-pages.yml`** runs on pus
 
 ### Hazards (rock slide, avalanche, crash)
 
-Operator-placed hazards: **docs/HAZARDS.md**. Summary: arm a hazard type in the sidebar, set **Size**, tap the map **once**. Rock slide and avalanche extent follow the **road centerline** (not map drag, not the fiber overlay). **deck.gl** renders extruded columns for mass hazards; `npm run test:e2e-hazard-deck` sanity-checks column count with the dev server.
+Operator-placed hazards: **docs/HAZARDS.md**. Rock/snow currently use a **fixed ~500×500 ft** deck.gl hex patch at the map click (troubleshooting / visibility isolation). **deck.gl** renders extruded columns; `npm run test:e2e-hazard-deck` sanity-checks column count with the dev server.
 
 ### DAS simulation physics model
 
