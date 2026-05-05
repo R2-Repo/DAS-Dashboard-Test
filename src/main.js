@@ -4,6 +4,7 @@
  */
 import { registerSW } from 'virtual:pwa-register';
 import { initMap, setupTrafficSimulatorMapInteractions } from './map.js';
+import { getHazardDeckHexColumnCount } from './hazard-deck-overlay.js';
 import { initWaterfall } from './waterfall.js';
 import { createSimulation } from './simulation.js';
 import { initUI } from './ui.js';
@@ -47,6 +48,11 @@ async function boot() {
     map.on('zoomend', () => {
       sim.syncHazardMapLayer?.();
     });
+
+    // Headless / local: scripts/e2e-hazard-deck.mjs (dev server only) reads deck column count.
+    if (import.meta.env.DEV) {
+      window.__dasExposeForAutomation = { map, sim, getHazardDeckHexColumnCount };
+    }
   });
 
   sim.start();
