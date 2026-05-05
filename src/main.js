@@ -48,7 +48,6 @@ async function boot() {
     hazardsRef = hazards;
     setupTrafficSimulatorMapInteractions(map, sim, {
       tryConsumeMapClick: (e) => palette.tryConsumeMapClick(e) || hazards.tryConsumeMapClick(e),
-      isMassHazardDrawing: () => hazards.isMassExtending(),
     });
     map.on('zoomend', () => {
       sim.syncHazardMapLayer?.();
@@ -69,7 +68,7 @@ async function boot() {
   const mapHint = document.getElementById('traffic-map-hint');
   if (mapHint) {
     mapHint.textContent = sim.isRoadOk()
-      ? 'Hazards: tap crash / rock / snow, adjust size, then tap the map (crash) or drag along the route (rock & snow on desktop). Clear removes hazards too. Vehicles: drag or tap an icon then tap the map.'
+      ? 'Hazards: pick crash / rock / snow, set Size, tap the map once (extent follows the road centerline for rock and snow). Clear removes hazards. Vehicles: drag or tap an icon then tap the map.'
       : 'Drag an icon onto the map (snaps to fiber). On a phone: tap an icon, then tap the map.';
   }
 

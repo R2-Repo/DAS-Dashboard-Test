@@ -70,7 +70,7 @@ function stampCrash(row, a, totalChannels, tickCount, decay, mag, sc0, sc1, _spa
 
 function stampRockSlide(row, a, totalChannels, tickCount, decay, mag, sc0, sc1, span, age) {
   const grow = clamp01(age / Math.max(12, a.initialTtl * 0.35));
-  const half = span * (0.18 + grow * 0.82);
+  const half = span * (0.55 + grow * 0.45);
   const mid = (sc0 + sc1) * 0.5;
   const effLo = Math.max(0, Math.floor(mid - half));
   const effHi = Math.min(totalChannels - 1, Math.ceil(mid + half));
@@ -89,7 +89,7 @@ function stampRockSlide(row, a, totalChannels, tickCount, decay, mag, sc0, sc1, 
 
 function stampAvalanche(row, a, totalChannels, tickCount, decay, mag, sc0, sc1, span, age) {
   const diffuse = clamp01(age / Math.max(20, a.initialTtl * 0.5));
-  const half = span * (0.35 + diffuse * 0.75 + mag * 0.15);
+  const half = span * (0.62 + diffuse * 0.38 + mag * 0.08);
   const mid = (sc0 + sc1) * 0.5;
   const effLo = Math.max(0, Math.floor(mid - half));
   const effHi = Math.min(totalChannels - 1, Math.ceil(mid + half));
