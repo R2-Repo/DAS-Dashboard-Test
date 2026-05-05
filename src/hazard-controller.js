@@ -72,7 +72,7 @@ export function createHazardController({ map, sim, panelRoot, vehiclePalette }) 
     if (kind === 'crash') {
       setHint('Tap the map to place the crash (snaps to the nearest lane).', true);
     } else {
-      setHint('Tap the map once; extent follows the road and the Size slider.', true);
+      setHint('Tap the map once. A ~500×500 ft hex block appears at the click (Size ignored for placement).', true);
     }
     scheduleMassPreview();
     map.on('moveend', onMapMoveEnd);
