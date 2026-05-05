@@ -196,7 +196,10 @@ export function createSimulation(data, targets) {
   }
 
   function buildHazardMapFeatures(anoms) {
-    return anoms.map((a) => {
+    const z = targets.map?.getZoom?.();
+    const zBoost = mapVehicleExtentBoostFromZoom(z);
+
+    return anoms.flatMap((a) => {
       const kind = a.kind || a.subtype || 'rock_slide';
       const midIdx = Math.min(
         Math.max(0, Math.floor((a.startChannel + a.endChannel) / 2)),
@@ -205,6 +208,10 @@ export function createSimulation(data, targets) {
       const ch = channels[midIdx];
       const decay = a.initialTtl > 0 ? a.ttl / a.initialTtl : 0;
       const tickAge = tickCount - (a.tickCreated ?? tickCount);
+      const mag = a.magnitude ?? 0.5;
+
+      const markerGlyph =
+        kind === 'crash' ? '⚠' : kind === 'avalanche' ? '❄' : '⛰';
 
       if (kind === 'crash') {
         const lane = a.laneKey === 'wb' ? laneWb : laneEb;
@@ -219,13 +226,13 @@ export function createSimulation(data, targets) {
           bearingDeg = bearingDegClockwiseFromNorthLonLat(c0.lon, c0.lat, c1.lon, c1.lat);
         }
         const nVeh = a.vehicleCount ?? 1;
-        const lenM = 5.5 + nVeh * 3.2 + (a.magnitude ?? 0.5) * 4;
-        const widthM = 3.2 + nVeh * 0.9;
-        const heightM = Math.max(28, 3.5 + nVeh * 1.1 + (a.magnitude ?? 0.5) * 2.5 + nVeh * 8);
+        const lenM = (5.5 + nVeh * 3.2 + mag * 4) * zBoost * 1.22;
+        const widthM = (3.2 + nVeh * 0.9) * zBoost * 1.18;
+        const heightM = Math.max(5, 3.2 + nVeh * 1.8 + mag * 5 + nVeh * 1.2);
         const lon = a.lon ?? ch.lon;
         const lat = a.lat ?? ch.lat;
         const geom = buildVehicleFootprintPolygon(lon, lat, lenM, widthM, bearingDeg);
-        return {
+        const footprint = {
           type: 'Feature',
           properties: {
             hazard_kind: kind,
@@ -240,6 +247,18 @@ export function createSimulation(data, targets) {
           },
           geometry: geom,
         };
+        const marker = {
+          type: 'Feature',
+          properties: {
+            hazard_kind: kind,
+            id: a.id,
+            decay,
+            hazard_marker: 1,
+            marker_glyph: markerGlyph,
+          },
+          geometry: { type: 'Point', coordinates: [lon, lat] },
+        };
+        return [footprint, marker];
       }
 
       const lane = a.laneKey === 'wb' ? laneWb : laneEb;
@@ -257,17 +276,24 @@ export function createSimulation(data, targets) {
       const spanCh = Math.max(1, Math.abs(a.endChannel - a.startChannel));
       const spanM = Math.max(CHANNEL_SPACING_M, spanCh * CHANNEL_SPACING_M);
       const isAvalanche = kind === 'avalanche';
-      const lenM = Math.min(isAvalanche ? 95 : 72, 18 + spanM * 0.55 + (a.magnitude ?? 0.5) * 40);
-      const widthM = Math.min(isAvalanche ? 42 : 28, 10 + spanM * 0.12 + (a.magnitude ?? 0.5) * 18);
+      const debrisBoost = zBoost * 1.12;
+      const lenM = Math.min(
+        isAvalanche ? 115 : 92,
+        (18 + spanM * 0.55 + mag * 40) * debrisBoost,
+      );
+      const widthM = Math.min(
+        isAvalanche ? 48 : 32,
+        (10 + spanM * 0.12 + mag * 18) * debrisBoost,
+      );
       const heightM = isAvalanche
-        ? Math.max(36, 10 + (a.magnitude ?? 0.5) * 22 + spanCh * 0.08)
-        : Math.max(28, 6 + (a.magnitude ?? 0.5) * 16 + spanCh * 0.06);
+        ? Math.max(10, 7 + mag * 26 + spanCh * 0.07)
+        : Math.max(8, 5 + mag * 20 + spanCh * 0.055);
 
       const lon = a.lon ?? ch.lon;
       const lat = a.lat ?? ch.lat;
       const geom = buildVehicleFootprintPolygon(lon, lat, lenM, widthM, bearingDeg);
 
-      return {
+      const footprint = {
         type: 'Feature',
         properties: {
           hazard_kind: kind,
@@ -281,7 +307,25 @@ export function createSimulation(data, targets) {
         },
         geometry: geom,
       };
+      const marker = {
+        type: 'Feature',
+        properties: {
+          hazard_kind: kind,
+          id: a.id,
+          decay,
+          hazard_marker: 1,
+          marker_glyph: markerGlyph,
+        },
+        geometry: { type: 'Point', coordinates: [lon, lat] },
+      };
+      return [footprint, marker];
     });
+  }
+
+  function syncHazardMapLayer() {
+    const m = targets.map;
+    if (!m?.getSource?.('anomalies')) return;
+    updateMapAnomalies(m, buildHazardMapFeatures(anomalies));
   }
 
   function addHazardAtLngLat(kind, lng, lat, opts = {}) {
@@ -330,6 +374,7 @@ export function createSimulation(data, targets) {
     };
     anomalies.push(a);
     targets.waterfall.scrollChannelIntoView(snap.channelPos);
+    syncHazardMapLayer();
     return a;
   }
 
@@ -357,6 +402,7 @@ export function createSimulation(data, targets) {
         a.roadDistM = roadM;
       }
     }
+    syncHazardMapLayer();
     return true;
   }
 
@@ -373,6 +419,7 @@ export function createSimulation(data, targets) {
     const ch = channels[mid];
     a.lon = ch.lon;
     a.lat = ch.lat;
+    syncHazardMapLayer();
     return true;
   }
 
@@ -1041,6 +1088,7 @@ export function createSimulation(data, targets) {
     intervalId = setInterval(tick, TICK_MS);
     targets.ui.updateChannelCount(totalChannels);
     targets.ui.updateStats(vehicles, anomalies, { simTimeS: 0 });
+    syncHazardMapLayer();
   }
 
   const api = {
@@ -1079,6 +1127,7 @@ export function createSimulation(data, targets) {
     extendHazardRange,
     setHazardChannelRange,
     getHazardById,
+    syncHazardMapLayer,
     nearestLaneSnap,
     channelPosAtRoadDistance,
     getChannels: () => channels,

@@ -44,6 +44,9 @@ async function boot() {
       tryConsumeMapClick: (e) => palette.tryConsumeMapClick(e) || hazards.tryConsumeMapClick(e),
       isMassHazardDrawing: () => hazards.isMassExtending(),
     });
+    map.on('zoomend', () => {
+      sim.syncHazardMapLayer?.();
+    });
   });
 
   sim.start();

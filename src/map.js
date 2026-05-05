@@ -177,8 +177,8 @@ export function initMap(containerId, data) {
     addFiberLayer(map, data.fiberRoute);
     addMilepostLayers(map, data.mileposts);
     addVehicleLayers(map);
-    addAnomalyLayer(map);
     addCanyonIntroHighlightLayers(map);
+    addAnomalyLayer(map, 'vehicle-glow');
     setupCanyonIntroHighlightLifecycle(map);
     applyDefaultLayerVisibility(map);
     const attrib = map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact');
@@ -732,39 +732,111 @@ export function setupTrafficSimulatorMapInteractions(map, sim, options = {}) {
   map.on('touchcancel', endDrag);
 }
 
-function addAnomalyLayer(map) {
+function addAnomalyLayer(map, beforeLayerId) {
   map.addSource('anomalies', {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
   });
-  map.addLayer({
-    id: 'anomaly-debris',
-    type: 'fill-extrusion',
-    source: 'anomalies',
-    paint: {
-      'fill-extrusion-height': ['coalesce', ['get', 'height_m'], 8],
-      'fill-extrusion-base': 0,
-      'fill-extrusion-color': [
-        'match',
-        ['get', 'hazard_kind'],
-        'crash',
-        '#e65100',
-        'avalanche',
-        '#0288d1',
-        '#6d4c41',
-      ],
-      'fill-extrusion-opacity': [
-        'interpolate',
-        ['linear'],
-        ['get', 'decay'],
-        0,
-        0.94,
-        1,
-        0.72,
-      ],
-      'fill-extrusion-vertical-gradient': true,
+  const hazardPolygonFilter = ['==', ['geometry-type'], 'Polygon'];
+
+  map.addLayer(
+    {
+      id: 'anomaly-debris',
+      type: 'fill-extrusion',
+      source: 'anomalies',
+      filter: hazardPolygonFilter,
+      paint: {
+        'fill-extrusion-height': ['coalesce', ['get', 'height_m'], 8],
+        'fill-extrusion-base': 0,
+        'fill-extrusion-color': [
+          'match',
+          ['get', 'hazard_kind'],
+          'crash',
+          '#ff6f00',
+          'avalanche',
+          '#29b6f6',
+          '#8d6e63',
+        ],
+        'fill-extrusion-opacity': [
+          'interpolate',
+          ['linear'],
+          ['get', 'decay'],
+          0,
+          0.96,
+          1,
+          0.78,
+        ],
+        'fill-extrusion-vertical-gradient': true,
+      },
     },
-  });
+    beforeLayerId,
+  );
+
+  map.addLayer(
+    {
+      id: 'anomaly-debris-rim',
+      type: 'fill-extrusion',
+      source: 'anomalies',
+      filter: hazardPolygonFilter,
+      paint: {
+        'fill-extrusion-height': ['+', ['coalesce', ['get', 'height_m'], 8], 0.85],
+        'fill-extrusion-base': ['coalesce', ['get', 'height_m'], 8],
+        'fill-extrusion-color': [
+          'match',
+          ['get', 'hazard_kind'],
+          'crash',
+          '#fff3e0',
+          'avalanche',
+          '#e1f5fe',
+          '#efebe9',
+        ],
+        'fill-extrusion-opacity': [
+          'interpolate',
+          ['linear'],
+          ['get', 'decay'],
+          0,
+          0.55,
+          1,
+          0.38,
+        ],
+        'fill-extrusion-vertical-gradient': false,
+      },
+    },
+    beforeLayerId,
+  );
+
+  map.addLayer(
+    {
+      id: 'hazard-marker-symbol',
+      type: 'symbol',
+      source: 'anomalies',
+      filter: ['==', ['get', 'hazard_marker'], 1],
+      layout: {
+        'text-field': ['get', 'marker_glyph'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 10, 18, 13, 26, 16, 32],
+        'text-anchor': 'center',
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+        'text-font': ['Noto Sans Medium', 'Arial Unicode MS Regular'],
+      },
+      paint: {
+        'text-color': '#fff8e1',
+        'text-halo-color': '#1a120b',
+        'text-halo-width': 2.1,
+        'text-halo-blur': 0.35,
+        'text-opacity': [
+          'interpolate',
+          ['linear'],
+          ['get', 'decay'],
+          0,
+          1,
+          1,
+          0.82,
+        ],
+      },
+    },
+    beforeLayerId,
+  );
 
   map.addSource('hazard-preview', {
     type: 'geojson',
