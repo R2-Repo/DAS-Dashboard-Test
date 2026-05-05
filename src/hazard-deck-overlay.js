@@ -4,9 +4,10 @@
  * - MapLibre fill-extrusion on hundreds of tiny polygons is unreliable on terrain.
  * - Overlaid deck.gl + MapLibre 3D terrain often fails depth/compositing (columns invisible on some GPUs).
  * - Interleaved MapboxOverlay shares WebGL with the map so extruded columns participate in the same depth buffer.
+ * - Turn off deck's MapController + internal picking: mjolnir.js on the shared canvas otherwise steals touch pan/zoom from MapLibre.
  * - Positions use LNGLAT + terrain altitude (meters); plain lng/lat extrusions sit at sea level and disappear under terrain.
  */
-import { COORDINATE_SYSTEM } from '@deck.gl/core';
+import { COORDINATE_SYSTEM, MapView } from '@deck.gl/core';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import { ColumnLayer } from '@deck.gl/layers';
 
@@ -132,6 +133,8 @@ export function attachHazardDeckOverlay(map) {
   lastMassHexFeatures.set(map, []);
   const overlay = new MapboxOverlay({
     interleaved: true,
+    _pickable: false,
+    views: new MapView({ id: 'mapbox', controller: false }),
     layers: [],
   });
   // Control slot only affects empty placeholder div in interleaved mode; deck draws into the map GL context.
