@@ -659,7 +659,7 @@ function addVehicleLayers(map) {
  * Adding vehicles is done via the sidebar palette (drag-drop or touch place mode).
  */
 export function setupTrafficSimulatorMapInteractions(map, sim, options = {}) {
-  const { tryConsumeMapClick, isMassHazardDrawing } = options;
+  const { tryConsumeMapClick } = options;
 
   let dragging = false;
 
@@ -683,7 +683,6 @@ export function setupTrafficSimulatorMapInteractions(map, sim, options = {}) {
 
   map.on('mousedown', (e) => {
     if (e.originalEvent.button !== 0) return;
-    if (isMassHazardDrawing?.()) return;
     const feat = vehicleFeatureAtPoint(e);
     if (!feat) return;
     const dragId = feat.properties.id;
@@ -715,7 +714,6 @@ export function setupTrafficSimulatorMapInteractions(map, sim, options = {}) {
 
   map.on('touchstart', (e) => {
     if (e.points.length !== 1) return;
-    if (isMassHazardDrawing?.()) return;
     const hits = map.queryRenderedFeatures(e.point, { layers: VEHICLE_HIT_LAYERS });
     if (!hits.length) return;
     const dragId = hits[0].properties.id;
