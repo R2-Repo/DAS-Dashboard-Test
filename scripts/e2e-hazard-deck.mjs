@@ -1,5 +1,5 @@
 /**
- * Headless check: after placing a rock slide, deck.gl must build many extruded mass-hazard features.
+ * Headless check: after placing a rock slide, deck.gl must build many extruded hex columns.
  * Run with dev server: npm run dev -- --host 127.0.0.1 --port 5173
  *   E2E_SCREENSHOT=/tmp/hazard.png npm run test:e2e-hazard-deck
  */
@@ -71,7 +71,7 @@ async function main() {
     process.exit(1);
   }
   if (result.after < 50) {
-    console.error('FAIL: expected many deck.gl mass-hazard features after rock slide; got', result);
+    console.error('FAIL: expected many deck.gl hex columns after rock slide; got', result);
     await browser.close();
     process.exit(1);
   }
@@ -103,7 +103,7 @@ async function main() {
 
   await browser.close();
 
-  console.log('PASS: deck.gl mass-hazard extrusions:', result.after, '(before:', `${result.before})`, 'hazard:', result.placedId);
+  console.log('PASS: deck.gl mass-hazard columns:', result.after, '(before:', `${result.before})`, 'hazard:', result.placedId);
 }
 
 main().catch((e) => {
