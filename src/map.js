@@ -6,6 +6,8 @@
  *   - Terrain: AWS Terrarium RGB elevation tiles (for 3D + hillshade)
  *
  * GIS layers on load: road centerlines (EB/WB), fiber path, milepost markers (optional overlays).
+ * First paint uses a staged camera (top-down → tilt) with terrain enabled after the tilt ease so
+ * the 3D mesh does not fight the initial tile burst.
  * Dynamic layers: anomaly pulses, then vehicles as fill-extrusion blocks on terrain.
  *
  * Reference rasters are pre-rendered tiles: opacity and color tuning are available; per-feature
@@ -38,19 +40,22 @@ const ESRI_ATTRIBUTION =
 const DEFAULT_VIEW_BEARING = 45;
 /** Initial / reset pitch; `fitBounds` uses this so framing accounts for tilted horizon. */
 const DEFAULT_VIEW_PITCH = 55;
-/** Nudges zoom after fitBounds: positive = zoom out, negative = zoom in from the fitted level. */
-const FIT_BOUNDS_ZOOM_NUDGE = -0.48;
+/** Nudges zoom after framing: positive = zoom out, negative = zoom in from the fitted level. */
+const FIT_BOUNDS_ZOOM_NUDGE = -0.82;
 /** Upper cap for auto-fit zoom (road + fiber union); raised so steeper pitch can still zoom in. */
-const FIT_BOUNDS_MAX_ZOOM = 13.45;
+const FIT_BOUNDS_MAX_ZOOM = 13.72;
+
+/** Cinematic first paint: top-down first, then ease to tilt before enabling terrain (reduces load stutter). */
+const CINEMATIC_REVEAL_PADDING = { top: 36, bottom: 44, left: 44, right: 44 };
+const CINEMATIC_PITCH_EASE_MS = 3200;
+/** Continuous intro spin (degrees per second); interrupted by user gestures. */
+const ROUTE_INTRO_SPIN_DEG_PER_SEC = 1.85;
 
 /** Bright intro-only route highlight; hidden once the user zooms in closer to the ground past baseline. */
 const CANYON_INTRO_LAYER_GLOW = 'canyon-intro-highlight-glow';
 const CANYON_INTRO_LAYER_CORE = 'canyon-intro-highlight-core';
 /** Hide when current zoom exceeds baseline (post-idle) by this amount (user moved in on the map). */
 const CANYON_INTRO_ZOOM_IN_DELTA = 0.65;
-
-/** One full orbit around the route center at load; two bearing steps avoid bearing-wrap shortcuts. */
-const ROUTE_INTRO_ORBIT_HALF_MS = 6500;
 
 const LAYER_TOGGLE_IDS = {
   road: ['road-wb-centerline', 'road-eb-centerline'],
@@ -149,10 +154,6 @@ export function initMap(containerId, data) {
           },
         },
       ],
-      terrain: {
-        source: 'terrainSource',
-        exaggeration: 1.5,
-      },
       sky: {},
     },
     center: [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2],
@@ -175,8 +176,7 @@ export function initMap(containerId, data) {
   }
 
   map.on('load', () => {
-    applyRouteBoundsCamera(map, bounds);
-    setupRouteIntroOrbit(map, bounds);
+    map.setTerrain(null);
     addRoadCenterlineLayers(map, data.road);
     addFiberLayer(map, data.fiberRoute);
     addMilepostLayers(map, data.mileposts);
@@ -185,6 +185,7 @@ export function initMap(containerId, data) {
     addCanyonIntroHighlightLayers(map);
     setupCanyonIntroHighlightLifecycle(map);
     applyDefaultLayerVisibility(map);
+    runCinematicRouteRevealThenSpin(map, bounds);
     const attrib = map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact');
     if (attrib) {
       attrib.classList.remove('maplibregl-compact-show');
@@ -196,54 +197,83 @@ export function initMap(containerId, data) {
 }
 
 /**
- * Fit the camera to the route with padding and default bearing/pitch (pitch affects visible area).
- * Applies a small zoom nudge after fit so the route fills more of the screen when capped by maxZoom.
+ * Frame the route at top-down pitch first (no terrain yet), then ease into tilt and enable terrain
+ * before starting a slow continuous bearing spin until the user interacts.
  */
-function applyRouteBoundsCamera(map, bounds) {
+function runCinematicRouteRevealThenSpin(map, bounds) {
   if (!bounds || bounds[0] > bounds[2] || bounds[1] > bounds[3]) return;
+  if (typeof window === 'undefined') return;
+
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
   const b = [
     [bounds[0], bounds[1]],
     [bounds[2], bounds[3]],
   ];
-  map.fitBounds(b, {
-    padding: { top: 36, bottom: 44, left: 44, right: 44 },
-    bearing: DEFAULT_VIEW_BEARING,
-    pitch: DEFAULT_VIEW_PITCH,
-    maxZoom: FIT_BOUNDS_MAX_ZOOM,
-    linear: true,
-    duration: 0,
-  });
-  const z = map.getZoom();
-  const minZ = map.getMinZoom?.() ?? 0;
-  map.setZoom(Math.max(minZ, z + FIT_BOUNDS_ZOOM_NUDGE));
-}
 
-function routeCenterLngLat(bounds) {
-  if (!bounds || bounds[0] > bounds[2] || bounds[1] > bounds[3]) return null;
-  return new maplibregl.LngLat((bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2);
+  const cam = map.cameraForBounds(b, {
+    padding: CINEMATIC_REVEAL_PADDING,
+    bearing: DEFAULT_VIEW_BEARING,
+    pitch: 0,
+    maxZoom: FIT_BOUNDS_MAX_ZOOM,
+  });
+  if (!cam?.center || cam.zoom == null) return;
+
+  const minZ = map.getMinZoom?.() ?? 0;
+  const zoom = Math.max(minZ, cam.zoom + FIT_BOUNDS_ZOOM_NUDGE);
+
+  if (reducedMotion) {
+    map.jumpTo({
+      center: cam.center,
+      zoom,
+      bearing: DEFAULT_VIEW_BEARING,
+      pitch: DEFAULT_VIEW_PITCH,
+    });
+    map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
+    return;
+  }
+
+  map.jumpTo({
+    center: cam.center,
+    zoom,
+    bearing: DEFAULT_VIEW_BEARING,
+    pitch: 0,
+  });
+
+  function enableTerrainAndSpin() {
+    map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
+    window.requestAnimationFrame(() => map.resize());
+    setupRouteIntroSpinContinuous(map);
+  }
+
+  function easeIntoPitch() {
+    map.easeTo({
+      pitch: DEFAULT_VIEW_PITCH,
+      duration: CINEMATIC_PITCH_EASE_MS,
+      easing: (t) => 1 - (1 - t) ** 2.35,
+      essential: true,
+    });
+    map.once('moveend', enableTerrainAndSpin);
+  }
+
+  map.once('idle', easeIntoPitch);
 }
 
 /**
- * Slow 360° orbit around the route bbox center. Two 180° legs so bearing normalization cannot shorten the path.
- * Any real user pan/zoom/rotate (or click / wheel on the map canvas) stops the animation via map.stop().
+ * Very slow continuous bearing change until the user pans, zooms, rotates, pitches, box-zooms,
+ * clicks, or scrolls the map canvas.
  */
-function setupRouteIntroOrbit(map, bounds) {
-  const center = routeCenterLngLat(bounds);
-  if (!center || typeof window === 'undefined') return;
+function setupRouteIntroSpinContinuous(map) {
+  if (typeof window === 'undefined') return;
 
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
   if (reducedMotion) return;
 
   let finished = false;
-
-  const easeOpts = (bearing) => ({
-    bearing,
-    duration: ROUTE_INTRO_ORBIT_HALF_MS,
-    easing: (t) => t,
-    around: center,
-    essential: true,
-    freezeElevation: true,
-  });
+  /** @type {number} */
+  let rafId = 0;
+  let spinBearing = map.getBearing();
+  let lastT = globalThis.performance.now();
 
   function cleanupListeners() {
     map.off('dragstart', onMapGesture);
@@ -261,6 +291,8 @@ function setupRouteIntroOrbit(map, bounds) {
   function teardown() {
     if (finished) return;
     finished = true;
+    if (rafId) globalThis.cancelAnimationFrame(rafId);
+    rafId = 0;
     cleanupListeners();
   }
 
@@ -298,24 +330,18 @@ function setupRouteIntroOrbit(map, bounds) {
     canvas.addEventListener('wheel', onCanvasWheel, { passive: true, capture: true });
   }
 
-  map.once('idle', () => {
+  function tick(now) {
     if (finished) return;
+    const t = now ?? globalThis.performance.now();
+    const dt = Math.min(0.05, Math.max(0, (t - lastT) / 1000));
+    lastT = t;
+    spinBearing += ROUTE_INTRO_SPIN_DEG_PER_SEC * dt;
+    spinBearing = ((spinBearing % 360) + 360) % 360;
+    map.setBearing(spinBearing);
+    rafId = globalThis.requestAnimationFrame(tick);
+  }
 
-    const start = map.getBearing();
-    const mid = start + 180;
-    const end = mid + 180;
-
-    map.rotateTo(mid, easeOpts(mid));
-
-    map.once('moveend', () => {
-      if (finished) return;
-      map.rotateTo(end, easeOpts(end));
-      map.once('moveend', () => {
-        if (finished) return;
-        teardown();
-      });
-    });
-  });
+  rafId = globalThis.requestAnimationFrame(tick);
 }
 
 function setLayerVisibility(map, layerId, visible) {
