@@ -16,7 +16,10 @@ export async function runSplashGate(loadData) {
   }
 
   // Automation / dev: skip modal so headless browsers can load the dashboard directly.
-  if (typeof window !== 'undefined' && new window.URLSearchParams(window.location.search).has('nosplash')) {
+  if (
+    typeof window !== 'undefined'
+    && new window.URLSearchParams(window.location?.search ?? '').has('nosplash')
+  ) {
     root.hidden = true;
     root.setAttribute('aria-hidden', 'true');
     return loadData();
@@ -30,30 +33,33 @@ export async function runSplashGate(loadData) {
     dataReady = true;
   });
 
-  btn.addEventListener(
-    'click',
-    async () => {
-      if (!dataReady) {
-        btn.disabled = true;
-        btn.textContent = 'Loading route data…';
+  return new Promise((resolve, reject) => {
+    btn.addEventListener(
+      'click',
+      async () => {
         try {
-          await dataPromise;
-        } catch {
-          /* loadData may reject; boot() will surface errors */
+          if (!dataReady) {
+            btn.disabled = true;
+            btn.textContent = 'Loading route data…';
+          }
+          const data = await dataPromise;
+          root.hidden = true;
+          root.setAttribute('aria-hidden', 'true');
+          app.removeAttribute('inert');
+          btn.disabled = false;
+          btn.textContent = 'Continue';
+          resolve(data);
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = 'Continue';
+          reject(err);
         }
-      }
-      root.hidden = true;
-      root.setAttribute('aria-hidden', 'true');
-      app.removeAttribute('inert');
-      btn.disabled = false;
-      btn.textContent = 'Continue';
-    },
-    { once: true },
-  );
+      },
+      { once: true },
+    );
 
-  window.requestAnimationFrame(() => {
-    btn.focus();
+    window.requestAnimationFrame(() => {
+      btn.focus();
+    });
   });
-
-  return dataPromise;
 }
