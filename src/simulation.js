@@ -306,7 +306,7 @@ export function createSimulation(data, targets) {
 
     vehicles = vehicles.filter((v) => !v.dead);
     if (selectedVehicleId && !vehicleById(selectedVehicleId)) {
-      setSelectedVehicleId(vehicles[0]?.id ?? null);
+      setSelectedVehicleId(null);
     }
 
     for (const v of vehicles) {
@@ -657,7 +657,6 @@ export function createSimulation(data, targets) {
         : nearestPointOnLanes(laneEb, laneWb, lng, lat);
       if (!snap || snap.distanceM > LAB_SNAP_MAX_M) return null;
       const v = spawnUserVehicleAtRoad(snap.laneKey, snap.roadDistM, { ...merged, userPlaced: true });
-      if (v) setSelectedVehicleId(v.id);
       return v;
     }
     let best = -1;
@@ -675,14 +674,13 @@ export function createSimulation(data, targets) {
     if (best < 0) return null;
     const dir = merged.direction || (Math.random() > 0.5 ? 'up_canyon' : 'down_canyon');
     const v = spawnUserVehicleLegacy(best, dir, { ...merged, userPlaced: true });
-    if (v) setSelectedVehicleId(v.id);
     return v;
   }
 
   function removeVehicle(id) {
     const before = vehicles.length;
     vehicles = vehicles.filter((v) => v.id !== id);
-    if (selectedVehicleId === id) setSelectedVehicleId(vehicles[0]?.id ?? null);
+    if (selectedVehicleId === id) setSelectedVehicleId(null);
     if (dragVehicleId === id) dragVehicleId = null;
     syncVehicleCallouts(targets.map, vehicles, selectedVehicleId);
     return vehicles.length < before;
@@ -734,7 +732,6 @@ export function createSimulation(data, targets) {
         });
       }
     }
-    setSelectedVehicleId(vehicles[0]?.id ?? null);
 
     if (vehicles.length > 0) {
       const ch = Math.floor(vehicles[0].channelPos);
