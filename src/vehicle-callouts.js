@@ -3,6 +3,7 @@
  * screen-space offsets to reduce overlap, pole from flag down to vehicle scales with zoom.
  */
 import maplibregl from 'maplibre-gl';
+import { fleetDisplayNumberFromId } from './fleet-display-id.js';
 import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
 
 const MARKERS = new Map();
@@ -40,7 +41,7 @@ function buildEl(id, laneKey, speedMph) {
 
   const line1 = document.createElement('span');
   line1.className = 'vehicle-callout-id';
-  line1.textContent = id;
+  line1.textContent = fleetDisplayNumberFromId(id);
 
   const line2 = document.createElement('span');
   line2.className = 'vehicle-callout-meta';
@@ -78,7 +79,7 @@ function terrainRidgeExtraPx(map, vehicleLng, vehicleLat, flagLng, flagLat) {
 
 function measureFlagBox(el) {
   const flag = el.querySelector('.vehicle-callout-flag');
-  if (!flag) return { w: 88, h: 36 };
+  if (!flag) return { w: 64, h: 28 };
   const r = flag.getBoundingClientRect();
   return { w: r.width || 88, h: r.height || 36 };
 }
@@ -193,7 +194,7 @@ export function syncVehicleCallouts(map, vehicles, selectedVehicleId = null) {
       const el = m.getElement();
       const idEl = el.querySelector('.vehicle-callout-id');
       const metaEl = el.querySelector('.vehicle-callout-meta');
-      if (idEl) idEl.textContent = v.id;
+      if (idEl) idEl.textContent = fleetDisplayNumberFromId(v.id);
       if (metaEl) {
         const dir = v.laneKey === 'wb' ? 'WB' : 'EB';
         metaEl.textContent = `${dir} · ${Math.round(v.speedMph)} mph`;
