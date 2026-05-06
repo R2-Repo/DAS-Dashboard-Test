@@ -40,6 +40,9 @@ const MPH_TO_MS = 0.44704;
 /** Extra Δchannels/tick in waterfall stamping so tracks read diagonal when road ≈ fiber. */
 const WATERFALL_DIAGONAL_SKEW = 0.78;
 
+/** Low-pass fiber-channel coordinate for DAS rows — quiets sparkle when coupling zigzags vs road centerline. */
+const WATERFALL_CHANNEL_EMA = 0.34;
+
 /** Lookahead distance (m) for curve speed — slow before the bend. */
 const CURVE_LOOKAHEAD_M = 45;
 
@@ -364,9 +367,16 @@ export function createSimulation(data, targets) {
     }
 
     for (const v of vehicles) {
-      const center = v.channelPos;
-      const prev = typeof v.prevChannelPos === 'number' ? v.prevChannelPos : center;
-      v.prevChannelPos = center;
+      const rawCh = v.channelPos;
+      if (typeof v.waterfallChannelPos !== 'number') {
+        v.waterfallChannelPos = rawCh;
+      } else {
+        v.waterfallChannelPos += WATERFALL_CHANNEL_EMA * (rawCh - v.waterfallChannelPos);
+      }
+      const center = v.waterfallChannelPos;
+      const prev =
+        typeof v.prevWaterfallChannelPos === 'number' ? v.prevWaterfallChannelPos : center;
+      v.prevWaterfallChannelPos = center;
 
       const { halfWidth, strength } = vehicleDasFootprint(v.vehicleType);
       const mph = Math.max(0, v.speedMph);
@@ -550,7 +560,8 @@ export function createSimulation(data, targets) {
       direction,
       roadDistM: roadM,
       channelPos,
-      prevChannelPos: channelPos,
+      waterfallChannelPos: channelPos,
+      prevWaterfallChannelPos: channelPos,
       lon,
       lat,
       channelsPerTick: mphToChannelsPerTick(speedMph),
@@ -578,7 +589,8 @@ export function createSimulation(data, targets) {
       direction,
       roadDistM: cp * CHANNEL_SPACING_M,
       channelPos: cp,
-      prevChannelPos: cp,
+      waterfallChannelPos: cp,
+      prevWaterfallChannelPos: cp,
       lon: ch.lon,
       lat: ch.lat,
       channelsPerTick: mphToChannelsPerTick(speedMph),
@@ -616,8 +628,9 @@ export function createSimulation(data, targets) {
         roadDistanceToChannelPos(lane, roadM),
         totalChannels,
       );
-      existing.prevChannelPos = existing.channelPos;
       existing.channelPos = newCp;
+      existing.waterfallChannelPos = newCp;
+      existing.prevWaterfallChannelPos = newCp;
       const ll = lonLatAtRoadDistance(lane, roadM);
       existing.lon = ll[0];
       existing.lat = ll[1];
@@ -653,8 +666,9 @@ export function createSimulation(data, targets) {
       }
     }
     if (best < 0) return false;
-    existing.prevChannelPos = existing.channelPos;
     existing.channelPos = best;
+    existing.waterfallChannelPos = best;
+    existing.prevWaterfallChannelPos = best;
     existing.roadDistM = best * CHANNEL_SPACING_M;
     existing.lon = channels[best].lon;
     existing.lat = channels[best].lat;
@@ -790,7 +804,8 @@ export function createSimulation(data, targets) {
       roadDistanceToChannelPos(newLane, roadM),
       totalChannels,
     );
-    v.prevChannelPos = v.channelPos;
+    v.waterfallChannelPos = v.channelPos;
+    v.prevWaterfallChannelPos = v.channelPos;
     const ll = lonLatAtRoadDistance(newLane, roadM);
     v.lon = ll[0];
     v.lat = ll[1];

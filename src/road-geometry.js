@@ -144,6 +144,26 @@ function buildChannelAlong(points, channels) {
   return along;
 }
 
+/** Moving average on fiber channel index vs arc length — dampens zigzag where road meanders vs fiber. */
+function smoothChannelAlongSamples(along, radius) {
+  const n = along.length;
+  if (n < 1 || radius < 1) return;
+  const tmp = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let sum = 0;
+    let cnt = 0;
+    for (let j = -radius; j <= radius; j++) {
+      const k = i + j;
+      if (k >= 0 && k < n) {
+        sum += along[k];
+        cnt++;
+      }
+    }
+    tmp[i] = cnt > 0 ? sum / cnt : along[i];
+  }
+  along.set(tmp);
+}
+
 /** Initial bearing from a to b in radians, clockwise from geographic north (WGS84 sphere). */
 function bearingRad(a, b) {
   const φ1 = (a[1] * Math.PI) / 180;
@@ -213,6 +233,7 @@ export function buildRoadMotionModel(roadGeojson, channels) {
 
     const { points, cumDistM } = resamplePolyline(coords, SAMPLE_SPACING_M);
     const channelAlong = buildChannelAlong(points, channels);
+    smoothChannelAlongSamples(channelAlong, 5);
     const curvature = buildCurvaturePerM(points);
     smoothCurvatureMovingAverage(curvature, 3);
     const totalM = cumDistM[cumDistM.length - 1];
@@ -399,23 +420,24 @@ export function bearingDegClockwiseFromNorthLonLat(lon0, lat0, lon1, lat1) {
   return ((deg % 360) + 360) % 360;
 }
 
+/** Half-width (m) for chord-based tangent — averages over several 2 m samples so headings are not stair-stepped. */
+const TRAVEL_BEARING_SMOOTH_HALF_M = 9;
+
 /**
  * Travel direction bearing at `roadDistM` along lane polyline.
  * `direction` is `up_canyon` | `down_canyon` (same convention as simulation).
+ * Uses a finite chord along the centerline so orientation follows a smoothed tangent (large footprints stay aligned).
  */
 export function travelBearingDegAtRoadDistance(lane, roadDistM, direction) {
   if (!lane?.points?.length) return 0;
   const fwd = roadForwardSignForDirection(lane, direction);
-  const idx = roadDistanceToSampleIndex(lane, roadDistM);
-  let i0 = Math.floor(idx);
-  let i1 = Math.min(i0 + 1, lane.points.length - 1);
-  if (i1 <= i0 && i0 > 0) {
-    i1 = i0;
-    i0 = i0 - 1;
-  }
-  const p0 = lane.points[i0];
-  const p1 = lane.points[i1];
-  let deg = bearingDegClockwiseFromNorthLonLat(p0[0], p0[1], p1[0], p1[1]);
+  const maxS = lane.cumDistM[lane.cumDistM.length - 1];
+  const s = Math.max(0, Math.min(maxS, roadDistM));
+  const sA = Math.max(0, s - TRAVEL_BEARING_SMOOTH_HALF_M);
+  const sB = Math.min(maxS, s + TRAVEL_BEARING_SMOOTH_HALF_M);
+  const pA = lonLatAtRoadDistance(lane, sA);
+  const pB = lonLatAtRoadDistance(lane, sB);
+  let deg = bearingDegClockwiseFromNorthLonLat(pA[0], pA[1], pB[0], pB[1]);
   if (fwd < 0) deg = (deg + 180) % 360;
   return deg;
 }
