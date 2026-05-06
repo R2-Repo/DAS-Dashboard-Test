@@ -13,12 +13,10 @@
  * colour range, washing out the vehicle diagonal traces.
  *
  * Interaction:
- *   - Mouse wheel  → horizontal scroll (pan along the fiber)
- *   - Shift+wheel  → focal zoom (channel under cursor stays fixed)
- *   - Ctrl/⌘+wheel → focal zoom (same as Shift+wheel)
- *   - Left-drag    → horizontal pan
- *   - Click        → pick channel → fly map to that fiber location
- *   - Touch: one finger pan, two-finger pinch zoom
+ *   - Mouse wheel / trackpad scroll → focal zoom (channel under cursor stays fixed; fast steps)
+ *   - Ctrl/⌘+wheel → same zoom (browser zoom-chord compatibility)
+ *   - Touch: two-finger pinch zoom (no one-finger pan on the plot)
+ *   - Click / tap → zoom plot toward that channel + notify host (map flies to fiber location)
  *
  * Sim / display (not interrogator PRF):
  *   - 2m channel spacing
@@ -124,16 +122,20 @@ export function initWaterfall(canvasId, data, options = {}) {
     ? options.onPlotChannelPick
     : null;
 
-  /** Mouse: left-drag horizontal pan; distinguish from click-to-focus-map. */
-  let wfMousePan = null; // { pointerId, originClientX, originViewStart, movedPx }
+  /** Mouse: distinguish tiny jitter from intentional click-to-zoom. */
+  let wfMouseDown = null; // { pointerId, originClientX, movedPx }
   let wfPanPickSuppressed = false;
 
-  /** One-finger pan / two-finger pinch on the waterfall (touch). */
-  let wfTouchPan = null; // { pointerId, lastClientX }
+  /** Two-finger pinch on the waterfall (touch); no one-finger plot pan. */
   let wfPinch = null; // { idA, idB, dist0, range0, centerCh }
 
-  /** Defer single-click so a quick second click does not move the map twice. */
+  /** Defer single-click so a quick second tap does not fire twice. */
   let plotPickTimer = null;
+
+  /** When tracking a vehicle channel, keep it inside the horizontal view each frame. */
+  let trackChannel = null;
+  /** Inner margin in channel units — scroll before the marker hits the plot edge. */
+  const TRACK_EDGE_MARGIN_CH = 6;
 
   function setHighlightChannel(ch) {
     if (ch === null || ch === undefined) {
@@ -153,6 +155,59 @@ export function initWaterfall(canvasId, data, options = {}) {
     viewStart = Math.max(0, ci - Math.floor(range / 2));
     viewEnd = Math.min(totalChannels, viewStart + range);
     if (viewEnd - viewStart < range) viewStart = Math.max(0, viewEnd - range);
+  }
+
+  /** Follow `ch` horizontally when zoomed; keeps the channel inside the view with margin. */
+  function scrollTrackChannelIntoView(ch) {
+    if (!Number.isFinite(ch)) return;
+    const ci = Math.max(0, Math.min(totalChannels - 1, Math.floor(ch)));
+    const range = viewEnd - viewStart;
+    if (!(range > 0)) return;
+    const margin = Math.min(TRACK_EDGE_MARGIN_CH, Math.max(0, Math.floor(range * 0.06)));
+    const lo = viewStart + margin;
+    const hi = viewEnd - 1 - margin;
+    if (ci >= lo && ci <= hi) return;
+    let start = viewStart;
+    if (ci < lo) start = ci - margin;
+    else if (ci > hi) start = ci - range + 1 + margin;
+    start = Math.max(0, Math.min(totalChannels - range, Math.floor(start)));
+    viewStart = start;
+    viewEnd = Math.min(totalChannels, viewStart + range);
+    if (viewEnd - viewStart < range) viewStart = Math.max(0, viewEnd - range);
+  }
+
+  function setTrackChannel(ch) {
+    if (ch === null || ch === undefined) {
+      trackChannel = null;
+      return;
+    }
+    const n = Math.floor(Number(ch));
+    trackChannel = Number.isFinite(n) ? Math.max(0, Math.min(totalChannels - 1, n)) : null;
+  }
+
+  /** Zoom toward channel index `ch` (integer), keeping position roughly centered when possible. */
+  function zoomViewportTowardChannel(ch, factor) {
+    if (!Number.isFinite(ch)) return;
+    const ci = Math.max(0, Math.min(totalChannels - 1, Math.floor(ch)));
+    const range = viewEnd - viewStart;
+    if (!(range > 0)) return;
+    let newRange = Math.round(range / factor);
+    newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(MAX_VIEW_CHANNELS, newRange));
+    if (newRange === range) return;
+    const frac = (viewEnd - 1 - ci) / range;
+    let newEnd = ci + 1 + frac * newRange;
+    let newStart = newEnd - newRange;
+    if (!Number.isFinite(newStart) || !Number.isFinite(newEnd)) return;
+    if (newStart < 0) {
+      newStart = 0;
+      newEnd = Math.min(totalChannels, newStart + newRange);
+    }
+    if (newEnd > totalChannels) {
+      newEnd = totalChannels;
+      newStart = Math.max(0, newEnd - newRange);
+    }
+    viewStart = Math.floor(newStart);
+    viewEnd = Math.ceil(newEnd);
   }
 
   // === Per-channel static noise profile ===
@@ -261,28 +316,16 @@ export function initWaterfall(canvasId, data, options = {}) {
     }
   }
 
-  /** Scroll/pan horizontally by channel delta (positive = view moves toward higher channel indices / right side of plot). */
-  function applyHorizontalScroll(deltaCh) {
-    resetViewIfInvalid();
-    const range = viewEnd - viewStart;
-    if (range <= 0) return;
-    viewStart = Math.max(0, viewStart + deltaCh);
-    viewEnd = Math.min(totalChannels, viewEnd + deltaCh);
-    if (viewEnd - viewStart < range) {
-      if (viewStart === 0) viewEnd = Math.min(totalChannels, viewStart + range);
-      else if (viewEnd === totalChannels) viewStart = Math.max(0, viewEnd - range);
-    }
-  }
-
   /** Zoom so channel under `clientX` stays fixed; `deltaY` > 0 zooms out (wider view). */
-  function applyWheelZoomAtClientX(clientX, deltaY, shiftKey) {
+  function applyWheelZoomAtClientX(clientX, deltaY) {
     const range = viewEnd - viewStart;
     if (!(range > 0)) return;
     const focal = floatChannelFromClientX(clientX);
     if (focal === null || !Number.isFinite(focal)) return;
     const sign = Math.sign(deltaY);
-    const strong = shiftKey ? 1.14 : 1.09;
-    let newRange = sign > 0 ? range * strong : range / strong;
+    const zoomInFactor = 1.26;
+    const zoomOutFactor = 1.22;
+    let newRange = sign > 0 ? range * zoomOutFactor : range / zoomInFactor;
     newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(MAX_VIEW_CHANNELS, Math.round(newRange)));
     if (!Number.isFinite(newRange) || newRange < 1) return;
     const frac = (viewEnd - 1 - focal) / range;
@@ -311,8 +354,11 @@ export function initWaterfall(canvasId, data, options = {}) {
         return;
       }
       const ch = channelFromClientX(clientX);
-      if (ch !== null) plotChannelPickCallback(ch);
-    }, 300);
+      if (ch === null) return;
+      zoomViewportTowardChannel(ch, 1.38);
+      plotChannelPickCallback(ch);
+      requestRender();
+    }, 280);
   }
 
   function cancelScheduledPlotPick() {
@@ -322,26 +368,33 @@ export function initWaterfall(canvasId, data, options = {}) {
     }
   }
 
+  /** Coalesce redraws during wheel / pinch so the heatmap tracks the view immediately. */
+  let renderRaf = 0;
+  function requestRender() {
+    if (renderRaf) return;
+    renderRaf = globalThis.requestAnimationFrame(() => {
+      renderRaf = 0;
+      render();
+    });
+  }
+
   resize();
   window.addEventListener('resize', resize);
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    if (e.shiftKey || e.ctrlKey || e.metaKey) {
-      applyWheelZoomAtClientX(e.clientX, e.deltaY, true);
-    } else {
-      const range = viewEnd - viewStart;
-      const delta = Math.sign(e.deltaY) * Math.max(4, Math.floor(range * 0.04));
-      applyHorizontalScroll(delta);
-    }
+    applyWheelZoomAtClientX(e.clientX, e.deltaY);
+    requestRender();
   }, { passive: false });
+
+  /** Single-finger tap target (plot zoom + map fly); cleared when a second finger joins (pinch). */
+  let wfTouchTap = null;
 
   canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button === 0) {
-      wfMousePan = {
+      wfMouseDown = {
         pointerId: e.pointerId,
         originClientX: e.clientX,
-        originViewStart: viewStart,
         movedPx: 0,
       };
       wfPanPickSuppressed = false;
@@ -360,7 +413,7 @@ export function initWaterfall(canvasId, data, options = {}) {
       activeTouchX.set(e.pointerId, e.clientX);
 
       if (activeTouchX.size === 2) {
-        wfTouchPan = null;
+        wfTouchTap = null;
         const ids = [...activeTouchX.keys()];
         const x0 = activeTouchX.get(ids[0]);
         const x1 = activeTouchX.get(ids[1]);
@@ -377,42 +430,34 @@ export function initWaterfall(canvasId, data, options = {}) {
         }
       } else if (activeTouchX.size === 1) {
         wfPinch = null;
-        wfTouchPan = { pointerId: e.pointerId, lastClientX: e.clientX };
+        wfTouchTap = {
+          pointerId: e.pointerId,
+          originX: e.clientX,
+          movedPx: 0,
+        };
       }
     }
     hoveredChannel = channelFromClientX(e.clientX);
   });
 
   canvas.addEventListener('pointermove', (e) => {
-    if (wfMousePan && e.pointerId === wfMousePan.pointerId && e.pointerType === 'mouse') {
-      const dx = e.clientX - wfMousePan.originClientX;
-      wfMousePan.movedPx = Math.max(wfMousePan.movedPx, Math.abs(dx));
-      if (wfMousePan.movedPx > 6) {
+    if (wfMouseDown && e.pointerId === wfMouseDown.pointerId && e.pointerType === 'mouse') {
+      const dx = e.clientX - wfMouseDown.originClientX;
+      wfMouseDown.movedPx = Math.max(wfMouseDown.movedPx, Math.abs(dx));
+      if (wfMouseDown.movedPx > 8) {
         wfPanPickSuppressed = true;
         cancelScheduledPlotPick();
-      }
-      const w = canvas.width || canvas.getBoundingClientRect().width;
-      const range = viewEnd - viewStart;
-      if (w > 0 && range > 0 && wfMousePan.movedPx > 2) {
-        const deltaCh = Math.round(-dx * (range / w));
-        if (deltaCh !== 0) {
-          viewStart = wfMousePan.originViewStart + deltaCh;
-          viewEnd = viewStart + range;
-          wfMousePan.originClientX = e.clientX;
-          wfMousePan.originViewStart = viewStart;
-          if (viewStart < 0) {
-            viewStart = 0;
-            viewEnd = Math.min(totalChannels, range);
-          }
-          if (viewEnd > totalChannels) {
-            viewEnd = totalChannels;
-            viewStart = Math.max(0, viewEnd - range);
-          }
-        }
       }
     }
     if (e.pointerType === 'touch' && activeTouchX.has(e.pointerId)) {
       activeTouchX.set(e.pointerId, e.clientX);
+
+      if (wfTouchTap && e.pointerId === wfTouchTap.pointerId) {
+        wfTouchTap.movedPx = Math.max(
+          wfTouchTap.movedPx,
+          Math.abs(e.clientX - wfTouchTap.originX),
+        );
+      }
 
       if (wfPinch && activeTouchX.has(wfPinch.idA) && activeTouchX.has(wfPinch.idB)) {
         const xa = activeTouchX.get(wfPinch.idA);
@@ -420,29 +465,14 @@ export function initWaterfall(canvasId, data, options = {}) {
         const dist = Math.abs(xb - xa);
         if (wfPinch.dist0 > 1 && dist > 1) {
           let newRange = Math.round(wfPinch.range0 * (wfPinch.dist0 / dist));
-          newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(totalChannels, newRange));
+          newRange = Math.max(MIN_VIEW_CHANNELS, Math.min(MAX_VIEW_CHANNELS, newRange));
           const c = wfPinch.centerCh;
           if (Number.isFinite(c) && Number.isFinite(newRange)) {
             viewStart = Math.max(0, Math.floor(c - newRange / 2));
             viewEnd = Math.min(totalChannels, viewStart + newRange);
             if (viewEnd - viewStart < newRange) viewStart = Math.max(0, viewEnd - newRange);
           }
-        }
-      } else if (wfTouchPan && e.pointerId === wfTouchPan.pointerId && activeTouchX.size === 1) {
-        const w = canvas.width || canvas.getBoundingClientRect().width;
-        const range = viewEnd - viewStart;
-        if (w > 0 && range > 0) {
-          const dx = e.clientX - wfTouchPan.lastClientX;
-          wfTouchPan.lastClientX = e.clientX;
-          const deltaCh = Math.round(-dx * (range / w));
-          if (deltaCh !== 0) {
-            viewStart = Math.max(0, viewStart + deltaCh);
-            viewEnd = Math.min(totalChannels, viewEnd + deltaCh);
-            if (viewEnd - viewStart < range) {
-              if (viewStart === 0) viewEnd = Math.min(totalChannels, viewStart + range);
-              else if (viewEnd === totalChannels) viewStart = Math.max(0, viewEnd - range);
-            }
-          }
+          requestRender();
         }
       }
     }
@@ -455,29 +485,43 @@ export function initWaterfall(canvasId, data, options = {}) {
   });
 
   canvas.addEventListener('pointerup', (e) => {
-    if (wfMousePan && e.pointerId === wfMousePan.pointerId && e.pointerType === 'mouse') {
-      if (e.button === 0 && wfMousePan.movedPx <= 6 && plotChannelPickCallback) {
+    if (wfMouseDown && e.pointerId === wfMouseDown.pointerId && e.pointerType === 'mouse') {
+      if (e.button === 0 && wfMouseDown.movedPx <= 8 && plotChannelPickCallback) {
         schedulePlotChannelPick(e.clientX);
       }
-      wfMousePan = null;
+      wfMouseDown = null;
       try {
         canvas.releasePointerCapture(e.pointerId);
       } catch {
         /* ignore */
       }
     }
-    activeTouchX.delete(e.pointerId);
-    if (wfTouchPan && wfTouchPan.pointerId === e.pointerId) wfTouchPan = null;
-    if (wfPinch && (e.pointerId === wfPinch.idA || e.pointerId === wfPinch.idB)) wfPinch = null;
+
+    if (e.pointerType === 'touch') {
+      const wasTap = wfTouchTap
+        && e.pointerId === wfTouchTap.pointerId
+        && wfTouchTap.movedPx <= 14
+        && plotChannelPickCallback;
+      activeTouchX.delete(e.pointerId);
+      if (wfPinch && (e.pointerId === wfPinch.idA || e.pointerId === wfPinch.idB)) wfPinch = null;
+      if (wfTouchTap && e.pointerId === wfTouchTap.pointerId) wfTouchTap = null;
+      if (wasTap && activeTouchX.size === 0) {
+        schedulePlotChannelPick(e.clientX);
+      }
+    } else {
+      activeTouchX.delete(e.pointerId);
+      if (wfPinch && (e.pointerId === wfPinch.idA || e.pointerId === wfPinch.idB)) wfPinch = null;
+    }
+
     if (e.pointerType === 'touch' && activeTouchX.size === 0) {
       hoveredChannel = null;
     }
   });
 
   canvas.addEventListener('pointercancel', (e) => {
-    if (wfMousePan && e.pointerId === wfMousePan.pointerId) wfMousePan = null;
+    if (wfMouseDown && e.pointerId === wfMouseDown.pointerId) wfMouseDown = null;
     activeTouchX.delete(e.pointerId);
-    if (wfTouchPan && wfTouchPan.pointerId === e.pointerId) wfTouchPan = null;
+    wfTouchTap = null;
     if (wfPinch && (e.pointerId === wfPinch.idA || e.pointerId === wfPinch.idB)) wfPinch = null;
     hoveredChannel = null;
   });
@@ -499,6 +543,9 @@ export function initWaterfall(canvasId, data, options = {}) {
     if (width === 0 || height === 0) return;
 
     resetViewIfInvalid();
+    if (trackChannel !== null) {
+      scrollTrackChannelIntoView(trackChannel);
+    }
 
     const imageData = ctx.createImageData(width, height);
     const pix = imageData.data;
@@ -559,7 +606,7 @@ export function initWaterfall(canvasId, data, options = {}) {
 
     ctx.putImageData(imageData, 0, 0);
 
-    // Traffic lab: dim off-channel area and draw a band at the vehicle channel
+    // Traffic lab: dim off-channel area and draw a soft neon band + line at the tracked channel
     if (highlightChannel !== null && highlightChannel >= viewStart && highlightChannel < viewEnd) {
       const chanRange = viewEnd - viewStart;
       const xCenter = ((viewEnd - 1 - highlightChannel) / chanRange) * width;
@@ -570,17 +617,20 @@ export function initWaterfall(canvasId, data, options = {}) {
       ctx.fillRect(0, 0, Math.max(0, xLeft), height);
       ctx.fillRect(xRight, 0, Math.max(0, width - xRight), height);
       const grd = ctx.createLinearGradient(xCenter - bandPx / 2, 0, xCenter + bandPx / 2, 0);
-      grd.addColorStop(0, 'rgba(79,195,247,0)');
-      grd.addColorStop(0.5, 'rgba(79,195,247,0.18)');
-      grd.addColorStop(1, 'rgba(79,195,247,0)');
+      grd.addColorStop(0, 'rgba(255,82,82,0)');
+      grd.addColorStop(0.5, 'rgba(255,82,82,0.22)');
+      grd.addColorStop(1, 'rgba(255,82,82,0)');
       ctx.fillStyle = grd;
       ctx.fillRect(xCenter - bandPx / 2, 0, bandPx, height);
-      ctx.strokeStyle = 'rgba(79,195,247,0.65)';
-      ctx.lineWidth = 1;
+      ctx.shadowColor = 'rgba(255, 71, 102, 0.95)';
+      ctx.shadowBlur = 14;
+      ctx.strokeStyle = 'rgba(255, 138, 148, 0.92)';
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(xCenter, 0);
       ctx.lineTo(xCenter, height);
       ctx.stroke();
+      ctx.shadowBlur = 0;
     }
 
     // Fiber–road crossing guides are available in `crossingChannels` but omitted
@@ -654,6 +704,13 @@ export function initWaterfall(canvasId, data, options = {}) {
     plotChannelPickCallback = typeof fn === 'function' ? fn : null;
   }
 
+  /** Zoom in toward a channel (for plot pick / map sync); keeps context like a click on the plot. */
+  function zoomChannelIntoView(ch, factor = 1.35) {
+    if (!Number.isFinite(ch)) return;
+    const ci = Math.max(0, Math.min(totalChannels - 1, Math.floor(ch)));
+    zoomViewportTowardChannel(ci, factor);
+  }
+
   /** Programmatically zoom so [start, end) channels are visible. */
   function setViewRange(start, end) {
     if (!Number.isFinite(start) || !Number.isFinite(end)) return;
@@ -675,7 +732,10 @@ export function initWaterfall(canvasId, data, options = {}) {
     getViewRange: () => [viewStart, viewEnd],
     setViewRange,
     setHighlightChannel,
+    setTrackChannel,
     scrollChannelIntoView,
+    scrollTrackChannelIntoView,
+    zoomChannelIntoView,
     resize,
     setPlotChannelPickCallback,
   };

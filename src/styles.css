@@ -195,7 +195,7 @@ html, body {
 
 /* Waterfall */
 #waterfall-container {
-  height: 300px;
+  height: 330px;
   flex-shrink: 0;
   background: var(--bg-panel);
   border-top: 1px solid var(--border);
@@ -209,30 +209,6 @@ html, body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-}
-
-.waterfall-header {
-  flex-shrink: 0;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 10px 4px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border);
-  letter-spacing: 0.01em;
-}
-
-.waterfall-title {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.waterfall-meta {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  opacity: 0.9;
 }
 
 #waterfall-canvas {
@@ -898,6 +874,8 @@ html, body {
 
 .vehicle-callout-flag {
   --callout-glow-rgb: 41, 182, 246;
+  pointer-events: auto;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 0.05rem;
@@ -919,6 +897,14 @@ html, body {
     0 0 10px rgba(var(--callout-glow-rgb), 0.55),
     0 0 22px rgba(var(--callout-glow-rgb), 0.28),
     0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.vehicle-callout-flag.vehicle-callout-selected {
+  --callout-glow-rgb: 255, 107, 122;
+}
+
+.vehicle-callout-flag.vehicle-callout-selected .vehicle-callout-meta {
+  color: rgba(255, 196, 196, 0.92);
 }
 
 .vehicle-callout-id {
