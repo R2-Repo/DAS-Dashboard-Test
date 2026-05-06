@@ -63,6 +63,22 @@ html, body {
   height: 100%;
 }
 
+/* Covers the map until terrain + tilt settle; fades so users first see 3D + intro route pulse. */
+.map-intro-loading-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: var(--bg-dark);
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 1.65s ease-out;
+}
+
+.map-intro-loading-veil.map-intro-loading-veil--fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Map layer toggle (fiber, mileposts) */
 .map-layer-control {
   position: absolute;
