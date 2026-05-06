@@ -40,8 +40,23 @@ const MPH_TO_MS = 0.44704;
 /** Extra Δchannels/tick in waterfall stamping so tracks read diagonal when road ≈ fiber. */
 const WATERFALL_DIAGONAL_SKEW = 0.78;
 
-/** Low-pass fiber-channel coordinate for DAS rows — quiets sparkle when coupling zigzags vs road centerline. */
-const WATERFALL_CHANNEL_EMA = 0.34;
+/**
+ * Absolute ceiling on fiber-index span for one row's diagonal stitch. Without this, the road→fiber
+ * mapping can imply thousands of channels in a single tick at route folds (esp. near milepost 0),
+ * which paints a false horizontal band across unrelated mileposts.
+ */
+const MAX_WATERFALL_STITCH_SPAN_CH = 380;
+
+/**
+ * Allowed stitch length from observed along-fiber motion this tick plus footprint/skew slack.
+ *
+ * @param {number} rawChannelDelta — |channelPos − previous channelPos| for this vehicle (same tick basis)
+ */
+export function waterfallStitchSpanBudget(rawChannelDelta, halfWidth, skewAlongChannels) {
+  const d = Math.abs(rawChannelDelta);
+  const slack = halfWidth * 2.45 + Math.abs(skewAlongChannels) + 10;
+  return Math.min(MAX_WATERFALL_STITCH_SPAN_CH, Math.max(24, d * 1.42 + slack));
+}
 
 /** Lookahead distance (m) for curve speed — slow before the bend. */
 const CURVE_LOOKAHEAD_M = 45;
@@ -368,40 +383,40 @@ export function createSimulation(data, targets) {
 
     for (const v of vehicles) {
       const rawCh = v.channelPos;
-      if (typeof v.waterfallChannelPos !== 'number') {
-        v.waterfallChannelPos = rawCh;
-      } else {
-        v.waterfallChannelPos += WATERFALL_CHANNEL_EMA * (rawCh - v.waterfallChannelPos);
-      }
-      const center = v.waterfallChannelPos;
-      const prev =
-        typeof v.prevWaterfallChannelPos === 'number' ? v.prevWaterfallChannelPos : center;
-      v.prevWaterfallChannelPos = center;
+      const prevStamp =
+        typeof v.prevStampChannelPos === 'number' ? v.prevStampChannelPos : rawCh;
 
       const { halfWidth, strength } = vehicleDasFootprint(v.vehicleType);
       const mph = Math.max(0, v.speedMph);
       const speedCoupling = 0.82 + 0.18 * Math.min(1, mph / 42);
       const classHeat = vehicleDasClassHeat(v.vehicleType);
-      const microRipple = 0.92 + 0.08 * Math.sin(center * 0.11 + tickCount * 0.17 + v.id.length * 0.31);
+      const microRipple =
+        0.92 + 0.08 * Math.sin(rawCh * 0.11 + tickCount * 0.17 + v.id.length * 0.31);
       let peakStrength =
         strength * classHeat * microRipple * (0.96 + Math.random() * 0.04) * speedCoupling;
 
       const cpt =
         typeof v.channelsPerTick === 'number' && v.channelsPerTick > 0
           ? v.channelsPerTick
-          : mphToChannelsPerTick(Math.max(1, mph));
+          : mph > 0.75
+            ? mphToChannelsPerTick(mph)
+            : 0;
       const skewSign = v.direction === 'up_canyon' ? 1 : -1;
       const skew = skewSign * WATERFALL_DIAGONAL_SKEW * cpt;
-      const stampPrev = prev - skew * 0.5;
-      const stampCenter = center + skew * 0.5;
+      const stampPrev = prevStamp - skew * 0.5;
+      const stampCenter = rawCh + skew * 0.5;
 
       const delta = stampCenter - stampPrev;
       const pathLen = Math.abs(delta);
-      if (pathLen < 0.02) {
+      const rawMotionCh = Math.abs(rawCh - prevStamp);
+      const maxBridgeCh = waterfallStitchSpanBudget(rawMotionCh, halfWidth, skew);
+
+      if (pathLen > maxBridgeCh) {
+        stampVehicleEnergyAt(stampCenter, peakStrength, halfWidth);
+      } else if (pathLen < 0.02) {
         stampVehicleEnergyAt(stampCenter, peakStrength, halfWidth);
       } else {
         const nSteps = Math.min(40, Math.max(2, Math.ceil(pathLen * 3 + 4)));
-        // Old 1/sqrt(n) made each sub-step so weak that diagonals sat in cyan/green only.
         const stackScale = 1 / Math.pow(nSteps, 0.15);
         for (let s = 0; s < nSteps; s++) {
           const u = nSteps === 1 ? 1 : s / (nSteps - 1);
@@ -410,6 +425,8 @@ export function createSimulation(data, targets) {
           stampVehicleEnergyAt(pos, peakStrength * along * stackScale, halfWidth);
         }
       }
+
+      v.prevStampChannelPos = rawCh;
     }
 
     for (const a of anomalies) {
@@ -560,8 +577,7 @@ export function createSimulation(data, targets) {
       direction,
       roadDistM: roadM,
       channelPos,
-      waterfallChannelPos: channelPos,
-      prevWaterfallChannelPos: channelPos,
+      prevStampChannelPos: channelPos,
       lon,
       lat,
       channelsPerTick: mphToChannelsPerTick(speedMph),
@@ -589,8 +605,7 @@ export function createSimulation(data, targets) {
       direction,
       roadDistM: cp * CHANNEL_SPACING_M,
       channelPos: cp,
-      waterfallChannelPos: cp,
-      prevWaterfallChannelPos: cp,
+      prevStampChannelPos: cp,
       lon: ch.lon,
       lat: ch.lat,
       channelsPerTick: mphToChannelsPerTick(speedMph),
@@ -629,8 +644,7 @@ export function createSimulation(data, targets) {
         totalChannels,
       );
       existing.channelPos = newCp;
-      existing.waterfallChannelPos = newCp;
-      existing.prevWaterfallChannelPos = newCp;
+      existing.prevStampChannelPos = newCp;
       const ll = lonLatAtRoadDistance(lane, roadM);
       existing.lon = ll[0];
       existing.lat = ll[1];
@@ -667,8 +681,7 @@ export function createSimulation(data, targets) {
     }
     if (best < 0) return false;
     existing.channelPos = best;
-    existing.waterfallChannelPos = best;
-    existing.prevWaterfallChannelPos = best;
+    existing.prevStampChannelPos = best;
     existing.roadDistM = best * CHANNEL_SPACING_M;
     existing.lon = channels[best].lon;
     existing.lat = channels[best].lat;
@@ -804,8 +817,7 @@ export function createSimulation(data, targets) {
       roadDistanceToChannelPos(newLane, roadM),
       totalChannels,
     );
-    v.waterfallChannelPos = v.channelPos;
-    v.prevWaterfallChannelPos = v.channelPos;
+    v.prevStampChannelPos = v.channelPos;
     const ll = lonLatAtRoadDistance(newLane, roadM);
     v.lon = ll[0];
     v.lat = ll[1];
