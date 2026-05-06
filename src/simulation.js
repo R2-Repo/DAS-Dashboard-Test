@@ -40,6 +40,17 @@ const MPH_TO_MS = 0.44704;
 /** Extra Δchannels/tick in waterfall stamping so tracks read diagonal when road ≈ fiber. */
 const WATERFALL_DIAGONAL_SKEW = 0.78;
 
+/**
+ * Max |fiber index| span for stitching one row's vehicle energy along a segment in channel space.
+ * If the sim would draw a longer segment (e.g. steep d(channel)/d(road) at route ends, or a
+ * mapping jump), we stamp only at the current column - otherwise the chord lights up unrelated
+ * mileposts and looks like a broadband false event across the waterfall.
+ */
+export function maxWaterfallStampBridgeChannels(halfWidth, skewAlongChannels, channelsPerTick) {
+  const cpt = Math.max(0.35, channelsPerTick || 0);
+  return Math.max(22, halfWidth * 2.6 + Math.abs(skewAlongChannels) + cpt * 16);
+}
+
 /** Lookahead distance (m) for curve speed — slow before the bend. */
 const CURVE_LOOKAHEAD_M = 45;
 
@@ -387,7 +398,10 @@ export function createSimulation(data, targets) {
 
       const delta = stampCenter - stampPrev;
       const pathLen = Math.abs(delta);
-      if (pathLen < 0.02) {
+      const maxBridgeCh = maxWaterfallStampBridgeChannels(halfWidth, skew, cpt);
+      if (pathLen > maxBridgeCh) {
+        stampVehicleEnergyAt(stampCenter, peakStrength, halfWidth);
+      } else if (pathLen < 0.02) {
         stampVehicleEnergyAt(stampCenter, peakStrength, halfWidth);
       } else {
         const nSteps = Math.min(40, Math.max(2, Math.ceil(pathLen * 3 + 4)));
