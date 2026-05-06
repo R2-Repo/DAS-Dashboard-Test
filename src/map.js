@@ -80,7 +80,7 @@ const INTRO_BOUNDS_INFLATE_FACTOR = 1.3;
  * After `cameraForBounds`, nudge the camera center northward (degrees latitude) so the canyon mouth / valley
  * entry is not clipped at the bottom of the tilted view — same zoom, small geographic pan only.
  */
-const INTRO_VIEW_CENTER_LAT_NUDGE_NORTH = 0.0075;
+const INTRO_VIEW_CENTER_LAT_NUDGE_NORTH = -0.1075;
 
 /** Padding around the route bbox when fitting the intro camera. */
 const CINEMATIC_REVEAL_PADDING = { top: 44, bottom: 48, left: 48, right: 48 };
