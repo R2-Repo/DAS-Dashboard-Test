@@ -61,8 +61,10 @@ const ROUTE_INTRO_SPIN_DEG_PER_SEC = 1.85;
 
 /** Veil fades after terrain is on and the map has idled (user sees 3D first). */
 const MAP_INTRO_VEIL_FADE_MS = 1650;
-/** Brief pause after idle so DEM tiles settle before revealing. */
+/** Brief pause after terrain enable so DEM work can start before we wait for idle. */
 const MAP_INTRO_SETTLE_AFTER_IDLE_MS = 180;
+/** Never leave the veil stuck if `idle` never refires (MapLibre quirk when already idle). */
+const MAP_INTRO_VEIL_FAILSAFE_MS = 9000;
 
 /** Bright intro-only route highlight; hidden once the user zooms in closer to the ground past baseline. */
 const CANYON_INTRO_LAYER_GLOW = 'canyon-intro-highlight-glow';
@@ -269,14 +271,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     map.setZoom(Math.min(capAfter, Math.max(minAfter, map.getZoom() + POST_TERRAIN_ZOOM_BOOST)));
     window.requestAnimationFrame(() => map.resize());
 
-    map.once('idle', () => {
-      window.setTimeout(() => {
-        map.once('idle', () => {
-          fadeOutMapIntroVeil(mapHost);
-          setupRouteIntroSpinContinuous(map);
-        });
-      }, MAP_INTRO_SETTLE_AFTER_IDLE_MS);
-    });
+    scheduleMapIntroVeilReveal(map, mapHost);
   }
 
   function easeIntoPitch() {
@@ -320,6 +315,38 @@ function fadeOutMapIntroVeil(mapHost) {
     veil.classList.add('map-intro-loading-veil--fade-out');
     veil.setAttribute('aria-hidden', 'true');
   });
+}
+
+/**
+ * Wait for post-terrain idle (or timeout) before fading the veil. Nested `once('idle')` was unreliable:
+ * if the map was already idle when the inner listener registered, `idle` never fired and the veil stayed forever.
+ */
+function scheduleMapIntroVeilReveal(map, mapHost) {
+  map.triggerRepaint?.();
+
+  window.setTimeout(() => {
+    map.triggerRepaint?.();
+
+    let revealed = false;
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    let failsafeTimer;
+
+    function reveal() {
+      if (revealed) return;
+      revealed = true;
+      map.off('idle', onIdle);
+      if (failsafeTimer !== undefined) window.clearTimeout(failsafeTimer);
+      fadeOutMapIntroVeil(mapHost);
+      setupRouteIntroSpinContinuous(map);
+    }
+
+    function onIdle() {
+      reveal();
+    }
+
+    map.once('idle', onIdle);
+    failsafeTimer = window.setTimeout(reveal, MAP_INTRO_VEIL_FAILSAFE_MS);
+  }, MAP_INTRO_SETTLE_AFTER_IDLE_MS);
 }
 
 /**
