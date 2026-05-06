@@ -46,12 +46,12 @@ const ESRI_ATTRIBUTION =
   + '<a href="https://goto.arcgisonline.com/maps/Reference/World_Boundaries_and_Places" target="_blank" rel="noopener">Labels</a>)';
 
 /** Bearing in degrees (MapLibre): 0 = north up; ~45° ≈ northeast-facing view. */
-const DEFAULT_VIEW_BEARING = 45;
+const DEFAULT_VIEW_BEARING = 35;
 /**
  * Initial / reset pitch. MapLibre warns pitch beyond ~60° is experimental with 3D terrain and can produce
  * missing/black draped imagery; keep intro dramatic but below that threshold.
  */
-const DEFAULT_VIEW_PITCH = 54;
+const DEFAULT_VIEW_PITCH = 58;
 /**
  * Terrain mesh exaggeration (TerrainControl + `setTerrain`). Values ~1.5 can expose MapLibre raster
  * draping/culling bugs at steep pitch (localized black/missing imagery tiles); slightly lower keeps 3D relief
@@ -64,7 +64,7 @@ const MAX_VIEW_PITCH = 68;
  * Added to `cameraForBounds` fitted zoom so the full inflated corridor stays in frame while staying as tight
  * as tile loading allows (positive = zoom in).
  */
-const INTRO_ROUTE_ZOOM_BOOST = 0.82;
+const INTRO_ROUTE_ZOOM_BOOST = 0.52;
 /** Upper cap passed into `cameraForBounds` so the intro can approach the route before hitting Esri max zoom. */
 const FIT_BOUNDS_MAX_ZOOM = 17.35;
 /**
