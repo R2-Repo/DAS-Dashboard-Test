@@ -45,19 +45,24 @@ const DEFAULT_VIEW_PITCH = 58;
  * Added to `cameraForBounds` zoom so the intro sits closer to the ground.
  * MapLibre: larger zoom level = closer to the surface (this must be positive to zoom IN).
  */
-const INTRO_ROUTE_ZOOM_BOOST = 2.85;
+const INTRO_ROUTE_ZOOM_BOOST = 2.35;
 /** Upper cap passed into `cameraForBounds` so the fitted zoom can get close before we boost. */
 const FIT_BOUNDS_MAX_ZOOM = 17.35;
 /**
  * Extra zoom-in after terrain enables (surface follows DEM; a bump preserves a near-ground feel).
  */
-const POST_TERRAIN_ZOOM_BOOST = 0.95;
+const POST_TERRAIN_ZOOM_BOOST = 0.65;
 
 /** Cinematic first paint: top-down first, then ease to tilt before enabling terrain (reduces load stutter). */
-const CINEMATIC_REVEAL_PADDING = { top: 8, bottom: 12, left: 12, right: 12 };
+const CINEMATIC_REVEAL_PADDING = { top: 12, bottom: 16, left: 14, right: 14 };
 const CINEMATIC_PITCH_EASE_MS = 3200;
 /** Continuous intro spin (degrees per second); interrupted by user gestures. */
 const ROUTE_INTRO_SPIN_DEG_PER_SEC = 1.85;
+
+/** Veil fades after terrain is on and the map has idled (user sees 3D first). */
+const MAP_INTRO_VEIL_FADE_MS = 1650;
+/** Brief pause after idle so DEM tiles settle before revealing. */
+const MAP_INTRO_SETTLE_AFTER_IDLE_MS = 180;
 
 /** Bright intro-only route highlight; hidden once the user zooms in closer to the ground past baseline. */
 const CANYON_INTRO_LAYER_GLOW = 'canyon-intro-highlight-glow';
@@ -180,6 +185,7 @@ export function initMap(containerId, data) {
   const mapEl = document.getElementById(containerId);
   const mapHost = mapEl?.parentElement;
   if (mapHost) {
+    ensureMapIntroLoadingVeil(mapHost);
     addMapLayerPanel(mapHost, map);
   }
 
@@ -193,7 +199,7 @@ export function initMap(containerId, data) {
     addCanyonIntroHighlightLayers(map);
     setupCanyonIntroHighlightLifecycle(map);
     applyDefaultLayerVisibility(map);
-    runCinematicRouteRevealThenSpin(map, bounds);
+    runCinematicRouteRevealThenSpin(map, bounds, mapHost);
     const attrib = map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact');
     if (attrib) {
       attrib.classList.remove('maplibregl-compact-show');
@@ -207,8 +213,11 @@ export function initMap(containerId, data) {
 /**
  * Frame the route at top-down pitch first (no terrain yet), then ease into tilt and enable terrain
  * before starting a slow continuous bearing spin until the user interacts.
+ * @param {import('maplibre-gl').Map} map
+ * @param {[number, number, number, number]} bounds
+ * @param {HTMLElement | null | undefined} mapHost `#map-container`; used for loading veil fade
  */
-function runCinematicRouteRevealThenSpin(map, bounds) {
+function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
   if (!bounds || bounds[0] > bounds[2] || bounds[1] > bounds[3]) return;
   if (typeof window === 'undefined') return;
 
@@ -240,8 +249,11 @@ function runCinematicRouteRevealThenSpin(map, bounds) {
     });
     map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
     map.setZoom(Math.min(cap, Math.max(minZ, map.getZoom() + POST_TERRAIN_ZOOM_BOOST)));
+    fadeOutMapIntroVeil(mapHost);
     return;
   }
+
+  prepareMapIntroVeil(mapHost);
 
   map.jumpTo({
     center: cam.center,
@@ -250,13 +262,21 @@ function runCinematicRouteRevealThenSpin(map, bounds) {
     pitch: 0,
   });
 
-  function enableTerrainAndSpin() {
+  function enableTerrainThenRevealSpin() {
     map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
     const capAfter = map.getMaxZoom?.() ?? 18;
     const minAfter = map.getMinZoom?.() ?? 0;
     map.setZoom(Math.min(capAfter, Math.max(minAfter, map.getZoom() + POST_TERRAIN_ZOOM_BOOST)));
     window.requestAnimationFrame(() => map.resize());
-    setupRouteIntroSpinContinuous(map);
+
+    map.once('idle', () => {
+      window.setTimeout(() => {
+        map.once('idle', () => {
+          fadeOutMapIntroVeil(mapHost);
+          setupRouteIntroSpinContinuous(map);
+        });
+      }, MAP_INTRO_SETTLE_AFTER_IDLE_MS);
+    });
   }
 
   function easeIntoPitch() {
@@ -266,10 +286,40 @@ function runCinematicRouteRevealThenSpin(map, bounds) {
       easing: (t) => 1 - (1 - t) ** 2.35,
       essential: true,
     });
-    map.once('moveend', enableTerrainAndSpin);
+    map.once('moveend', enableTerrainThenRevealSpin);
   }
 
   map.once('idle', easeIntoPitch);
+}
+
+function ensureMapIntroLoadingVeil(mapHost) {
+  if (!mapHost) return;
+  let veil = mapHost.querySelector('#map-intro-loading-veil');
+  if (!veil) {
+    veil = document.createElement('div');
+    veil.id = 'map-intro-loading-veil';
+    veil.className = 'map-intro-loading-veil';
+    veil.setAttribute('aria-hidden', 'true');
+    mapHost.appendChild(veil);
+  }
+}
+
+function prepareMapIntroVeil(mapHost) {
+  const veil = mapHost?.querySelector?.('#map-intro-loading-veil');
+  if (!(veil instanceof HTMLElement)) return;
+  veil.classList.remove('map-intro-loading-veil--fade-out');
+  veil.setAttribute('aria-hidden', 'true');
+  veil.style.transitionDuration = `${MAP_INTRO_VEIL_FADE_MS}ms`;
+}
+
+function fadeOutMapIntroVeil(mapHost) {
+  const veil = mapHost?.querySelector?.('#map-intro-loading-veil');
+  if (!(veil instanceof HTMLElement)) return;
+  veil.style.transitionDuration = `${MAP_INTRO_VEIL_FADE_MS}ms`;
+  window.requestAnimationFrame(() => {
+    veil.classList.add('map-intro-loading-veil--fade-out');
+    veil.setAttribute('aria-hidden', 'true');
+  });
 }
 
 /**
