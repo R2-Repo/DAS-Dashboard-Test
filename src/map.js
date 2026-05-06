@@ -6,9 +6,9 @@
  *   - Terrain: AWS Terrarium RGB elevation tiles (3D mesh only; no hillshade layer)
  *
  * GIS layers on load: road centerlines (EB/WB), fiber path, milepost markers (optional overlays).
- * Intro fits the route at **final** zoom in one step (route + post-terrain nudge baked into `jumpTo` — no
- * `setZoom` after terrain, which refetched satellite tiles). Camera jumps straight to framed 3D (no pitch ease);
- * terrain enables after rasters settle; the veil fades while the intro orbit can already be running underneath.
+ * Intro fits the inflated route envelope using `cameraForBounds` (zoom + center in one solve). Optional
+ * **pixel `offset`** shifts where that envelope sits in the viewport without a second pan/zoom — no post-hoc
+ * latitude hacks. Padding + inflate still hedge pitched-view + terrain tile loading.
  *
  * Missing imagery “around” the route was caused by (1) MapLibre `cameraForBounds` ignoring pitch when picking
  * zoom — we inflate the bbox before fitting so edge tiles load. (2) Discrete `setBearing` steps caused jitter;
@@ -61,26 +61,28 @@ const TERRAIN_EXAGGERATION = 1.05;
 /** Cap user pitch with terrain on (desktop); steep angles worsen raster draping artifacts. */
 const MAX_VIEW_PITCH = 68;
 /**
- * Added to `cameraForBounds` fitted zoom (positive = zoom in). Higher = tighter on the road corridor.
+ * Added to `cameraForBounds` fitted zoom so the full inflated corridor stays in frame while staying as tight
+ * as tile loading allows (positive = zoom in).
  */
-const INTRO_ROUTE_ZOOM_BOOST = 0.92;
+const INTRO_ROUTE_ZOOM_BOOST = 0.82;
 /** Upper cap passed into `cameraForBounds` so the intro can approach the route before hitting Esri max zoom. */
 const FIT_BOUNDS_MAX_ZOOM = 17.35;
 /**
  * Nudge zoom baked into the intro `jumpTo` (never `setZoom` after terrain — avoids a second raster pyramid fetch).
  */
-const POST_TERRAIN_ZOOM_BOOST = 0.15;
+const POST_TERRAIN_ZOOM_BOOST = 0.12;
 /**
  * Expand the road envelope before `cameraForBounds`. MapLibre’s fit uses the geographic box as if the view
  * were un-pitched; tilting afterward reveals extra ground toward the horizon — without this, zoom sits too
  * “tight” and edge tiles never enter the load budget (black/missing ring around the corridor).
  */
-const INTRO_BOUNDS_INFLATE_FACTOR = 1.3;
+const INTRO_BOUNDS_INFLATE_FACTOR = 1.26;
 /**
- * After `cameraForBounds`, nudge the camera center northward (degrees latitude) so the canyon mouth / valley
- * entry is not clipped at the bottom of the tilted view — same zoom, small geographic pan only.
+ * Pixel offset for `cameraForBounds` (MapLibre API): shifts where the fitted route bbox is placed relative to
+ * the map center **without changing zoom** — the correct way to bias framing vs hand-editing lat/lon after the fit.
+ * Negative Y pulls framing toward geographic **south** at ~DEFAULT_VIEW_BEARING (tune for your corridor).
  */
-const INTRO_VIEW_CENTER_LAT_NUDGE_NORTH = 0.0075;
+const INTRO_ROUTE_CAMERA_OFFSET_PX = [0, -56];
 
 /** Padding around the route bbox when fitting the intro camera. */
 const CINEMATIC_REVEAL_PADDING = { top: 44, bottom: 48, left: 48, right: 48 };
@@ -140,18 +142,6 @@ function inflateLngLatBounds(bounds, factor) {
 function centerOfBounds(bounds) {
   if (!bounds || bounds[0] > bounds[2] || bounds[1] > bounds[3]) return [0, 0];
   return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
-}
-
-/**
- * Applies a fixed northward lat shift to the fitted camera center so the framed corridor sits slightly lower
- * on screen at pitch (mouth / valley visibility) without changing zoom.
- * @param {import('maplibre-gl').LngLatLike} c
- * @returns {[number, number]}
- */
-function introJumpCenterFromCamCenter(c) {
-  const lng = typeof c.lng === 'number' ? c.lng : /** @type {[number, number]} */ (c)[0];
-  const lat = typeof c.lat === 'number' ? c.lat : /** @type {[number, number]} */ (c)[1];
-  return [lng, lat + INTRO_VIEW_CENTER_LAT_NUDGE_NORTH];
 }
 
 /** Bright intro-only route highlight; hidden once the user zooms in closer to the ground past baseline. */
@@ -322,7 +312,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
 
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
-  const orbitPivot = introJumpCenterFromCamCenter(centerOfBounds(bounds));
+  const orbitPivot = centerOfBounds(bounds);
 
   const inflated = inflateLngLatBounds(bounds, INTRO_BOUNDS_INFLATE_FACTOR);
   const b = [
@@ -334,6 +324,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     padding: CINEMATIC_REVEAL_PADDING,
     bearing: DEFAULT_VIEW_BEARING,
     maxZoom: FIT_BOUNDS_MAX_ZOOM,
+    offset: INTRO_ROUTE_CAMERA_OFFSET_PX,
   });
   if (!cam?.center || cam.zoom == null) {
     fadeOutMapIntroVeil(mapHost);
@@ -349,7 +340,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
 
   if (reducedMotion) {
     map.jumpTo({
-      center: introJumpCenterFromCamCenter(cam.center),
+      center: cam.center,
       zoom,
       bearing: DEFAULT_VIEW_BEARING,
       pitch: DEFAULT_VIEW_PITCH,
@@ -363,7 +354,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
   prepareMapIntroVeil(mapHost);
 
   map.jumpTo({
-    center: introJumpCenterFromCamCenter(cam.center),
+    center: cam.center,
     zoom,
     bearing: DEFAULT_VIEW_BEARING,
     pitch: DEFAULT_VIEW_PITCH,
