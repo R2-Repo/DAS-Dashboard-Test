@@ -282,10 +282,17 @@ export function createSimulation(data, targets) {
             stepVehicleIdm(v, leader, v.desiredSpeedMph, cap, fwd, dtS, DEFAULT_IDM);
           }
 
-          if (v.roadDistM < -30 || v.roadDistM > lane.totalM + 30) {
+          const rawRoadDistM = v.roadDistM;
+          if (rawRoadDistM < -30 || rawRoadDistM > lane.totalM + 30) {
             v.dead = true;
           } else {
-            v.roadDistM = Math.max(0, Math.min(lane.totalM, v.roadDistM));
+            const clampedRoad = Math.max(0, Math.min(lane.totalM, rawRoadDistM));
+            // Hard lane ends: IDM still pulls toward desired speed while position is clamped,
+            // which left speed frozen near free-flow (e.g. 38 mph) at the canyon mouth.
+            if (clampedRoad !== rawRoadDistM) {
+              v.speedMph = 0;
+            }
+            v.roadDistM = clampedRoad;
           }
 
           v.channelPos = clampChannelPosToFiber(
