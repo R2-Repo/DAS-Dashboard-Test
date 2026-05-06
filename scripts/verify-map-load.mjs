@@ -77,7 +77,7 @@ async function main() {
       throw new Error(`Map canvas too small: ${canvasW}x${canvasH}`);
     }
 
-    // Veil may fade from cinematic path first; absolute failsafe + CSS fade can take ~13s worst case.
+    // Veil fades quickly after intro (~few s); absolute failsafe + CSS fade stay well under this timeout.
     await page.waitForFunction(
       () => {
         const veil = document.querySelector('#map-intro-loading-veil');

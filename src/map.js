@@ -6,9 +6,8 @@
  *   - Terrain: AWS Terrarium RGB elevation tiles (for 3D + hillshade)
  *
  * GIS layers on load: road centerlines (EB/WB), fiber path, milepost markers (optional overlays).
- * First paint uses a staged camera (top-down → tilt) with terrain enabled after the tilt ease so
- * the 3D mesh does not fight the initial tile burst. Apparent closeness to the ground is mostly
- * controlled by zoom (higher zoom = lower camera altitude).
+ * Intro camera fits the road centerline GeoJSON with generous padding, then tilts, enables terrain,
+ * fades the semi-transparent loading veil (a few seconds), and starts a slow orbit until interaction.
  * Dynamic layers: anomaly pulses, then vehicles as fill-extrusion blocks on terrain.
  *
  * Reference rasters are pre-rendered tiles: opacity and color tuning are available; per-feature
@@ -46,33 +45,34 @@ const DEFAULT_VIEW_BEARING = 45;
 /** Initial / reset pitch; tilted view reads closer to the canyon surface at high zoom. */
 const DEFAULT_VIEW_PITCH = 58;
 /**
- * Added to `cameraForBounds` zoom so the intro sits closer to the ground.
- * MapLibre: larger zoom level = closer to the surface (this must be positive to zoom IN).
+ * Added to `cameraForBounds` fitted zoom (positive = zoom in). Kept small so the intro shows the
+ * full road centerline with comfortable padding (was too tight when this neared ~2+).
  */
-const INTRO_ROUTE_ZOOM_BOOST = 2.35;
-/** Upper cap passed into `cameraForBounds` so the fitted zoom can get close before we boost. */
-const FIT_BOUNDS_MAX_ZOOM = 17.35;
+const INTRO_ROUTE_ZOOM_BOOST = 0.45;
+/** Upper cap passed into `cameraForBounds` so the route fit does not lock overly close. */
+const FIT_BOUNDS_MAX_ZOOM = 16.65;
 /**
- * Extra zoom-in after terrain enables (surface follows DEM; a bump preserves a near-ground feel).
+ * Nudge zoom after terrain enables (smaller = stay wider so the full route stays in view).
  */
-const POST_TERRAIN_ZOOM_BOOST = 0.65;
+const POST_TERRAIN_ZOOM_BOOST = 0.12;
 
 /** Cinematic first paint: top-down first, then ease to tilt before enabling terrain (reduces load stutter). */
-const CINEMATIC_REVEAL_PADDING = { top: 12, bottom: 16, left: 14, right: 14 };
-const CINEMATIC_PITCH_EASE_MS = 3200;
+const CINEMATIC_REVEAL_PADDING = { top: 44, bottom: 48, left: 48, right: 48 };
+/** Pitch ease duration — shorter so the map is not obscured for ~10s under the loading veil. */
+const CINEMATIC_PITCH_EASE_MS = 1400;
 /** Continuous intro spin (degrees per second); interrupted by user gestures. */
-const ROUTE_INTRO_SPIN_DEG_PER_SEC = 1.85;
+const ROUTE_INTRO_SPIN_DEG_PER_SEC = 1.95;
 
-/** Veil fades after terrain is on and the map has idled (user sees 3D first). */
-const MAP_INTRO_VEIL_FADE_MS = 1650;
-/** Brief pause after terrain enable so DEM work can start before we wait for idle. */
-const MAP_INTRO_SETTLE_AFTER_IDLE_MS = 180;
-/** Never leave the veil stuck if `idle` never refires (MapLibre quirk when already idle). */
-const MAP_INTRO_VEIL_FAILSAFE_MS = 9000;
-/** Last resort: fade veil this long after map `load` even if cinematic setup bails early. */
-const MAP_INTRO_VEIL_ABSOLUTE_FAILSAFE_MS = 12000;
+/** Veil opacity transition — paired with MAP_INTRO_VEIL_FADE_MS (also set inline on the element). */
+const MAP_INTRO_VEIL_FADE_MS = 700;
+/** Brief pause after terrain enable before waiting for `idle` to fade the veil. */
+const MAP_INTRO_SETTLE_AFTER_IDLE_MS = 40;
+/** If `idle` never refires after terrain, fade anyway so the intro stays ~few seconds, not ~10+. */
+const MAP_INTRO_VEIL_FAILSAFE_MS = 1400;
+/** Last resort if cinematic never completes (blocked tiles, etc.). */
+const MAP_INTRO_VEIL_ABSOLUTE_FAILSAFE_MS = 4200;
 /** If first `idle` never fires after framing, still run pitch ease so terrain + reveal can proceed. */
-const MAP_INTRO_PITCH_EASE_IDLE_FALLBACK_MS = 6500;
+const MAP_INTRO_PITCH_EASE_IDLE_FALLBACK_MS = 700;
 
 /** Bright intro-only route highlight; hidden once the user zooms in closer to the ground past baseline. */
 const CANYON_INTRO_LAYER_GLOW = 'canyon-intro-highlight-glow';
@@ -88,10 +88,12 @@ const LAYER_TOGGLE_IDS = {
 };
 
 export function initMap(containerId, data) {
+  const roadBounds = boundsFromLineFeaturesGeojson(data.road);
   const bounds = unionBounds([
-    boundsFromLineFeaturesGeojson(data.road),
+    roadBounds,
     boundsFromLineFeaturesGeojson(data.fiberRoute),
   ]);
+  const cinematicBounds = envelopeValid(roadBounds) ? roadBounds : bounds;
   const coarsePointer = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)')?.matches;
   const narrowScreen = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 768px)')?.matches;
 
@@ -217,7 +219,7 @@ export function initMap(containerId, data) {
     addCanyonIntroHighlightLayers(map);
     setupCanyonIntroHighlightLifecycle(map);
     applyDefaultLayerVisibility(map);
-    runCinematicRouteRevealThenSpin(map, bounds, mapHost);
+    runCinematicRouteRevealThenSpin(map, cinematicBounds, mapHost);
     const attrib = map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact');
     if (attrib) {
       attrib.classList.remove('maplibregl-compact-show');
@@ -229,10 +231,10 @@ export function initMap(containerId, data) {
 }
 
 /**
- * Frame the route at top-down pitch first (no terrain yet), then ease into tilt and enable terrain
- * before starting a slow continuous bearing spin until the user interacts.
+ * Frame the road centerline bounds at top-down pitch first (no terrain yet), then ease into tilt,
+ * enable terrain, fade the loading veil, then start a slow continuous bearing spin until the user interacts.
  * @param {import('maplibre-gl').Map} map
- * @param {[number, number, number, number]} bounds
+ * @param {[number, number, number, number]} bounds Road envelope when available (else union road+fiber).
  * @param {HTMLElement | null | undefined} mapHost `#map-container`; used for loading veil fade
  */
 function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
@@ -309,7 +311,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     }
     const pitchEaseFailsafeTimer = window.setTimeout(
       finishPitchPhase,
-      CINEMATIC_PITCH_EASE_MS + 850,
+      CINEMATIC_PITCH_EASE_MS + 450,
     );
     map.on('moveend', finishPitchPhase);
     map.on('pitchend', finishPitchPhase);
@@ -346,6 +348,14 @@ function ensureMapIntroLoadingVeil(mapHost) {
     veil.className = 'map-intro-loading-veil';
     veil.setAttribute('aria-hidden', 'true');
     mapHost.appendChild(veil);
+  }
+  if (!(veil instanceof HTMLElement)) return;
+  if (!veil.querySelector('.map-intro-loading-veil-hud')) {
+    veil.innerHTML = `
+      <div class="map-intro-loading-veil-hud">
+        <div class="map-intro-loading-veil-spinner" aria-hidden="true"></div>
+        <span class="map-intro-loading-veil-label">Loading map…</span>
+      </div>`;
   }
 }
 
@@ -632,6 +642,10 @@ function extendBoundsWithLineCoords(bounds, coords) {
 }
 
 const EMPTY_BOUNDS = [180, 90, -180, -90];
+
+function envelopeValid(b) {
+  return Boolean(b && b[0] < b[2] && b[1] < b[3]);
+}
 
 function boundsFromLineFeaturesGeojson(fc) {
   let b = EMPTY_BOUNDS.slice();
