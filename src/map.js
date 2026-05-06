@@ -11,10 +11,8 @@
  * terrain enables after rasters settle, veil fades, then slow orbit until interaction.
  *
  * Missing imagery “around” the route was caused by (1) MapLibre `cameraForBounds` ignoring pitch when picking
- * zoom — the fitted pyramid targets the axis-aligned bbox as if seen top-down, while `jumpTo` then tilts,
- * so the horizon and viewport edges need tiles outside that fit; we inflate the bbox before fitting.
- * (2) Orbiting by calling `setBearing` every animation frame forced constant tile churn at the view edge;
- * the orbit is throttled to a few Hz instead.
+ * zoom — we inflate the bbox before fitting so edge tiles load. (2) Discrete `setBearing` steps caused jitter;
+ * the intro orbit uses `easeTo` with `around` at the route center so rotation is interpolated smoothly.
  * Dynamic layers: anomaly pulses, then vehicles as fill-extrusion blocks on terrain.
  *
  * Reference rasters are pre-rendered tiles: opacity and color tuning are available; per-feature
@@ -63,34 +61,35 @@ const TERRAIN_EXAGGERATION = 1.05;
 /** Cap user pitch with terrain on (desktop); steep angles worsen raster draping artifacts. */
 const MAX_VIEW_PITCH = 68;
 /**
- * Added to `cameraForBounds` fitted zoom (positive = zoom in). Kept small so the intro shows the
- * full road centerline with comfortable padding (was too tight when this neared ~2+).
+ * Added to `cameraForBounds` fitted zoom (positive = zoom in). Higher = tighter on the road corridor.
  */
-const INTRO_ROUTE_ZOOM_BOOST = 0.45;
-/** Upper cap passed into `cameraForBounds` so the route fit does not lock overly close. */
-const FIT_BOUNDS_MAX_ZOOM = 16.65;
+const INTRO_ROUTE_ZOOM_BOOST = 0.92;
+/** Upper cap passed into `cameraForBounds` so the intro can approach the route before hitting Esri max zoom. */
+const FIT_BOUNDS_MAX_ZOOM = 17.35;
 /**
  * Nudge zoom baked into the intro `jumpTo` (never `setZoom` after terrain — avoids a second raster pyramid fetch).
  */
-const POST_TERRAIN_ZOOM_BOOST = 0.12;
+const POST_TERRAIN_ZOOM_BOOST = 0.15;
 /**
  * Expand the road envelope before `cameraForBounds`. MapLibre’s fit uses the geographic box as if the view
  * were un-pitched; tilting afterward reveals extra ground toward the horizon — without this, zoom sits too
  * “tight” and edge tiles never enter the load budget (black/missing ring around the corridor).
  */
-const INTRO_BOUNDS_INFLATE_FACTOR = 1.42;
+const INTRO_BOUNDS_INFLATE_FACTOR = 1.3;
 
 /** Padding around the route bbox when fitting the intro camera. */
 const CINEMATIC_REVEAL_PADDING = { top: 44, bottom: 48, left: 48, right: 48 };
-/** Continuous intro spin (degrees per second); interrupted by user gestures. */
+/** Continuous intro orbit angular speed (degrees per second); interrupted by user gestures. */
 const ROUTE_INTRO_SPIN_DEG_PER_SEC = 1.95;
 /**
- * Update bearing this often during intro orbit. Per-frame `setBearing` (~60 Hz) starves edge tile requests;
- * a few Hz keeps the cinematic motion while letting MapLibre finish loading peripheral imagery.
+ * Each `easeTo` orbit segment advances bearing by this amount; duration is derived so avg speed matches
+ * ROUTE_INTRO_SPIN_DEG_PER_SEC (MapLibre interpolates smoothly instead of stepping with `setBearing`).
  */
-const ROUTE_INTRO_SPIN_INTERVAL_MS = 160;
-/** Brief pause after the veil fades before starting orbit so the last satellite/DEM tiles can settle. */
+const INTRO_ORBIT_EASE_STEP_DEGREES = 0.55;
+/** Brief pause after the veil fades before we wait for `idle` and start the orbit. */
 const POST_VEIL_SPIN_DELAY_MS = 450;
+/** If `idle` does not refire after the veil (already idle), still begin orbit within this window. */
+const MAP_INTRO_ORBIT_IDLE_FAILSAFE_MS = 2600;
 
 /** Veil opacity transition — paired with MAP_INTRO_VEIL_FADE_MS (also set inline on the element). */
 const MAP_INTRO_VEIL_FADE_MS = 700;
@@ -134,6 +133,12 @@ function inflateLngLatBounds(bounds, factor) {
   const halfW = ((bounds[2] - bounds[0]) / 2) * factor;
   const halfH = ((bounds[3] - bounds[1]) / 2) * factor;
   return [cx - halfW, cy - halfH, cx + halfW, cy + halfH];
+}
+
+/** Geographic pivot for `easeTo({ around })` so the camera orbits the route corridor, not the screen center. */
+function centerOfBounds(bounds) {
+  if (!bounds || bounds[0] > bounds[2] || bounds[1] > bounds[3]) return [0, 0];
+  return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
 }
 
 /** Bright intro-only route highlight; hidden once the user zooms in closer to the ground past baseline. */
@@ -304,6 +309,8 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
 
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
+  const orbitPivot = centerOfBounds(bounds);
+
   const inflated = inflateLngLatBounds(bounds, INTRO_BOUNDS_INFLATE_FACTOR);
   const b = [
     [inflated[0], inflated[1]],
@@ -336,7 +343,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     });
     stabilizeImageryAfterTerrainEnable(map);
     map.setTerrain({ source: 'terrainSource', exaggeration: TERRAIN_EXAGGERATION });
-    scheduleMapIntroVeilReveal(map, mapHost);
+    scheduleMapIntroVeilReveal(map, mapHost, orbitPivot);
     return;
   }
 
@@ -360,7 +367,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     if (jumpIdleFallbackTimer !== undefined) window.clearTimeout(jumpIdleFallbackTimer);
     stabilizeImageryAfterTerrainEnable(map);
     map.setTerrain({ source: 'terrainSource', exaggeration: TERRAIN_EXAGGERATION });
-    scheduleMapIntroVeilReveal(map, mapHost);
+    scheduleMapIntroVeilReveal(map, mapHost, orbitPivot);
   }
 
   map.once('idle', enableTerrainAndReveal);
@@ -416,7 +423,12 @@ function scheduleMapIntroVeilAbsoluteFailsafe(mapHost) {
  * Wait for post-terrain idle (or timeout) before fading the veil. Nested `once('idle')` was unreliable:
  * if the map was already idle when the inner listener registered, `idle` never fired and the veil stayed forever.
  */
-function scheduleMapIntroVeilReveal(map, mapHost) {
+/**
+ * @param {import('maplibre-gl').Map} map
+ * @param {HTMLElement | null | undefined} mapHost
+ * @param {import('maplibre-gl').LngLatLike} orbitPivot Route bbox center; passed to `easeTo({ around })`.
+ */
+function scheduleMapIntroVeilReveal(map, mapHost, orbitPivot) {
   map.triggerRepaint?.();
 
   window.setTimeout(() => {
@@ -432,7 +444,7 @@ function scheduleMapIntroVeilReveal(map, mapHost) {
       map.off('idle', onIdle);
       if (failsafeTimer !== undefined) window.clearTimeout(failsafeTimer);
       fadeOutMapIntroVeil(mapHost);
-      window.setTimeout(() => setupRouteIntroSpinContinuous(map), POST_VEIL_SPIN_DELAY_MS);
+      scheduleIntroOrbitAfterReady(map, orbitPivot);
     }
 
     function onIdle() {
@@ -445,19 +457,42 @@ function scheduleMapIntroVeilReveal(map, mapHost) {
 }
 
 /**
- * Slow bearing orbit until the user pans, zooms, rotates, pitches, box-zooms, clicks, or scrolls the canvas.
- * Uses a low-frequency timer (not rAF) so each bearing step does not compete with satellite tile requests.
+ * After the veil clears, wait briefly then start orbit only once sources have settled (`idle`) or by failsafe,
+ * so the user sees a complete 3D frame before motion.
  */
-function setupRouteIntroSpinContinuous(map) {
+function scheduleIntroOrbitAfterReady(map, orbitPivot) {
+  window.setTimeout(() => {
+    let started = false;
+    function startOrbit() {
+      if (started) return;
+      started = true;
+      map.off('idle', onIdleAfterVeil);
+      setupRouteIntroSpinContinuous(map, orbitPivot);
+    }
+    function onIdleAfterVeil() {
+      startOrbit();
+    }
+    map.once('idle', onIdleAfterVeil);
+    map.triggerRepaint?.();
+    window.setTimeout(startOrbit, MAP_INTRO_ORBIT_IDLE_FAILSAFE_MS);
+  }, POST_VEIL_SPIN_DELAY_MS);
+}
+
+/**
+ * Smooth orbit: chained `easeTo` segments with `around` at the route center (MapLibre camera API).
+ * Each segment uses linear easing so bearings interpolate smoothly (unlike discrete `setBearing`).
+ */
+function setupRouteIntroSpinContinuous(map, orbitPivot) {
   if (typeof window === 'undefined') return;
 
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
   if (reducedMotion) return;
 
   let finished = false;
-  /** @type {ReturnType<typeof setInterval> | undefined} */
-  let spinIntervalId;
-  let spinBearing = map.getBearing();
+  const stepMs = Math.max(
+    240,
+    (INTRO_ORBIT_EASE_STEP_DEGREES / ROUTE_INTRO_SPIN_DEG_PER_SEC) * 1000,
+  );
 
   function cleanupListeners() {
     map.off('dragstart', onMapGesture);
@@ -465,6 +500,7 @@ function setupRouteIntroSpinContinuous(map) {
     map.off('rotatestart', onMapGesture);
     map.off('pitchstart', onMapGesture);
     map.off('boxzoomstart', onMapGesture);
+    map.off('moveend', onOrbitMoveEnd);
     const c = map.getCanvas?.();
     if (c) {
       c.removeEventListener('pointerdown', onCanvasPointerLike, true);
@@ -475,8 +511,6 @@ function setupRouteIntroSpinContinuous(map) {
   function teardown() {
     if (finished) return;
     finished = true;
-    if (spinIntervalId !== undefined) window.clearInterval(spinIntervalId);
-    spinIntervalId = undefined;
     cleanupListeners();
   }
 
@@ -502,11 +536,29 @@ function setupRouteIntroSpinContinuous(map) {
     interruptFromUser();
   }
 
+  function orbitStep() {
+    if (finished) return;
+    map.easeTo({
+      bearing: map.getBearing() + INTRO_ORBIT_EASE_STEP_DEGREES,
+      around: orbitPivot,
+      duration: stepMs,
+      easing: (t) => t,
+      essential: true,
+      freezeElevation: true,
+    });
+  }
+
+  function onOrbitMoveEnd() {
+    if (finished) return;
+    orbitStep();
+  }
+
   map.on('dragstart', onMapGesture);
   map.on('zoomstart', onMapGesture);
   map.on('rotatestart', onMapGesture);
   map.on('pitchstart', onMapGesture);
   map.on('boxzoomstart', onMapGesture);
+  map.on('moveend', onOrbitMoveEnd);
 
   const canvas = map.getCanvas?.();
   if (canvas) {
@@ -514,13 +566,7 @@ function setupRouteIntroSpinContinuous(map) {
     canvas.addEventListener('wheel', onCanvasWheel, { passive: true, capture: true });
   }
 
-  spinIntervalId = window.setInterval(() => {
-    if (finished) return;
-    const dtSec = ROUTE_INTRO_SPIN_INTERVAL_MS / 1000;
-    spinBearing += ROUTE_INTRO_SPIN_DEG_PER_SEC * dtSec;
-    spinBearing = ((spinBearing % 360) + 360) % 360;
-    map.setBearing(spinBearing);
-  }, ROUTE_INTRO_SPIN_INTERVAL_MS);
+  orbitStep();
 }
 
 function setLayerVisibility(map, layerId, visible) {
