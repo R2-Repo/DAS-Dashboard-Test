@@ -41,12 +41,12 @@ const DEFAULT_VIEW_BEARING = 45;
 /** Initial / reset pitch; `fitBounds` uses this so framing accounts for tilted horizon. */
 const DEFAULT_VIEW_PITCH = 55;
 /** Nudges zoom after framing: positive = zoom out, negative = zoom in from the fitted level. */
-const FIT_BOUNDS_ZOOM_NUDGE = -0.82;
+const FIT_BOUNDS_ZOOM_NUDGE = -1.38;
 /** Upper cap for auto-fit zoom (road + fiber union); raised so steeper pitch can still zoom in. */
-const FIT_BOUNDS_MAX_ZOOM = 13.72;
+const FIT_BOUNDS_MAX_ZOOM = 14.35;
 
 /** Cinematic first paint: top-down first, then ease to tilt before enabling terrain (reduces load stutter). */
-const CINEMATIC_REVEAL_PADDING = { top: 36, bottom: 44, left: 44, right: 44 };
+const CINEMATIC_REVEAL_PADDING = { top: 22, bottom: 28, left: 26, right: 26 };
 const CINEMATIC_PITCH_EASE_MS = 3200;
 /** Continuous intro spin (degrees per second); interrupted by user gestures. */
 const ROUTE_INTRO_SPIN_DEG_PER_SEC = 1.85;
