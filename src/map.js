@@ -606,10 +606,34 @@ function addVehicleLayers(map) {
       'line-join': 'round',
     },
     paint: {
-      'line-color': ['get', 'glow_color'],
-      'line-width': ['case', ['==', ['get', 'user_placed'], 1], 7, 0],
-      'line-opacity': ['case', ['==', ['get', 'user_placed'], 1], 0.5, 0],
-      'line-blur': 3.2,
+      'line-color': [
+        'case',
+        ['==', ['get', 'selected'], 1],
+        'rgba(255, 107, 122, 0.95)',
+        ['get', 'glow_color'],
+      ],
+      'line-width': [
+        'case',
+        ['==', ['get', 'selected'], 1],
+        11,
+        ['==', ['get', 'user_placed'], 1],
+        7,
+        0,
+      ],
+      'line-opacity': [
+        'case',
+        ['==', ['get', 'selected'], 1],
+        0.72,
+        ['==', ['get', 'user_placed'], 1],
+        0.5,
+        0,
+      ],
+      'line-blur': [
+        'case',
+        ['==', ['get', 'selected'], 1],
+        5.5,
+        3.2,
+      ],
     },
   });
 
@@ -662,8 +686,24 @@ export function setupTrafficSimulatorMapInteractions(map, sim, options = {}) {
     return hits.length ? hits[0] : null;
   }
 
+  function calloutVehicleIdFromMapEvent(e) {
+    const el = e.originalEvent?.target;
+    if (!(el instanceof HTMLElement)) return null;
+    const flag = el.closest?.('.vehicle-callout-flag');
+    const root = flag?.closest?.('.vehicle-callout');
+    const id = root?.dataset?.vehicleId;
+    return id || null;
+  }
+
   map.on('click', (e) => {
     if (tryConsumeMapClick?.(e)) return;
+
+    const calloutId = calloutVehicleIdFromMapEvent(e);
+    if (calloutId) {
+      sim.setSelectedVehicleId(calloutId);
+      sim.syncFleetPanel?.();
+      return;
+    }
 
     const feat = vehicleFeatureAtPoint(e);
     if (feat) {

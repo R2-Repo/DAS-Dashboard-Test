@@ -36,7 +36,7 @@ function buildEl(id, laneKey, speedMph) {
   const flag = document.createElement('div');
   flag.className = 'vehicle-callout-flag';
   const rgb = laneGlowRgb(laneKey);
-  flag.style.setProperty('--callout-glow-rgb', rgb);
+  root.style.setProperty('--callout-glow-rgb', rgb);
 
   const line1 = document.createElement('span');
   line1.className = 'vehicle-callout-id';
@@ -149,18 +149,20 @@ function ensureMapMoveListener(map) {
   moveHandlerMap = map;
   moveHandler = () => {
     const last = map.__vehicleCalloutVehicles;
-    if (last?.length) syncVehicleCallouts(map, last);
+    const sel = map.__vehicleCalloutSelectedId ?? null;
+    if (last?.length) syncVehicleCallouts(map, last, sel);
   };
   map.on('move', moveHandler);
   map.on('rotate', moveHandler);
   map.on('pitch', moveHandler);
 }
 
-export function syncVehicleCallouts(map, vehicles) {
+export function syncVehicleCallouts(map, vehicles, selectedVehicleId = null) {
   const wantedList = vehicles.filter(
     (v) => v.userPlaced && !v.dead && v.lon !== undefined && v.lat !== undefined,
   );
   map.__vehicleCalloutVehicles = vehicles;
+  map.__vehicleCalloutSelectedId = selectedVehicleId;
   ensureMapMoveListener(map);
 
   const wanted = new Set();
@@ -172,6 +174,10 @@ export function syncVehicleCallouts(map, vehicles) {
     let m = MARKERS.get(v.id);
     if (!m) {
       const el = buildEl(v.id, v.laneKey, v.speedMph);
+      el.classList.toggle('vehicle-callout-selected', v.id === selectedVehicleId);
+      const rgb = laneGlowRgb(v.laneKey);
+      const selRgb = v.id === selectedVehicleId ? '255,107,122' : rgb;
+      el.style.setProperty('--callout-glow-rgb', selRgb);
       m = new maplibregl.Marker({
         element: el,
         anchor: 'bottom',
@@ -187,13 +193,15 @@ export function syncVehicleCallouts(map, vehicles) {
       const el = m.getElement();
       const idEl = el.querySelector('.vehicle-callout-id');
       const metaEl = el.querySelector('.vehicle-callout-meta');
-      const flag = el.querySelector('.vehicle-callout-flag');
       if (idEl) idEl.textContent = v.id;
       if (metaEl) {
         const dir = v.laneKey === 'wb' ? 'WB' : 'EB';
         metaEl.textContent = `${dir} · ${Math.round(v.speedMph)} mph`;
       }
-      if (flag) flag.style.setProperty('--callout-glow-rgb', laneGlowRgb(v.laneKey));
+      const rgb = laneGlowRgb(v.laneKey);
+      const selRgb = v.id === selectedVehicleId ? '255,107,122' : rgb;
+      el.style.setProperty('--callout-glow-rgb', selRgb);
+      el.classList.toggle('vehicle-callout-selected', v.id === selectedVehicleId);
     }
 
     const el = m.getElement();

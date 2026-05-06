@@ -169,16 +169,16 @@ export function createSimulation(data, targets) {
     if (id) plotFocusChannel = null;
     const v = id ? vehicleById(id) : null;
     if (v && v.roadDistM !== undefined) {
-      targets.waterfall.scrollChannelIntoView(v.channelPos);
-    }
-    if (v) {
-      targets.waterfall.setHighlightChannel(
-        Math.min(Math.max(0, Math.floor(v.channelPos)), totalChannels - 1),
-      );
+      const ch = Math.min(Math.max(0, Math.floor(v.channelPos)), totalChannels - 1);
+      targets.waterfall.zoomChannelIntoView?.(ch);
+      targets.waterfall.setHighlightChannel(ch);
+      targets.waterfall.setTrackChannel?.(ch);
     } else if (plotFocusChannel !== null) {
       targets.waterfall.setHighlightChannel(plotFocusChannel);
+      targets.waterfall.setTrackChannel?.(null);
     } else {
       targets.waterfall.setHighlightChannel(null);
+      targets.waterfall.setTrackChannel?.(null);
     }
     syncFleetPanelFn();
   }
@@ -188,8 +188,9 @@ export function createSimulation(data, targets) {
     const ch = channels[ci];
     if (!ch) return;
     plotFocusChannel = ci;
-    targets.waterfall.scrollChannelIntoView(ci);
+    targets.waterfall.zoomChannelIntoView?.(ci);
     targets.waterfall.setHighlightChannel(ci);
+    targets.waterfall.setTrackChannel?.(null);
     const map = targets.map;
     const z = Math.max(map.getZoom(), 15.4);
     map.easeTo({
@@ -401,13 +402,15 @@ export function createSimulation(data, targets) {
 
     const sel = selectedVehicleId ? vehicleById(selectedVehicleId) : null;
     if (sel) {
-      targets.waterfall.setHighlightChannel(
-        Math.min(Math.max(0, Math.floor(sel.channelPos)), totalChannels - 1),
-      );
+      const hci = Math.min(Math.max(0, Math.floor(sel.channelPos)), totalChannels - 1);
+      targets.waterfall.setHighlightChannel(hci);
+      targets.waterfall.setTrackChannel?.(hci);
     } else if (plotFocusChannel !== null) {
       targets.waterfall.setHighlightChannel(plotFocusChannel);
+      targets.waterfall.setTrackChannel?.(null);
     } else {
       targets.waterfall.setHighlightChannel(null);
+      targets.waterfall.setTrackChannel?.(null);
     }
 
     const vehicleFeatures = vehicles
@@ -445,7 +448,7 @@ export function createSimulation(data, targets) {
           mapDims.widthM,
           bearingDeg,
         );
-        const sel = v.id === selectedVehicleId;
+        const isSelected = v.id === selectedVehicleId;
         const laneTint =
           v.laneKey === 'eb' ? LANE_ROUTE_COLOR_HEX.eb : LANE_ROUTE_COLOR_HEX.wb;
         let baseFillHex;
@@ -456,14 +459,14 @@ export function createSimulation(data, targets) {
         } else {
           baseFillHex = spec.color;
         }
-        const fillColor = rgbaFromHex(baseFillHex, sel ? 0.96 : v.userPlaced ? 0.9 : 0.82);
+        const fillColor = rgbaFromHex(baseFillHex, isSelected ? 0.96 : v.userPlaced ? 0.9 : 0.82);
         let outlineColor;
         if (v.userPlaced) {
-          outlineColor = sel
+          outlineColor = isSelected
             ? rgbaFromHex(mixRgbWithHex(baseFillHex, '#ffffff', 0.4), 0.95)
             : rgbaFromHex(baseFillHex, 0.88);
         } else {
-          outlineColor = sel ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.42)';
+          outlineColor = isSelected ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.42)';
         }
         const glowColor = v.userPlaced ? fillColor : 'rgba(0,0,0,0)';
 
@@ -480,6 +483,7 @@ export function createSimulation(data, targets) {
             fill_color: fillColor,
             outline_color: outlineColor,
             user_placed: v.userPlaced ? 1 : 0,
+            selected: isSelected ? 1 : 0,
             glow_color: glowColor,
           },
           geometry: geom,
@@ -500,7 +504,7 @@ export function createSimulation(data, targets) {
     });
 
     updateMapVehicles(targets.map, vehicleFeatures);
-    syncVehicleCallouts(targets.map, vehicles);
+    syncVehicleCallouts(targets.map, vehicles, selectedVehicleId);
     updateMapAnomalies(targets.map, anomalyFeatures);
 
     targets.ui.updateStats(vehicles, anomalies, {
@@ -543,7 +547,6 @@ export function createSimulation(data, targets) {
       userPlaced: Boolean(opts.userPlaced),
     };
     vehicles.push(v);
-    targets.waterfall.scrollChannelIntoView(channelPos);
     return v;
   }
 
@@ -572,7 +575,6 @@ export function createSimulation(data, targets) {
       userPlaced: Boolean(opts.userPlaced),
     };
     vehicles.push(v);
-    targets.waterfall.scrollChannelIntoView(cp);
     return v;
   }
 
@@ -605,7 +607,6 @@ export function createSimulation(data, targets) {
       existing.lat = ll[1];
       existing.desiredSpeedMph = speed;
       existing.vehicleType = vtype;
-      targets.waterfall.scrollChannelIntoView(existing.channelPos);
       return true;
     }
 
@@ -641,7 +642,6 @@ export function createSimulation(data, targets) {
     existing.roadDistM = best * CHANNEL_SPACING_M;
     existing.lon = channels[best].lon;
     existing.lat = channels[best].lat;
-    targets.waterfall.scrollChannelIntoView(best);
     return true;
   }
 
@@ -684,7 +684,7 @@ export function createSimulation(data, targets) {
     vehicles = vehicles.filter((v) => v.id !== id);
     if (selectedVehicleId === id) setSelectedVehicleId(vehicles[0]?.id ?? null);
     if (dragVehicleId === id) dragVehicleId = null;
-    syncVehicleCallouts(targets.map, vehicles);
+    syncVehicleCallouts(targets.map, vehicles, selectedVehicleId);
     return vehicles.length < before;
   }
 
