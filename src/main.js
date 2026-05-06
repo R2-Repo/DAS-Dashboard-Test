@@ -16,6 +16,9 @@ registerSW({ immediate: true });
 async function boot() {
   const data = await runSplashGate(loadData);
   const map = initMap('map', data);
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => map.resize());
+  });
   const waterfall = initWaterfall('waterfall-canvas', data);
   const ui = initUI();
   const sim = createSimulation(data, { map, waterfall, ui });
