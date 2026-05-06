@@ -233,7 +233,7 @@ export function buildRoadMotionModel(roadGeojson, channels) {
 
     const { points, cumDistM } = resamplePolyline(coords, SAMPLE_SPACING_M);
     const channelAlong = buildChannelAlong(points, channels);
-    /** Light smoothing (~9 m window); heavy averaging blurred sharp road→fiber curvature and hid turning motion on the waterfall. */
+    /** Light smoothing (~9 m window); heavy averaging blurred sharp road-to-fiber curvature and hid turning motion on the waterfall. */
     smoothChannelAlongSamples(channelAlong, 2);
     const curvature = buildCurvaturePerM(points);
     smoothCurvatureMovingAverage(curvature, 3);
