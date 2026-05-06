@@ -1,6 +1,7 @@
 /**
  * Sidebar UI — live stats, fleet controls.
  */
+import { fleetDisplayNumberFromId } from './fleet-display-id.js';
 import { normalizeVehicleType, vehicleSpec } from './vehicle-model.js';
 
 const VEHICLE_ICON = {
@@ -93,11 +94,13 @@ export function initUI() {
       selectBtn.className = 'fleet-row-select';
       selectBtn.dataset.selectVehicleId = v.id;
       const icon = vehicleIcon(v.vehicleType);
-      const lane = v.laneKey === 'wb' ? 'WB' : 'EB';
+      const num = fleetDisplayNumberFromId(v.id);
+      const numLaneClass = v.laneKey === 'wb' ? 'fleet-row-num-wb' : 'fleet-row-num-eb';
       selectBtn.innerHTML = `
+        <span class="fleet-row-num ${numLaneClass}" aria-hidden="true">${num}</span>
         <span class="fleet-row-icon" aria-hidden="true">${icon}</span>
         <span class="fleet-row-meta">
-          <span class="fleet-row-line1">${vehicleSpec(v.vehicleType).label} · ${lane}</span>
+          <span class="fleet-row-line1">${vehicleSpec(v.vehicleType).label}</span>
           <span class="fleet-row-line2"><span class="fleet-row-mp">MP ${v.currentMilepost != null ? v.currentMilepost.toFixed(1) : '\u2014'}</span> · <span class="fleet-row-mph">${Math.round(v.speedMph)} mph</span></span>
         </span>
       `;

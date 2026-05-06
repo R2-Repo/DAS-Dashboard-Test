@@ -173,6 +173,22 @@ export function createSimulation(data, targets) {
       targets.waterfall.zoomChannelIntoView?.(ch);
       targets.waterfall.setHighlightChannel(ch);
       targets.waterfall.setTrackChannel?.(ch);
+      const map = targets.map;
+      if (
+        map
+        && typeof v.lon === 'number'
+        && Number.isFinite(v.lon)
+        && typeof v.lat === 'number'
+        && Number.isFinite(v.lat)
+      ) {
+        const z = Math.max(map.getZoom(), 15.2);
+        map.easeTo({
+          center: [v.lon, v.lat],
+          zoom: z,
+          duration: 650,
+          essential: true,
+        });
+      }
     } else if (plotFocusChannel !== null) {
       targets.waterfall.setHighlightChannel(plotFocusChannel);
       targets.waterfall.setTrackChannel?.(null);

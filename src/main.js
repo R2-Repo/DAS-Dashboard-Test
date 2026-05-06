@@ -107,6 +107,15 @@ async function boot() {
         sim.setSelectedVehicleId(id);
         sim.syncFleetPanel();
       }
+      return;
+    }
+    const row = e.target.closest?.('.fleet-row[data-vehicle-id]');
+    if (row && !e.target.closest?.('.fleet-row-controls')) {
+      const id = row.getAttribute('data-vehicle-id');
+      if (id) {
+        sim.setSelectedVehicleId(id);
+        sim.syncFleetPanel();
+      }
     }
   });
 
