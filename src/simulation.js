@@ -533,9 +533,7 @@ export function createSimulation(data, targets) {
     syncVehicleCallouts(targets.map, vehicles, selectedVehicleId);
     updateMapAnomalies(targets.map, anomalyFeatures);
 
-    targets.ui.updateStats(vehicles, anomalies, {
-      simTimeS: tickCount * (TICK_MS / MS_PER_S),
-    });
+    targets.ui.updateStats(vehicles, anomalies);
 
     targets.ui.updateFleetMileposts?.(fleetPanelSimView);
   }
@@ -724,7 +722,7 @@ export function createSimulation(data, targets) {
     clearVehicleCallouts(targets.map);
     updateMapVehicles(targets.map, []);
     updateMapAnomalies(targets.map, []);
-    targets.ui.updateStats(vehicles, anomalies, { simTimeS: 0 });
+    targets.ui.updateStats(vehicles, anomalies);
   }
 
   const DEMO_FLEET_MAX = 300;
@@ -832,8 +830,7 @@ export function createSimulation(data, targets) {
     dragVehicleId = null;
     plotFocusChannel = null;
     intervalId = setInterval(tick, TICK_MS);
-    targets.ui.updateChannelCount(totalChannels);
-    targets.ui.updateStats(vehicles, anomalies, { simTimeS: 0 });
+    targets.ui.updateStats(vehicles, anomalies);
   }
 
   const api = {
