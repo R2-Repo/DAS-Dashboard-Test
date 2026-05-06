@@ -15,7 +15,7 @@
  * Interaction:
  *   - Mouse wheel / trackpad scroll → focal zoom (channel under cursor stays fixed; fast steps)
  *   - Ctrl/⌘+wheel → same zoom (browser zoom-chord compatibility)
- *   - Touch: two-finger pinch zoom (no one-finger pan on the plot)
+ *   - Touch: one-finger swipe pans horizontally along the fiber; two-finger pinch zooms
  *   - Click / tap → zoom plot toward that channel + notify host (map flies to fiber location)
  *
  * Sim / display (not interrogator PRF):
@@ -126,8 +126,11 @@ export function initWaterfall(canvasId, data, options = {}) {
   let wfMouseDown = null; // { pointerId, originClientX, movedPx }
   let wfPanPickSuppressed = false;
 
-  /** Two-finger pinch on the waterfall (touch); no one-finger plot pan. */
+  /** Two-finger pinch on the waterfall (touch). */
   let wfPinch = null; // { idA, idB, dist0, range0, centerCh }
+
+  /** One-finger horizontal pan on touch devices (desktop mouse drag remains disabled). */
+  let wfTouchPan = null; // { pointerId, lastClientX }
 
   /** Defer single-click so a quick second tap does not fire twice. */
   let plotPickTimer = null;
@@ -316,6 +319,19 @@ export function initWaterfall(canvasId, data, options = {}) {
     }
   }
 
+  /** Pan the horizontal window by integer channel delta (touch swipe). */
+  function applyHorizontalScroll(deltaCh) {
+    resetViewIfInvalid();
+    const range = viewEnd - viewStart;
+    if (range <= 0) return;
+    viewStart = Math.max(0, viewStart + deltaCh);
+    viewEnd = Math.min(totalChannels, viewEnd + deltaCh);
+    if (viewEnd - viewStart < range) {
+      if (viewStart === 0) viewEnd = Math.min(totalChannels, viewStart + range);
+      else if (viewEnd === totalChannels) viewStart = Math.max(0, viewEnd - range);
+    }
+  }
+
   /** Zoom so channel under `clientX` stays fixed; `deltaY` > 0 zooms out (wider view). */
   function applyWheelZoomAtClientX(clientX, deltaY) {
     const range = viewEnd - viewStart;
@@ -414,6 +430,7 @@ export function initWaterfall(canvasId, data, options = {}) {
 
       if (activeTouchX.size === 2) {
         wfTouchTap = null;
+        wfTouchPan = null;
         const ids = [...activeTouchX.keys()];
         const x0 = activeTouchX.get(ids[0]);
         const x1 = activeTouchX.get(ids[1]);
@@ -435,6 +452,7 @@ export function initWaterfall(canvasId, data, options = {}) {
           originX: e.clientX,
           movedPx: 0,
         };
+        wfTouchPan = { pointerId: e.pointerId, lastClientX: e.clientX };
       }
     }
     hoveredChannel = channelFromClientX(e.clientX);
@@ -474,6 +492,21 @@ export function initWaterfall(canvasId, data, options = {}) {
           }
           requestRender();
         }
+      } else if (
+        wfTouchPan && e.pointerId === wfTouchPan.pointerId
+        && activeTouchX.size === 1 && !wfPinch
+      ) {
+        const w = canvas.width || canvas.getBoundingClientRect().width;
+        const range = viewEnd - viewStart;
+        if (w > 0 && range > 0) {
+          const dx = e.clientX - wfTouchPan.lastClientX;
+          wfTouchPan.lastClientX = e.clientX;
+          const deltaCh = Math.round(-dx * (range / w));
+          if (deltaCh !== 0) {
+            applyHorizontalScroll(deltaCh);
+            requestRender();
+          }
+        }
       }
     }
 
@@ -505,6 +538,13 @@ export function initWaterfall(canvasId, data, options = {}) {
       activeTouchX.delete(e.pointerId);
       if (wfPinch && (e.pointerId === wfPinch.idA || e.pointerId === wfPinch.idB)) wfPinch = null;
       if (wfTouchTap && e.pointerId === wfTouchTap.pointerId) wfTouchTap = null;
+      if (wfTouchPan && e.pointerId === wfTouchPan.pointerId) wfTouchPan = null;
+      if (activeTouchX.size === 1) {
+        const rid = [...activeTouchX.keys()][0];
+        const rx = activeTouchX.get(rid) ?? 0;
+        wfTouchTap = { pointerId: rid, originX: rx, movedPx: 0 };
+        wfTouchPan = { pointerId: rid, lastClientX: rx };
+      }
       if (wasTap && activeTouchX.size === 0) {
         schedulePlotChannelPick(e.clientX);
       }
@@ -522,6 +562,7 @@ export function initWaterfall(canvasId, data, options = {}) {
     if (wfMouseDown && e.pointerId === wfMouseDown.pointerId) wfMouseDown = null;
     activeTouchX.delete(e.pointerId);
     wfTouchTap = null;
+    wfTouchPan = null;
     if (wfPinch && (e.pointerId === wfPinch.idA || e.pointerId === wfPinch.idB)) wfPinch = null;
     hoveredChannel = null;
   });
