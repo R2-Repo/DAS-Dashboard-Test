@@ -46,6 +46,12 @@ const DEFAULT_VIEW_BEARING = 45;
 /** Initial / reset pitch; tilted view reads closer to the canyon surface at high zoom. */
 const DEFAULT_VIEW_PITCH = 58;
 /**
+ * Terrain mesh exaggeration (TerrainControl + `setTerrain`). Values ~1.5 can expose MapLibre raster
+ * draping/culling bugs at steep pitch (localized black/missing imagery tiles); slightly lower keeps 3D relief
+ * while stabilizing satellite tiles — see maplibre-gl terrain + raster discussions (e.g. #1241, #3983).
+ */
+const TERRAIN_EXAGGERATION = 1.2;
+/**
  * Added to `cameraForBounds` fitted zoom (positive = zoom in). Kept small so the intro shows the
  * full road centerline with comfortable padding (was too tight when this neared ~2+).
  */
@@ -101,27 +107,29 @@ export function initMap(containerId, data) {
     attributionControl: false,
     style: {
       version: 8,
+      /** Avoid globe / vertical-perspective blending that can glitch draped rasters at steep pitch + terrain. */
+      projection: { type: 'mercator' },
       sources: {
         'esri-imagery': {
           type: 'raster',
           tiles: [ESRI_IMAGERY_TILES],
           tileSize: 256,
           attribution: ESRI_ATTRIBUTION,
-          maxzoom: 19,
+          maxzoom: 18,
         },
         'esri-transport': {
           type: 'raster',
           tiles: [ESRI_TRANSPORT_TILES],
           tileSize: 256,
           attribution: ESRI_ATTRIBUTION,
-          maxzoom: 19,
+          maxzoom: 18,
         },
         'esri-boundaries': {
           type: 'raster',
           tiles: [ESRI_BOUNDARIES_TILES],
           tileSize: 256,
           attribution: ESRI_ATTRIBUTION,
-          maxzoom: 19,
+          maxzoom: 18,
         },
         terrainSource: {
           type: 'raster-dem',
@@ -132,7 +140,16 @@ export function initMap(containerId, data) {
         },
       },
       layers: [
-        { id: 'esri-imagery', type: 'raster', source: 'esri-imagery' },
+        {
+          id: 'esri-imagery',
+          type: 'raster',
+          source: 'esri-imagery',
+          paint: {
+            'raster-resampling': 'linear',
+            /** Brief fade avoids harsh pops when terrain redraw shifts raster UVs; 0 was prone to black seams. */
+            'raster-fade-duration': 125,
+          },
+        },
         {
           id: 'esri-transport',
           type: 'raster',
@@ -172,7 +189,7 @@ export function initMap(containerId, data) {
   });
 
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
-  map.addControl(new maplibregl.TerrainControl({ source: 'terrainSource', exaggeration: 1.5 }), 'top-right');
+  map.addControl(new maplibregl.TerrainControl({ source: 'terrainSource', exaggeration: TERRAIN_EXAGGERATION }), 'top-right');
   map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
 
   const mapEl = document.getElementById(containerId);
@@ -256,8 +273,11 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
       bearing: DEFAULT_VIEW_BEARING,
       pitch: DEFAULT_VIEW_PITCH,
     });
-    map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
-    window.requestAnimationFrame(() => map.resize());
+    map.setTerrain({ source: 'terrainSource', exaggeration: TERRAIN_EXAGGERATION });
+    window.requestAnimationFrame(() => {
+      map.resize();
+      map.triggerRepaint?.();
+    });
     scheduleMapIntroVeilReveal(map, mapHost);
     return;
   }
@@ -280,8 +300,11 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     terrainStarted = true;
     map.off('idle', enableTerrainAndReveal);
     if (jumpIdleFallbackTimer !== undefined) window.clearTimeout(jumpIdleFallbackTimer);
-    map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
-    window.requestAnimationFrame(() => map.resize());
+    map.setTerrain({ source: 'terrainSource', exaggeration: TERRAIN_EXAGGERATION });
+    window.requestAnimationFrame(() => {
+      map.resize();
+      map.triggerRepaint?.();
+    });
     scheduleMapIntroVeilReveal(map, mapHost);
   }
 
