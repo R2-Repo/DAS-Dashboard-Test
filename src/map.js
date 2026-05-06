@@ -43,14 +43,19 @@ const ESRI_ATTRIBUTION =
 
 /** Bearing in degrees (MapLibre): 0 = north up; ~45° ≈ northeast-facing view. */
 const DEFAULT_VIEW_BEARING = 45;
-/** Initial / reset pitch; tilted view reads closer to the canyon surface at high zoom. */
-const DEFAULT_VIEW_PITCH = 58;
+/**
+ * Initial / reset pitch. MapLibre warns pitch beyond ~60° is experimental with 3D terrain and can produce
+ * missing/black draped imagery; keep intro dramatic but below that threshold.
+ */
+const DEFAULT_VIEW_PITCH = 54;
 /**
  * Terrain mesh exaggeration (TerrainControl + `setTerrain`). Values ~1.5 can expose MapLibre raster
  * draping/culling bugs at steep pitch (localized black/missing imagery tiles); slightly lower keeps 3D relief
  * while stabilizing satellite tiles — see maplibre-gl terrain + raster discussions (e.g. #1241, #3983).
  */
-const TERRAIN_EXAGGERATION = 1.2;
+const TERRAIN_EXAGGERATION = 1.05;
+/** Cap user pitch with terrain on (desktop); steep angles worsen raster draping artifacts. */
+const MAX_VIEW_PITCH = 68;
 /**
  * Added to `cameraForBounds` fitted zoom (positive = zoom in). Kept small so the intro shows the
  * full road centerline with comfortable padding (was too tight when this neared ~2+).
@@ -79,6 +84,25 @@ const MAP_INTRO_VEIL_ABSOLUTE_FAILSAFE_MS = 4200;
 /** If `idle` never fires after the intro `jumpTo`, still enable terrain + veil fade (tile burst may stall idle). */
 const MAP_INTRO_JUMP_IDLE_FALLBACK_MS = 1800;
 
+/**
+ * After `setTerrain`, draped satellite UVs can lag the terrain mesh for a few frames (holes/black tiles).
+ * Hook `terrain`, then force layout + several repaints so peripheral tiles populate before intro orbit.
+ */
+function stabilizeImageryAfterTerrainEnable(map) {
+  map.once('terrain', () => {
+    window.requestAnimationFrame(() => {
+      map.resize();
+      map.redraw();
+      let frames = 0;
+      function burst() {
+        map.triggerRepaint?.();
+        if (++frames < 8) window.requestAnimationFrame(burst);
+      }
+      window.requestAnimationFrame(burst);
+    });
+  });
+}
+
 /** Bright intro-only route highlight; hidden once the user zooms in closer to the ground past baseline. */
 const CANYON_INTRO_LAYER_GLOW = 'canyon-intro-highlight-glow';
 const CANYON_INTRO_LAYER_CORE = 'canyon-intro-highlight-core';
@@ -105,6 +129,10 @@ export function initMap(containerId, data) {
   const map = new maplibregl.Map({
     container: containerId,
     attributionControl: false,
+    /** Single-world mercator; avoids duplicate-world edge cases while panning a regional corridor. */
+    renderWorldCopies: false,
+    /** Retain more zoom pyramids so orbit/pan does not evict peripheral satellite tiles as aggressively. */
+    maxTileCacheZoomLevels: 8,
     style: {
       version: 8,
       /** Avoid globe / vertical-perspective blending that can glitch draped rasters at steep pitch + terrain. */
@@ -183,7 +211,7 @@ export function initMap(containerId, data) {
     zoom: 11,
     pitch: 0,
     bearing: DEFAULT_VIEW_BEARING,
-    maxPitch: coarsePointer && narrowScreen ? 60 : 85,
+    maxPitch: coarsePointer && narrowScreen ? 60 : MAX_VIEW_PITCH,
     maxZoom: 18,
     touchPitch: true,
   });
@@ -273,11 +301,8 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
       bearing: DEFAULT_VIEW_BEARING,
       pitch: DEFAULT_VIEW_PITCH,
     });
+    stabilizeImageryAfterTerrainEnable(map);
     map.setTerrain({ source: 'terrainSource', exaggeration: TERRAIN_EXAGGERATION });
-    window.requestAnimationFrame(() => {
-      map.resize();
-      map.triggerRepaint?.();
-    });
     scheduleMapIntroVeilReveal(map, mapHost);
     return;
   }
@@ -300,11 +325,8 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     terrainStarted = true;
     map.off('idle', enableTerrainAndReveal);
     if (jumpIdleFallbackTimer !== undefined) window.clearTimeout(jumpIdleFallbackTimer);
+    stabilizeImageryAfterTerrainEnable(map);
     map.setTerrain({ source: 'terrainSource', exaggeration: TERRAIN_EXAGGERATION });
-    window.requestAnimationFrame(() => {
-      map.resize();
-      map.triggerRepaint?.();
-    });
     scheduleMapIntroVeilReveal(map, mapHost);
   }
 
