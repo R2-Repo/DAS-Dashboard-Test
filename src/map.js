@@ -65,6 +65,10 @@ const MAP_INTRO_VEIL_FADE_MS = 1650;
 const MAP_INTRO_SETTLE_AFTER_IDLE_MS = 180;
 /** Never leave the veil stuck if `idle` never refires (MapLibre quirk when already idle). */
 const MAP_INTRO_VEIL_FAILSAFE_MS = 9000;
+/** Last resort: fade veil this long after map `load` even if cinematic setup bails early. */
+const MAP_INTRO_VEIL_ABSOLUTE_FAILSAFE_MS = 12000;
+/** If first `idle` never fires after framing, still run pitch ease so terrain + reveal can proceed. */
+const MAP_INTRO_PITCH_EASE_IDLE_FALLBACK_MS = 6500;
 
 /** Bright intro-only route highlight; hidden once the user zooms in closer to the ground past baseline. */
 const CANYON_INTRO_LAYER_GLOW = 'canyon-intro-highlight-glow';
@@ -201,6 +205,7 @@ export function initMap(containerId, data) {
     addCanyonIntroHighlightLayers(map);
     setupCanyonIntroHighlightLifecycle(map);
     applyDefaultLayerVisibility(map);
+    scheduleMapIntroVeilAbsoluteFailsafe(mapHost);
     runCinematicRouteRevealThenSpin(map, bounds, mapHost);
     const attrib = map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact');
     if (attrib) {
@@ -220,7 +225,10 @@ export function initMap(containerId, data) {
  * @param {HTMLElement | null | undefined} mapHost `#map-container`; used for loading veil fade
  */
 function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
-  if (!bounds || bounds[0] > bounds[2] || bounds[1] > bounds[3]) return;
+  if (!bounds || bounds[0] > bounds[2] || bounds[1] > bounds[3]) {
+    fadeOutMapIntroVeil(mapHost);
+    return;
+  }
   if (typeof window === 'undefined') return;
 
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
@@ -236,7 +244,10 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     pitch: 0,
     maxZoom: FIT_BOUNDS_MAX_ZOOM,
   });
-  if (!cam?.center || cam.zoom == null) return;
+  if (!cam?.center || cam.zoom == null) {
+    fadeOutMapIntroVeil(mapHost);
+    return;
+  }
 
   const minZ = map.getMinZoom?.() ?? 0;
   const cap = map.getMaxZoom?.() ?? 18;
@@ -284,7 +295,20 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     map.once('moveend', enableTerrainThenRevealSpin);
   }
 
-  map.once('idle', easeIntoPitch);
+  let pitchEaseStarted = false;
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let pitchIdleFallbackTimer;
+
+  function kickPitchEaseOnce() {
+    if (pitchEaseStarted) return;
+    pitchEaseStarted = true;
+    map.off('idle', kickPitchEaseOnce);
+    if (pitchIdleFallbackTimer !== undefined) window.clearTimeout(pitchIdleFallbackTimer);
+    easeIntoPitch();
+  }
+
+  map.once('idle', kickPitchEaseOnce);
+  pitchIdleFallbackTimer = window.setTimeout(kickPitchEaseOnce, MAP_INTRO_PITCH_EASE_IDLE_FALLBACK_MS);
 }
 
 function ensureMapIntroLoadingVeil(mapHost) {
@@ -315,6 +339,11 @@ function fadeOutMapIntroVeil(mapHost) {
     veil.classList.add('map-intro-loading-veil--fade-out');
     veil.setAttribute('aria-hidden', 'true');
   });
+}
+
+function scheduleMapIntroVeilAbsoluteFailsafe(mapHost) {
+  if (typeof window === 'undefined') return;
+  window.setTimeout(() => fadeOutMapIntroVeil(mapHost), MAP_INTRO_VEIL_ABSOLUTE_FAILSAFE_MS);
 }
 
 /**
