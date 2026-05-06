@@ -115,22 +115,41 @@ function resamplePolyline(coords, spacingM) {
   return { points: dense, cumDistM, segmentLengths };
 }
 
+/**
+ * Nearest fiber channel index to (lon, lat), using `hintIndex` as a seed.
+ * Expands the search window when the minimum sits on the window edge so the global
+ * nearest is found even when the hint is far away in channel index (e.g. first road
+ * sample vs. a mid-array hint on ~10k channels). A fixed ±400 window alone can lock
+ * onto the wrong fiber segment and corrupt road→channel mapping at route terminals.
+ */
 function nearestChannelIndex(lon, lat, channels, hintIndex) {
   const n = channels.length;
+  if (n === 0) return 0;
   let i0 = Math.max(0, Math.min(n - 1, hintIndex ?? Math.floor(n / 2)));
-  let bestD = haversine(lon, lat, channels[i0].lon, channels[i0].lat);
-  let best = i0;
-  const window = 400;
-  const lo = Math.max(0, i0 - window);
-  const hi = Math.min(n - 1, i0 + window);
-  for (let i = lo; i <= hi; i++) {
-    const d = haversine(lon, lat, channels[i].lon, channels[i].lat);
-    if (d < bestD) {
-      bestD = d;
-      best = i;
+  let window = 400;
+  const maxIter = 40;
+  for (let iter = 0; iter < maxIter; iter++) {
+    const lo = Math.max(0, i0 - window);
+    const hi = Math.min(n - 1, i0 + window);
+    let bestD = Infinity;
+    let best = i0;
+    for (let i = lo; i <= hi; i++) {
+      const d = haversine(lon, lat, channels[i].lon, channels[i].lat);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
     }
+    if ((best > lo && best < hi) || (lo === 0 && hi === n - 1)) {
+      return best;
+    }
+    if (window >= n - 1) {
+      return best;
+    }
+    window = Math.min(n, window * 2);
+    i0 = best;
   }
-  return best;
+  return Math.max(0, Math.min(n - 1, i0));
 }
 
 function buildChannelAlong(points, channels) {
