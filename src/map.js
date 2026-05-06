@@ -39,7 +39,7 @@ const DEFAULT_VIEW_BEARING = 45;
 /** Initial / reset pitch; `fitBounds` uses this so framing accounts for tilted horizon. */
 const DEFAULT_VIEW_PITCH = 55;
 /** Nudges zoom after fitBounds: positive = zoom out, negative = zoom in from the fitted level. */
-const FIT_BOUNDS_ZOOM_NUDGE = -0.22;
+const FIT_BOUNDS_ZOOM_NUDGE = -0.48;
 /** Upper cap for auto-fit zoom (road + fiber union); raised so steeper pitch can still zoom in. */
 const FIT_BOUNDS_MAX_ZOOM = 13.45;
 
@@ -48,6 +48,9 @@ const CANYON_INTRO_LAYER_GLOW = 'canyon-intro-highlight-glow';
 const CANYON_INTRO_LAYER_CORE = 'canyon-intro-highlight-core';
 /** Hide when current zoom exceeds baseline (post-idle) by this amount (user moved in on the map). */
 const CANYON_INTRO_ZOOM_IN_DELTA = 0.65;
+
+/** One full orbit around the route center at load; two bearing steps avoid bearing-wrap shortcuts. */
+const ROUTE_INTRO_ORBIT_HALF_MS = 6500;
 
 const LAYER_TOGGLE_IDS = {
   road: ['road-wb-centerline', 'road-eb-centerline'],
@@ -173,6 +176,7 @@ export function initMap(containerId, data) {
 
   map.on('load', () => {
     applyRouteBoundsCamera(map, bounds);
+    setupRouteIntroOrbit(map, bounds);
     addRoadCenterlineLayers(map, data.road);
     addFiberLayer(map, data.fiberRoute);
     addMilepostLayers(map, data.mileposts);
@@ -212,6 +216,106 @@ function applyRouteBoundsCamera(map, bounds) {
   const z = map.getZoom();
   const minZ = map.getMinZoom?.() ?? 0;
   map.setZoom(Math.max(minZ, z + FIT_BOUNDS_ZOOM_NUDGE));
+}
+
+function routeCenterLngLat(bounds) {
+  if (!bounds || bounds[0] > bounds[2] || bounds[1] > bounds[3]) return null;
+  return new maplibregl.LngLat((bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2);
+}
+
+/**
+ * Slow 360° orbit around the route bbox center. Two 180° legs so bearing normalization cannot shorten the path.
+ * Any real user pan/zoom/rotate (or click / wheel on the map canvas) stops the animation via map.stop().
+ */
+function setupRouteIntroOrbit(map, bounds) {
+  const center = routeCenterLngLat(bounds);
+  if (!center || typeof window === 'undefined') return;
+
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  if (reducedMotion) return;
+
+  let finished = false;
+
+  const easeOpts = (bearing) => ({
+    bearing,
+    duration: ROUTE_INTRO_ORBIT_HALF_MS,
+    easing: (t) => t,
+    around: center,
+    essential: true,
+    freezeElevation: true,
+  });
+
+  function cleanupListeners() {
+    map.off('dragstart', onMapGesture);
+    map.off('zoomstart', onMapGesture);
+    map.off('rotatestart', onMapGesture);
+    map.off('pitchstart', onMapGesture);
+    map.off('boxzoomstart', onMapGesture);
+    const c = map.getCanvas?.();
+    if (c) {
+      c.removeEventListener('pointerdown', onCanvasPointerLike, true);
+      c.removeEventListener('wheel', onCanvasWheel, true);
+    }
+  }
+
+  function teardown() {
+    if (finished) return;
+    finished = true;
+    cleanupListeners();
+  }
+
+  function interruptFromUser() {
+    if (finished) return;
+    teardown();
+    map.stop();
+  }
+
+  function onMapGesture(e) {
+    if (finished) return;
+    if (!e?.originalEvent) return;
+    interruptFromUser();
+  }
+
+  function onCanvasPointerLike() {
+    if (finished) return;
+    interruptFromUser();
+  }
+
+  function onCanvasWheel() {
+    if (finished) return;
+    interruptFromUser();
+  }
+
+  map.on('dragstart', onMapGesture);
+  map.on('zoomstart', onMapGesture);
+  map.on('rotatestart', onMapGesture);
+  map.on('pitchstart', onMapGesture);
+  map.on('boxzoomstart', onMapGesture);
+
+  const canvas = map.getCanvas?.();
+  if (canvas) {
+    canvas.addEventListener('pointerdown', onCanvasPointerLike, { capture: true });
+    canvas.addEventListener('wheel', onCanvasWheel, { passive: true, capture: true });
+  }
+
+  map.once('idle', () => {
+    if (finished) return;
+
+    const start = map.getBearing();
+    const mid = start + 180;
+    const end = mid + 180;
+
+    map.rotateTo(mid, easeOpts(mid));
+
+    map.once('moveend', () => {
+      if (finished) return;
+      map.rotateTo(end, easeOpts(end));
+      map.once('moveend', () => {
+        if (finished) return;
+        teardown();
+      });
+    });
+  });
 }
 
 function setLayerVisibility(map, layerId, visible) {
