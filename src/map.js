@@ -331,6 +331,8 @@ function ensureMapIntroLoadingVeil(mapHost) {
 function prepareMapIntroVeil(mapHost) {
   const veil = mapHost?.querySelector?.('#map-intro-loading-veil');
   if (!(veil instanceof HTMLElement)) return;
+  // If something already faded the veil (e.g. absolute failsafe during long splash), do not restore opacity.
+  if (veil.classList.contains('map-intro-loading-veil--fade-out')) return;
   veil.classList.remove('map-intro-loading-veil--fade-out');
   veil.setAttribute('aria-hidden', 'true');
   veil.style.transitionDuration = `${MAP_INTRO_VEIL_FADE_MS}ms`;
