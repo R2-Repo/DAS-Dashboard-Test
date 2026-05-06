@@ -7,7 +7,8 @@
  *
  * GIS layers on load: road centerlines (EB/WB), fiber path, milepost markers (optional overlays).
  * First paint uses a staged camera (top-down → tilt) with terrain enabled after the tilt ease so
- * the 3D mesh does not fight the initial tile burst.
+ * the 3D mesh does not fight the initial tile burst. Apparent closeness to the ground is mostly
+ * controlled by zoom (higher zoom = lower camera altitude).
  * Dynamic layers: anomaly pulses, then vehicles as fill-extrusion blocks on terrain.
  *
  * Reference rasters are pre-rendered tiles: opacity and color tuning are available; per-feature
@@ -38,15 +39,20 @@ const ESRI_ATTRIBUTION =
 
 /** Bearing in degrees (MapLibre): 0 = north up; ~45° ≈ northeast-facing view. */
 const DEFAULT_VIEW_BEARING = 45;
-/** Initial / reset pitch; `fitBounds` uses this so framing accounts for tilted horizon. */
-const DEFAULT_VIEW_PITCH = 55;
-/** Nudges zoom after framing: positive = zoom out, negative = zoom in from the fitted level. */
-const FIT_BOUNDS_ZOOM_NUDGE = -1.38;
-/** Upper cap for auto-fit zoom (road + fiber union); raised so steeper pitch can still zoom in. */
-const FIT_BOUNDS_MAX_ZOOM = 14.35;
+/** Initial / reset pitch; tilted view reads closer to the canyon surface at high zoom. */
+const DEFAULT_VIEW_PITCH = 58;
+/** Nudges zoom after framing: negative = zoom in (lower altitude / closer to ground). */
+const FIT_BOUNDS_ZOOM_NUDGE = -2.35;
+/** Upper cap for auto-fit zoom (road + fiber union); raised so intro can sit much closer. */
+const FIT_BOUNDS_MAX_ZOOM = 15.45;
+/**
+ * After terrain turns on, MapLibre can pull the effective camera back; nudge zoom in again so
+ * the tilted intro still feels close to the ground.
+ */
+const POST_TERRAIN_ZOOM_NUDGE = 0.55;
 
 /** Cinematic first paint: top-down first, then ease to tilt before enabling terrain (reduces load stutter). */
-const CINEMATIC_REVEAL_PADDING = { top: 22, bottom: 28, left: 26, right: 26 };
+const CINEMATIC_REVEAL_PADDING = { top: 14, bottom: 18, left: 18, right: 18 };
 const CINEMATIC_PITCH_EASE_MS = 3200;
 /** Continuous intro spin (degrees per second); interrupted by user gestures. */
 const ROUTE_INTRO_SPIN_DEG_PER_SEC = 1.85;
@@ -230,6 +236,8 @@ function runCinematicRouteRevealThenSpin(map, bounds) {
       pitch: DEFAULT_VIEW_PITCH,
     });
     map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
+    const cap = map.getMaxZoom?.() ?? 18;
+    map.setZoom(Math.min(cap, map.getZoom() + POST_TERRAIN_ZOOM_NUDGE));
     return;
   }
 
@@ -242,6 +250,9 @@ function runCinematicRouteRevealThenSpin(map, bounds) {
 
   function enableTerrainAndSpin() {
     map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
+    const cap = map.getMaxZoom?.() ?? 18;
+    const z = Math.min(cap, map.getZoom() + POST_TERRAIN_ZOOM_NUDGE);
+    map.setZoom(z);
     window.requestAnimationFrame(() => map.resize());
     setupRouteIntroSpinContinuous(map);
   }
