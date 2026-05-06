@@ -6,8 +6,10 @@
  *   - Terrain: AWS Terrarium RGB elevation tiles (for 3D + hillshade)
  *
  * GIS layers on load: road centerlines (EB/WB), fiber path, milepost markers (optional overlays).
- * Intro camera fits the road centerline GeoJSON with generous padding, then tilts, enables terrain,
- * fades the semi-transparent loading veil (a few seconds), and starts a slow orbit until interaction.
+ * Intro camera fits the road centerline GeoJSON with generous padding at the **final** zoom (including the
+ * old post-terrain nudge, baked in so we never zoom again after 3D activates — that second zoom caused a full
+ * raster refetch and gray tiles). Terrain enables while still top-down so DEM warms under the veil; then we
+ * ease pitch, fade the veil, and orbit until interaction.
  * Dynamic layers: anomaly pulses, then vehicles as fill-extrusion blocks on terrain.
  *
  * Reference rasters are pre-rendered tiles: opacity and color tuning are available; per-feature
@@ -52,11 +54,11 @@ const INTRO_ROUTE_ZOOM_BOOST = 0.45;
 /** Upper cap passed into `cameraForBounds` so the route fit does not lock overly close. */
 const FIT_BOUNDS_MAX_ZOOM = 16.65;
 /**
- * Nudge zoom after terrain enables (smaller = stay wider so the full route stays in view).
+ * Nudge zoom baked into the intro `jumpTo` (was applied after terrain and forced a second tile pyramid fetch).
  */
 const POST_TERRAIN_ZOOM_BOOST = 0.12;
 
-/** Cinematic first paint: top-down first, then ease to tilt before enabling terrain (reduces load stutter). */
+/** Top-down route frame → enable terrain while flat → tilt once → fade veil (avoids tilt-then-terrain reload). */
 const CINEMATIC_REVEAL_PADDING = { top: 44, bottom: 48, left: 48, right: 48 };
 /** Pitch ease duration — shorter so the map is not obscured for ~10s under the loading veil. */
 const CINEMATIC_PITCH_EASE_MS = 1400;
@@ -73,6 +75,8 @@ const MAP_INTRO_VEIL_FAILSAFE_MS = 1400;
 const MAP_INTRO_VEIL_ABSOLUTE_FAILSAFE_MS = 4200;
 /** If first `idle` never fires after framing, still run pitch ease so terrain + reveal can proceed. */
 const MAP_INTRO_PITCH_EASE_IDLE_FALLBACK_MS = 700;
+/** Max wait after terrain enable before starting pitch ease (`idle` may not refire). */
+const MAP_INTRO_TERRAIN_TO_PITCH_MS = 2200;
 
 /** Bright intro-only route highlight; hidden once the user zooms in closer to the ground past baseline. */
 const CANYON_INTRO_LAYER_GLOW = 'canyon-intro-highlight-glow';
@@ -183,7 +187,7 @@ export function initMap(containerId, data) {
     },
     center: [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2],
     zoom: 11,
-    pitch: DEFAULT_VIEW_PITCH,
+    pitch: 0,
     bearing: DEFAULT_VIEW_BEARING,
     maxPitch: coarsePointer && narrowScreen ? 60 : 85,
     maxZoom: 18,
@@ -210,7 +214,6 @@ export function initMap(containerId, data) {
   map.on('load', () => {
     // Style just became ready; size can be wrong if the container was offscreen (splash) or flex reflowed.
     window.requestAnimationFrame(() => map.resize());
-    map.setTerrain(null);
     addRoadCenterlineLayers(map, data.road);
     addFiberLayer(map, data.fiberRoute);
     addMilepostLayers(map, data.mileposts);
@@ -231,8 +234,9 @@ export function initMap(containerId, data) {
 }
 
 /**
- * Frame the road centerline bounds at top-down pitch first (no terrain yet), then ease into tilt,
- * enable terrain, fade the loading veil, then start a slow continuous bearing spin until the user interacts.
+ * Top-down framing → enable terrain (flat) → ease pitch → fade veil → bearing spin until interaction.
+ * Terrain before tilt avoids a second heavy reload when 3D turns on after the camera has already tilted;
+ * final zoom is set once (no post-terrain zoom nudge) to avoid invalidating satellite tiles twice.
  * @param {import('maplibre-gl').Map} map
  * @param {[number, number, number, number]} bounds Road envelope when available (else union road+fiber).
  * @param {HTMLElement | null | undefined} mapHost `#map-container`; used for loading veil fade
@@ -264,7 +268,10 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
 
   const minZ = map.getMinZoom?.() ?? 0;
   const cap = map.getMaxZoom?.() ?? 18;
-  const zoom = Math.min(cap, Math.max(minZ, cam.zoom + INTRO_ROUTE_ZOOM_BOOST));
+  const zoom = Math.min(
+    cap,
+    Math.max(minZ, cam.zoom + INTRO_ROUTE_ZOOM_BOOST + POST_TERRAIN_ZOOM_BOOST),
+  );
 
   if (reducedMotion) {
     map.jumpTo({
@@ -274,7 +281,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
       pitch: DEFAULT_VIEW_PITCH,
     });
     map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
-    map.setZoom(Math.min(cap, Math.max(minZ, map.getZoom() + POST_TERRAIN_ZOOM_BOOST)));
+    window.requestAnimationFrame(() => map.resize());
     fadeOutMapIntroVeil(mapHost);
     return;
   }
@@ -288,16 +295,6 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     pitch: 0,
   });
 
-  function enableTerrainThenRevealSpin() {
-    map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
-    const capAfter = map.getMaxZoom?.() ?? 18;
-    const minAfter = map.getMinZoom?.() ?? 0;
-    map.setZoom(Math.min(capAfter, Math.max(minAfter, map.getZoom() + POST_TERRAIN_ZOOM_BOOST)));
-    window.requestAnimationFrame(() => map.resize());
-
-    scheduleMapIntroVeilReveal(map, mapHost);
-  }
-
   function easeIntoPitch() {
     // `moveend` alone can fail after pitch-only easeTo; without progression the loading veil never fades.
     let pitchPhaseDone = false;
@@ -307,7 +304,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
       window.clearTimeout(pitchEaseFailsafeTimer);
       map.off('moveend', finishPitchPhase);
       map.off('pitchend', finishPitchPhase);
-      enableTerrainThenRevealSpin();
+      scheduleMapIntroVeilReveal(map, mapHost);
     }
     const pitchEaseFailsafeTimer = window.setTimeout(
       finishPitchPhase,
@@ -323,20 +320,43 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     });
   }
 
-  let pitchEaseStarted = false;
-  /** @type {ReturnType<typeof setTimeout> | undefined} */
-  let pitchIdleFallbackTimer;
+  function startTerrainThenEasePitch() {
+    map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
+    window.requestAnimationFrame(() => map.resize());
 
-  function kickPitchEaseOnce() {
-    if (pitchEaseStarted) return;
-    pitchEaseStarted = true;
-    map.off('idle', kickPitchEaseOnce);
-    if (pitchIdleFallbackTimer !== undefined) window.clearTimeout(pitchIdleFallbackTimer);
-    easeIntoPitch();
+    let pitchStarted = false;
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    let terrainIdleFailsafe;
+
+    function beginPitchEase() {
+      if (pitchStarted) return;
+      pitchStarted = true;
+      map.off('idle', beginPitchEase);
+      if (terrainIdleFailsafe !== undefined) window.clearTimeout(terrainIdleFailsafe);
+      easeIntoPitch();
+    }
+
+    window.setTimeout(() => {
+      map.triggerRepaint?.();
+      terrainIdleFailsafe = window.setTimeout(beginPitchEase, MAP_INTRO_TERRAIN_TO_PITCH_MS);
+      map.once('idle', beginPitchEase);
+    }, MAP_INTRO_SETTLE_AFTER_IDLE_MS);
   }
 
-  map.once('idle', kickPitchEaseOnce);
-  pitchIdleFallbackTimer = window.setTimeout(kickPitchEaseOnce, MAP_INTRO_PITCH_EASE_IDLE_FALLBACK_MS);
+  let topDownPhaseStarted = false;
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let topDownIdleFallbackTimer;
+
+  function kickTerrainPhaseOnce() {
+    if (topDownPhaseStarted) return;
+    topDownPhaseStarted = true;
+    map.off('idle', kickTerrainPhaseOnce);
+    if (topDownIdleFallbackTimer !== undefined) window.clearTimeout(topDownIdleFallbackTimer);
+    startTerrainThenEasePitch();
+  }
+
+  map.once('idle', kickTerrainPhaseOnce);
+  topDownIdleFallbackTimer = window.setTimeout(kickTerrainPhaseOnce, MAP_INTRO_PITCH_EASE_IDLE_FALLBACK_MS);
 }
 
 function ensureMapIntroLoadingVeil(mapHost) {
