@@ -37,18 +37,12 @@ const TICK_MS = 100;
 const MS_PER_S = 1000;
 const MPH_TO_MS = 0.44704;
 
-/** Extra Δchannels/tick in waterfall stamping so tracks read diagonal when road ≈ fiber. */
-const WATERFALL_DIAGONAL_SKEW = 0.78;
-
 /**
- * Absolute ceiling on fiber-index span for one row's diagonal stitch. Without this, the road→fiber
- * mapping can imply thousands of channels in a single tick at route folds (esp. near milepost 0),
- * which paints a false horizontal band across unrelated mileposts.
+ * Absolute ceiling on fiber-index span for one row's diagonal stitch budget helper (tests / tooling).
+ * Row synthesis uses a single centroid stamp per vehicle per tick so one time slice is not smeared
+ * across many mileposts.
  */
 const MAX_WATERFALL_STITCH_SPAN_CH = 380;
-
-/** Below this |Δchannel| between stamps, use one full-strength stamp (avoids diluting weak motion). */
-const WATERFALL_SINGLE_STAMP_PATH_CH = 0.12;
 
 /**
  * If fiber index jumps far more than along-road motion implies, the road→channel map likely
@@ -65,7 +59,8 @@ export function isFiberMappingGlitch(deltaRoadM, rawMotionCh, halfWidth) {
 const TERMINAL_DESPAWN_TICKS = 55;
 
 /**
- * Allowed stitch length from observed along-fiber motion this tick plus footprint/skew slack.
+ * Historical helper: allowed stitch length from observed along-fiber motion plus footprint slack.
+ * Exported for unit tests; row synthesis no longer bridges multiple stamps per vehicle per tick.
  *
  * @param {number} rawChannelDelta — |channelPos − previous channelPos| for this vehicle (same tick basis)
  */
@@ -436,41 +431,14 @@ export function createSimulation(data, targets) {
       let peakStrength =
         strength * classHeat * microRipple * (0.96 + Math.random() * 0.04) * speedCoupling;
 
-      const cpt =
-        typeof v.channelsPerTick === 'number' && v.channelsPerTick > 0
-          ? v.channelsPerTick
-          : mph > 0.75
-            ? mphToChannelsPerTick(mph)
-            : 0;
-      const skewSign = v.direction === 'up_canyon' ? 1 : -1;
-      const skew = skewSign * WATERFALL_DIAGONAL_SKEW * cpt;
-      const stampPrev = prevStamp - skew * 0.5;
-      const stampCenter = rawCh + skew * 0.5;
-
-      const delta = stampCenter - stampPrev;
-      const pathLen = Math.abs(delta);
-      const maxBridgeCh = waterfallStitchSpanBudget(rawMotionCh, halfWidth, skew);
-
       if (isFiberMappingGlitch(deltaRoadForStamp, rawMotionCh, halfWidth)) {
         stampVehicleEnergyAt(rawCh, peakStrength, halfWidth);
-        v.prevStampChannelPos = rawCh;
-        v.prevStampRoadDistM = v.roadDistM;
-        continue;
-      }
-
-      if (pathLen > maxBridgeCh) {
-        stampVehicleEnergyAt(stampCenter, peakStrength, halfWidth);
-      } else if (pathLen < WATERFALL_SINGLE_STAMP_PATH_CH) {
-        stampVehicleEnergyAt(stampCenter, peakStrength, halfWidth);
       } else {
-        const nSteps = Math.min(40, Math.max(2, Math.ceil(pathLen * 3 + 4)));
-        const stackScale = 1 / Math.pow(nSteps, 0.12);
-        for (let s = 0; s < nSteps; s++) {
-          const u = nSteps === 1 ? 1 : s / (nSteps - 1);
-          const pos = stampPrev + delta * u;
-          const along = 0.68 + 0.32 * (1 - Math.abs(u - 0.5) * 2);
-          stampVehicleEnergyAt(pos, peakStrength * along * stackScale, halfWidth);
-        }
+        // Realistic DAS: one row is one instant — localize energy near the vehicle during this tick
+        // (midpoint along fiber between previous and current samples). Multi-stamp "stitching" across
+        // the whole per-tick channel delta painted wide horizontal bars on the waterfall.
+        const centroidCh = (prevStamp + rawCh) * 0.5;
+        stampVehicleEnergyAt(centroidCh, peakStrength, halfWidth);
       }
 
       v.prevStampChannelPos = rawCh;
