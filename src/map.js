@@ -8,7 +8,7 @@
  * GIS layers on load: road centerlines (EB/WB), fiber path, milepost markers (optional overlays).
  * Intro fits the route at **final** zoom in one step (route + post-terrain nudge baked into `jumpTo` — no
  * `setZoom` after terrain, which refetched satellite tiles). Camera jumps straight to framed 3D (no pitch ease);
- * terrain enables after rasters settle, veil fades, then slow orbit until interaction.
+ * terrain enables after rasters settle; the veil fades while the intro orbit can already be running underneath.
  *
  * Missing imagery “around” the route was caused by (1) MapLibre `cameraForBounds` ignoring pitch when picking
  * zoom — we inflate the bbox before fitting so edge tiles load. (2) Discrete `setBearing` steps caused jitter;
@@ -76,6 +76,11 @@ const POST_TERRAIN_ZOOM_BOOST = 0.15;
  * “tight” and edge tiles never enter the load budget (black/missing ring around the corridor).
  */
 const INTRO_BOUNDS_INFLATE_FACTOR = 1.3;
+/**
+ * After `cameraForBounds`, nudge the camera center northward (degrees latitude) so the canyon mouth / valley
+ * entry is not clipped at the bottom of the tilted view — same zoom, small geographic pan only.
+ */
+const INTRO_VIEW_CENTER_LAT_NUDGE_NORTH = 0.0075;
 
 /** Padding around the route bbox when fitting the intro camera. */
 const CINEMATIC_REVEAL_PADDING = { top: 44, bottom: 48, left: 48, right: 48 };
@@ -86,10 +91,6 @@ const ROUTE_INTRO_SPIN_DEG_PER_SEC = 1.95;
  * ROUTE_INTRO_SPIN_DEG_PER_SEC (MapLibre interpolates smoothly instead of stepping with `setBearing`).
  */
 const INTRO_ORBIT_EASE_STEP_DEGREES = 0.55;
-/** Brief pause after the veil fades before we wait for `idle` and start the orbit. */
-const POST_VEIL_SPIN_DELAY_MS = 450;
-/** If `idle` does not refire after the veil (already idle), still begin orbit within this window. */
-const MAP_INTRO_ORBIT_IDLE_FAILSAFE_MS = 2600;
 
 /** Veil opacity transition — paired with MAP_INTRO_VEIL_FADE_MS (also set inline on the element). */
 const MAP_INTRO_VEIL_FADE_MS = 700;
@@ -139,6 +140,18 @@ function inflateLngLatBounds(bounds, factor) {
 function centerOfBounds(bounds) {
   if (!bounds || bounds[0] > bounds[2] || bounds[1] > bounds[3]) return [0, 0];
   return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+}
+
+/**
+ * Applies a fixed northward lat shift to the fitted camera center so the framed corridor sits slightly lower
+ * on screen at pitch (mouth / valley visibility) without changing zoom.
+ * @param {import('maplibre-gl').LngLatLike} c
+ * @returns {[number, number]}
+ */
+function introJumpCenterFromCamCenter(c) {
+  const lng = typeof c.lng === 'number' ? c.lng : /** @type {[number, number]} */ (c)[0];
+  const lat = typeof c.lat === 'number' ? c.lat : /** @type {[number, number]} */ (c)[1];
+  return [lng, lat + INTRO_VIEW_CENTER_LAT_NUDGE_NORTH];
 }
 
 /** Bright intro-only route highlight; hidden once the user zooms in closer to the ground past baseline. */
@@ -309,7 +322,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
 
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
-  const orbitPivot = centerOfBounds(bounds);
+  const orbitPivot = introJumpCenterFromCamCenter(centerOfBounds(bounds));
 
   const inflated = inflateLngLatBounds(bounds, INTRO_BOUNDS_INFLATE_FACTOR);
   const b = [
@@ -336,7 +349,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
 
   if (reducedMotion) {
     map.jumpTo({
-      center: cam.center,
+      center: introJumpCenterFromCamCenter(cam.center),
       zoom,
       bearing: DEFAULT_VIEW_BEARING,
       pitch: DEFAULT_VIEW_PITCH,
@@ -350,7 +363,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
   prepareMapIntroVeil(mapHost);
 
   map.jumpTo({
-    center: cam.center,
+    center: introJumpCenterFromCamCenter(cam.center),
     zoom,
     bearing: DEFAULT_VIEW_BEARING,
     pitch: DEFAULT_VIEW_PITCH,
@@ -422,8 +435,10 @@ function scheduleMapIntroVeilAbsoluteFailsafe(mapHost) {
 /**
  * Wait for post-terrain idle (or timeout) before fading the veil. Nested `once('idle')` was unreliable:
  * if the map was already idle when the inner listener registered, `idle` never fired and the veil stayed forever.
- */
-/**
+ *
+ * When the veil fades, start the intro orbit on the next animation frame so rotation is already underway as the
+ * overlay disappears (no extra idle delay).
+ *
  * @param {import('maplibre-gl').Map} map
  * @param {HTMLElement | null | undefined} mapHost
  * @param {import('maplibre-gl').LngLatLike} orbitPivot Route bbox center; passed to `easeTo({ around })`.
@@ -444,7 +459,7 @@ function scheduleMapIntroVeilReveal(map, mapHost, orbitPivot) {
       map.off('idle', onIdle);
       if (failsafeTimer !== undefined) window.clearTimeout(failsafeTimer);
       fadeOutMapIntroVeil(mapHost);
-      scheduleIntroOrbitAfterReady(map, orbitPivot);
+      window.requestAnimationFrame(() => setupRouteIntroSpinContinuous(map, orbitPivot));
     }
 
     function onIdle() {
@@ -454,28 +469,6 @@ function scheduleMapIntroVeilReveal(map, mapHost, orbitPivot) {
     map.once('idle', onIdle);
     failsafeTimer = window.setTimeout(reveal, MAP_INTRO_VEIL_FAILSAFE_MS);
   }, MAP_INTRO_SETTLE_AFTER_IDLE_MS);
-}
-
-/**
- * After the veil clears, wait briefly then start orbit only once sources have settled (`idle`) or by failsafe,
- * so the user sees a complete 3D frame before motion.
- */
-function scheduleIntroOrbitAfterReady(map, orbitPivot) {
-  window.setTimeout(() => {
-    let started = false;
-    function startOrbit() {
-      if (started) return;
-      started = true;
-      map.off('idle', onIdleAfterVeil);
-      setupRouteIntroSpinContinuous(map, orbitPivot);
-    }
-    function onIdleAfterVeil() {
-      startOrbit();
-    }
-    map.once('idle', onIdleAfterVeil);
-    map.triggerRepaint?.();
-    window.setTimeout(startOrbit, MAP_INTRO_ORBIT_IDLE_FAILSAFE_MS);
-  }, POST_VEIL_SPIN_DELAY_MS);
 }
 
 /**
