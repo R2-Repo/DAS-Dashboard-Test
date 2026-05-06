@@ -41,18 +41,20 @@ const ESRI_ATTRIBUTION =
 const DEFAULT_VIEW_BEARING = 45;
 /** Initial / reset pitch; tilted view reads closer to the canyon surface at high zoom. */
 const DEFAULT_VIEW_PITCH = 58;
-/** Nudges zoom after framing: negative = zoom in (lower altitude / closer to ground). */
-const FIT_BOUNDS_ZOOM_NUDGE = -2.35;
-/** Upper cap for auto-fit zoom (road + fiber union); raised so intro can sit much closer. */
-const FIT_BOUNDS_MAX_ZOOM = 15.45;
 /**
- * After terrain turns on, MapLibre can pull the effective camera back; nudge zoom in again so
- * the tilted intro still feels close to the ground.
+ * Added to `cameraForBounds` zoom so the intro sits closer to the ground.
+ * MapLibre: larger zoom level = closer to the surface (this must be positive to zoom IN).
  */
-const POST_TERRAIN_ZOOM_NUDGE = 0.55;
+const INTRO_ROUTE_ZOOM_BOOST = 2.85;
+/** Upper cap passed into `cameraForBounds` so the fitted zoom can get close before we boost. */
+const FIT_BOUNDS_MAX_ZOOM = 17.35;
+/**
+ * Extra zoom-in after terrain enables (surface follows DEM; a bump preserves a near-ground feel).
+ */
+const POST_TERRAIN_ZOOM_BOOST = 0.95;
 
 /** Cinematic first paint: top-down first, then ease to tilt before enabling terrain (reduces load stutter). */
-const CINEMATIC_REVEAL_PADDING = { top: 14, bottom: 18, left: 18, right: 18 };
+const CINEMATIC_REVEAL_PADDING = { top: 8, bottom: 12, left: 12, right: 12 };
 const CINEMATIC_PITCH_EASE_MS = 3200;
 /** Continuous intro spin (degrees per second); interrupted by user gestures. */
 const ROUTE_INTRO_SPIN_DEG_PER_SEC = 1.85;
@@ -226,7 +228,8 @@ function runCinematicRouteRevealThenSpin(map, bounds) {
   if (!cam?.center || cam.zoom == null) return;
 
   const minZ = map.getMinZoom?.() ?? 0;
-  const zoom = Math.max(minZ, cam.zoom + FIT_BOUNDS_ZOOM_NUDGE);
+  const cap = map.getMaxZoom?.() ?? 18;
+  const zoom = Math.min(cap, Math.max(minZ, cam.zoom + INTRO_ROUTE_ZOOM_BOOST));
 
   if (reducedMotion) {
     map.jumpTo({
@@ -236,8 +239,7 @@ function runCinematicRouteRevealThenSpin(map, bounds) {
       pitch: DEFAULT_VIEW_PITCH,
     });
     map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
-    const cap = map.getMaxZoom?.() ?? 18;
-    map.setZoom(Math.min(cap, map.getZoom() + POST_TERRAIN_ZOOM_NUDGE));
+    map.setZoom(Math.min(cap, Math.max(minZ, map.getZoom() + POST_TERRAIN_ZOOM_BOOST)));
     return;
   }
 
@@ -250,9 +252,9 @@ function runCinematicRouteRevealThenSpin(map, bounds) {
 
   function enableTerrainAndSpin() {
     map.setTerrain({ source: 'terrainSource', exaggeration: 1.5 });
-    const cap = map.getMaxZoom?.() ?? 18;
-    const z = Math.min(cap, map.getZoom() + POST_TERRAIN_ZOOM_NUDGE);
-    map.setZoom(z);
+    const capAfter = map.getMaxZoom?.() ?? 18;
+    const minAfter = map.getMinZoom?.() ?? 0;
+    map.setZoom(Math.min(capAfter, Math.max(minAfter, map.getZoom() + POST_TERRAIN_ZOOM_BOOST)));
     window.requestAnimationFrame(() => map.resize());
     setupRouteIntroSpinContinuous(map);
   }
