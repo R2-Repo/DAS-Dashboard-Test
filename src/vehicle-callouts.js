@@ -2,7 +2,7 @@
  * User-placed vehicle callouts: MapLibre markers with viewport pitch/rotation (upright on screen),
  * screen-space offsets to reduce overlap, pole from flag down to vehicle scales with zoom.
  */
-import maplibregl from 'maplibre-gl';
+import maplibregl from 'maplibre-gl/dist/maplibre-gl-csp.js';
 import { fleetDisplayNumberFromId } from './fleet-display-id.js';
 import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
 

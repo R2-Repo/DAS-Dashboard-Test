@@ -14,12 +14,16 @@
  * Reference rasters are pre-rendered tiles: opacity and color tuning are available; per-feature
  * filtering (hiding POIs or hydrology labels) would require a vector style, not these layers.
  *
- * Exports: initMap(), updateMapVehicles(), updateMapAnomalies()
+ * Exports: initMap(), updateMapVehicles(), updateMapAnomalies() (re-exported from map-core.js)
  */
-import maplibregl from 'maplibre-gl';
+import maplibregl from 'maplibre-gl/dist/maplibre-gl-csp.js';
+import maplibreglWorkerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker.js?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
+
 import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
 import { VEHICLE_HIT_LAYERS } from './map-constants.js';
+
+maplibregl.setWorkerUrl(maplibreglWorkerUrl);
 
 const TERRAIN_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 
@@ -1055,12 +1059,4 @@ function addAnomalyLayer(map) {
   });
 }
 
-export function updateMapVehicles(map, vehicleFeatures) {
-  const src = map.getSource('vehicles');
-  if (src) src.setData({ type: 'FeatureCollection', features: vehicleFeatures });
-}
-
-export function updateMapAnomalies(map, anomalyFeatures) {
-  const src = map.getSource('anomalies');
-  if (src) src.setData({ type: 'FeatureCollection', features: anomalyFeatures });
-}
+export { updateMapVehicles, updateMapAnomalies } from './map-core.js';

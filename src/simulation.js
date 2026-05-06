@@ -4,7 +4,7 @@
  * Hazards (e.g. rock slide) are event bands on the fiber — extend for avalanche later.
  */
 
-import { updateMapVehicles, updateMapAnomalies } from './map.js';
+import { updateMapVehicles, updateMapAnomalies } from './map-core.js';
 import {
   buildRoadMotionModel,
   roadDistanceToChannelPos,
