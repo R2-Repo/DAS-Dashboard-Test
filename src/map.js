@@ -193,7 +193,13 @@ export function initMap(containerId, data) {
   if (mapHost) {
     ensureMapIntroLoadingVeil(mapHost);
     addMapLayerPanel(mapHost, map);
+    // Schedule without waiting for `load`: if the style never completes, `load` never fires.
+    scheduleMapIntroVeilAbsoluteFailsafe(mapHost);
   }
+
+  map.on('error', () => {
+    fadeOutMapIntroVeil(mapHost);
+  });
 
   map.on('load', () => {
     map.setTerrain(null);
@@ -205,7 +211,6 @@ export function initMap(containerId, data) {
     addCanyonIntroHighlightLayers(map);
     setupCanyonIntroHighlightLifecycle(map);
     applyDefaultLayerVisibility(map);
-    scheduleMapIntroVeilAbsoluteFailsafe(mapHost);
     runCinematicRouteRevealThenSpin(map, bounds, mapHost);
     const attrib = map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact');
     if (attrib) {
