@@ -64,13 +64,13 @@ const MAX_VIEW_PITCH = 68;
  * Added to `cameraForBounds` fitted zoom so the full inflated corridor stays in frame while staying as tight
  * as tile loading allows (positive = zoom in).
  */
-const INTRO_ROUTE_ZOOM_BOOST = 0.52;
+const INTRO_ROUTE_ZOOM_BOOST = 0.42;
 /** Upper cap passed into `cameraForBounds` so the intro can approach the route before hitting Esri max zoom. */
-const FIT_BOUNDS_MAX_ZOOM = 17.35;
+const FIT_BOUNDS_MAX_ZOOM = 15.35;
 /**
  * Nudge zoom baked into the intro `jumpTo` (never `setZoom` after terrain — avoids a second raster pyramid fetch).
  */
-const POST_TERRAIN_ZOOM_BOOST = 0.12;
+const POST_TERRAIN_ZOOM_BOOST = 0.10;
 /**
  * Expand the road envelope before `cameraForBounds`. MapLibre’s fit uses the geographic box as if the view
  * were un-pitched; tilting afterward reveals extra ground toward the horizon — without this, zoom sits too
@@ -82,7 +82,7 @@ const INTRO_BOUNDS_INFLATE_FACTOR = 1.26;
  * the map center **without changing zoom** — the correct way to bias framing vs hand-editing lat/lon after the fit.
  * Negative Y pulls framing toward geographic **south** at ~DEFAULT_VIEW_BEARING (tune for your corridor).
  */
-const INTRO_ROUTE_CAMERA_OFFSET_PX = [0, -56];
+const INTRO_ROUTE_CAMERA_OFFSET_PX = [0, -62];
 
 /** Padding around the route bbox when fitting the intro camera. */
 const CINEMATIC_REVEAL_PADDING = { top: 44, bottom: 48, left: 48, right: 48 };
