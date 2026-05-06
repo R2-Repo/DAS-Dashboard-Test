@@ -47,6 +47,23 @@ const WATERFALL_DIAGONAL_SKEW = 0.78;
  */
 const MAX_WATERFALL_STITCH_SPAN_CH = 380;
 
+/** Below this |Δchannel| between stamps, use one full-strength stamp (avoids diluting weak motion). */
+const WATERFALL_SINGLE_STAMP_PATH_CH = 0.12;
+
+/**
+ * If fiber index jumps far more than along-road motion implies, the road→channel map likely
+ * skipped or folded — do not bridge in channel space (prevents bogus horizontal bands).
+ */
+export function isFiberMappingGlitch(deltaRoadM, rawMotionCh, halfWidth) {
+  if (!(rawMotionCh > 32)) return false;
+  const roadEquivCh = deltaRoadM / CHANNEL_SPACING_M;
+  const slack = halfWidth * 2 + 20;
+  return rawMotionCh > roadEquivCh * 10 + slack;
+}
+
+/** After this many ticks stopped near a route end, remove the vehicle (avoids phantom DAS / map clutter). */
+const TERMINAL_DESPAWN_TICKS = 55;
+
 /**
  * Allowed stitch length from observed along-fiber motion this tick plus footprint/skew slack.
  *
@@ -279,6 +296,18 @@ export function createSimulation(data, targets) {
           v.lon = ll[0];
           v.lat = ll[1];
           v.channelsPerTick = mphToChannelsPerTick(v.speedMph);
+
+          if (v.id !== dragVehicleId && !v.userLock) {
+            const marginM = 2.8;
+            const atTerminal =
+              v.roadDistM <= marginM || v.roadDistM >= lane.totalM - marginM;
+            if (atTerminal && v.speedMph < 0.7) {
+              v.terminalStillTicks = (v.terminalStillTicks ?? 0) + 1;
+              if (v.terminalStillTicks >= TERMINAL_DESPAWN_TICKS) v.dead = true;
+            } else {
+              v.terminalStillTicks = 0;
+            }
+          }
         }
       }
 
@@ -385,10 +414,15 @@ export function createSimulation(data, targets) {
       const rawCh = v.channelPos;
       const prevStamp =
         typeof v.prevStampChannelPos === 'number' ? v.prevStampChannelPos : rawCh;
+      const prevRoadForStamp =
+        typeof v.prevStampRoadDistM === 'number' ? v.prevStampRoadDistM : v.roadDistM;
+      const deltaRoadForStamp = Math.abs(v.roadDistM - prevRoadForStamp);
+      const rawMotionCh = Math.abs(rawCh - prevStamp);
 
       const { halfWidth, strength } = vehicleDasFootprint(v.vehicleType);
       const mph = Math.max(0, v.speedMph);
-      const speedCoupling = 0.82 + 0.18 * Math.min(1, mph / 42);
+      const speedNorm = Math.min(1, mph / 20);
+      const speedCoupling = 0.05 + 0.95 * speedNorm ** 1.18;
       const classHeat = vehicleDasClassHeat(v.vehicleType);
       const microRipple =
         0.92 + 0.08 * Math.sin(rawCh * 0.11 + tickCount * 0.17 + v.id.length * 0.31);
@@ -408,16 +442,22 @@ export function createSimulation(data, targets) {
 
       const delta = stampCenter - stampPrev;
       const pathLen = Math.abs(delta);
-      const rawMotionCh = Math.abs(rawCh - prevStamp);
       const maxBridgeCh = waterfallStitchSpanBudget(rawMotionCh, halfWidth, skew);
+
+      if (isFiberMappingGlitch(deltaRoadForStamp, rawMotionCh, halfWidth)) {
+        stampVehicleEnergyAt(rawCh, peakStrength, halfWidth);
+        v.prevStampChannelPos = rawCh;
+        v.prevStampRoadDistM = v.roadDistM;
+        continue;
+      }
 
       if (pathLen > maxBridgeCh) {
         stampVehicleEnergyAt(stampCenter, peakStrength, halfWidth);
-      } else if (pathLen < 0.02) {
+      } else if (pathLen < WATERFALL_SINGLE_STAMP_PATH_CH) {
         stampVehicleEnergyAt(stampCenter, peakStrength, halfWidth);
       } else {
         const nSteps = Math.min(40, Math.max(2, Math.ceil(pathLen * 3 + 4)));
-        const stackScale = 1 / Math.pow(nSteps, 0.15);
+        const stackScale = 1 / Math.pow(nSteps, 0.12);
         for (let s = 0; s < nSteps; s++) {
           const u = nSteps === 1 ? 1 : s / (nSteps - 1);
           const pos = stampPrev + delta * u;
@@ -427,6 +467,7 @@ export function createSimulation(data, targets) {
       }
 
       v.prevStampChannelPos = rawCh;
+      v.prevStampRoadDistM = v.roadDistM;
     }
 
     for (const a of anomalies) {
@@ -576,6 +617,8 @@ export function createSimulation(data, targets) {
       roadDistM: roadM,
       channelPos,
       prevStampChannelPos: channelPos,
+      prevStampRoadDistM: roadM,
+      terminalStillTicks: 0,
       lon,
       lat,
       channelsPerTick: mphToChannelsPerTick(speedMph),
@@ -604,6 +647,8 @@ export function createSimulation(data, targets) {
       roadDistM: cp * CHANNEL_SPACING_M,
       channelPos: cp,
       prevStampChannelPos: cp,
+      prevStampRoadDistM: cp * CHANNEL_SPACING_M,
+      terminalStillTicks: 0,
       lon: ch.lon,
       lat: ch.lat,
       channelsPerTick: mphToChannelsPerTick(speedMph),
@@ -643,6 +688,8 @@ export function createSimulation(data, targets) {
       );
       existing.channelPos = newCp;
       existing.prevStampChannelPos = newCp;
+      existing.prevStampRoadDistM = roadM;
+      existing.terminalStillTicks = 0;
       const ll = lonLatAtRoadDistance(lane, roadM);
       existing.lon = ll[0];
       existing.lat = ll[1];
@@ -680,6 +727,8 @@ export function createSimulation(data, targets) {
     if (best < 0) return false;
     existing.channelPos = best;
     existing.prevStampChannelPos = best;
+    existing.prevStampRoadDistM = best * CHANNEL_SPACING_M;
+    existing.terminalStillTicks = 0;
     existing.roadDistM = best * CHANNEL_SPACING_M;
     existing.lon = channels[best].lon;
     existing.lat = channels[best].lat;
@@ -816,6 +865,8 @@ export function createSimulation(data, targets) {
       totalChannels,
     );
     v.prevStampChannelPos = v.channelPos;
+    v.prevStampRoadDistM = roadM;
+    v.terminalStillTicks = 0;
     const ll = lonLatAtRoadDistance(newLane, roadM);
     v.lon = ll[0];
     v.lat = ll[1];
