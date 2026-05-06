@@ -44,7 +44,12 @@ export function mapVehicleFootprintDims(typeOrSpec, opts = {}) {
   const s = typeof typeOrSpec === 'string' ? vehicleSpec(typeOrSpec) : typeOrSpec;
   const extentBoost = Number(opts.mapExtentBoost);
   const boost = Number.isFinite(extentBoost) && extentBoost > 0 ? extentBoost : 1;
-  const k = MAP_VEHICLE_FOOTPRINT_SCALE * (opts.userPlaced ? MAP_VEHICLE_USER_DROP_SCALE : 1) * boost;
+  const typeMul =
+    typeof s.mapFootprintMul === 'number' && Number.isFinite(s.mapFootprintMul) && s.mapFootprintMul > 0
+      ? s.mapFootprintMul
+      : 1;
+  const k =
+    MAP_VEHICLE_FOOTPRINT_SCALE * typeMul * (opts.userPlaced ? MAP_VEHICLE_USER_DROP_SCALE : 1) * boost;
   return {
     lengthM: s.lengthM * k,
     widthM: Math.max(MAP_VEHICLE_MIN_WIDTH_M, s.widthM * k),
@@ -57,7 +62,7 @@ export function mapVehicleFootprintDims(typeOrSpec, opts = {}) {
  * trace (width + peak strength). Heavier types get a barely perceptible nudge so
  * they are not literally identical in amplitude.
  *
- * @type {Record<string, { lengthM: number; widthM: number; heightM: number; color: string; label: string; dasHalfWidthCh: number; dasStrength: number }>}
+ * @type {Record<string, { lengthM: number; widthM: number; heightM: number; color: string; label: string; dasHalfWidthCh: number; dasStrength: number; mapFootprintMul?: number }>}
  */
 export const VEHICLE_SPECS = {
   bicycle: {
@@ -95,15 +100,17 @@ export const VEHICLE_SPECS = {
     label: 'Pickup',
     dasHalfWidthCh: 4,
     dasStrength: 0.243,
+    mapFootprintMul: 0.78,
   },
   semi_truck: {
     lengthM: 22,
     widthM: 2.55,
     heightM: 4.0,
     color: '#ff8a65',
-    label: 'City bus',
+    label: 'Bus',
     dasHalfWidthCh: 4,
     dasStrength: 0.244,
+    mapFootprintMul: 0.52,
   },
 };
 

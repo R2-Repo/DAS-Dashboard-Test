@@ -53,4 +53,12 @@ describe('vehicle-model', () => {
     expect(mapVehicleExtentBoostFromZoom(14)).toBeLessThan(mapVehicleExtentBoostFromZoom(10));
     expect(far.lengthM).toBeGreaterThan(near.lengthM);
   });
+
+  it('mapFootprintMul reduces screen inflation for long vehicles vs cars', () => {
+    const rawCar = vehicleSpec('car');
+    const rawSemi = vehicleSpec('semi_truck');
+    const car = mapVehicleFootprintDims('car');
+    const semi = mapVehicleFootprintDims('semi_truck');
+    expect(car.lengthM / rawCar.lengthM).toBeGreaterThan(semi.lengthM / rawSemi.lengthM);
+  });
 });
