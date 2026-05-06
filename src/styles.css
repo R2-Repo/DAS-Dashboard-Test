@@ -76,6 +76,7 @@ html, body {
 
 .map-intro-loading-veil.map-intro-loading-veil--fade-out {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 
