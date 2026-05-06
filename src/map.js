@@ -206,6 +206,8 @@ export function initMap(containerId, data) {
   });
 
   map.on('load', () => {
+    // Style just became ready; size can be wrong if the container was offscreen (splash) or flex reflowed.
+    window.requestAnimationFrame(() => map.resize());
     map.setTerrain(null);
     addRoadCenterlineLayers(map, data.road);
     addFiberLayer(map, data.fiberRoute);
@@ -295,13 +297,28 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
   }
 
   function easeIntoPitch() {
+    // `moveend` alone can fail after pitch-only easeTo; without progression the loading veil never fades.
+    let pitchPhaseDone = false;
+    function finishPitchPhase() {
+      if (pitchPhaseDone) return;
+      pitchPhaseDone = true;
+      window.clearTimeout(pitchEaseFailsafeTimer);
+      map.off('moveend', finishPitchPhase);
+      map.off('pitchend', finishPitchPhase);
+      enableTerrainThenRevealSpin();
+    }
+    const pitchEaseFailsafeTimer = window.setTimeout(
+      finishPitchPhase,
+      CINEMATIC_PITCH_EASE_MS + 850,
+    );
+    map.on('moveend', finishPitchPhase);
+    map.on('pitchend', finishPitchPhase);
     map.easeTo({
       pitch: DEFAULT_VIEW_PITCH,
       duration: CINEMATIC_PITCH_EASE_MS,
       easing: (t) => 1 - (1 - t) ** 2.35,
       essential: true,
     });
-    map.once('moveend', enableTerrainThenRevealSpin);
   }
 
   let pitchEaseStarted = false;
