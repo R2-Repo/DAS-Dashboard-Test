@@ -724,11 +724,6 @@ export function initWaterfall(canvasId, data, options = {}) {
     ctx.fillText('Time → (newest at top)', 0, 0);
     ctx.restore();
 
-    ctx.font = '9px monospace';
-    ctx.fillStyle = 'rgba(150, 156, 172, 0.75)';
-    ctx.textAlign = 'left';
-    ctx.fillText('Horizontal = distance along fiber (not lane map)', 4, height - bottomPad - 1);
-
     if (hoveredChannel !== null && data.channels[hoveredChannel]) {
       const ch = data.channels[hoveredChannel];
       const t = `Ch ${ch.channel_id} · MP ${ch.milepost.toFixed(2)} · ${ch.fiber_distance_m}m · ${ch.side_of_road}`;
