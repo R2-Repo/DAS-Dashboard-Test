@@ -20,31 +20,14 @@ function vehicleIcon(type) {
 export function initUI() {
   const el = (id) => document.getElementById(id);
 
-  function updateStats(vehicles, anomalies, meta = {}) {
+  function updateStats(vehicles, anomalies) {
     const ebCount = vehicles.filter((v) => v.laneKey === 'eb').length;
     const wbCount = vehicles.filter((v) => v.laneKey === 'wb').length;
-    const avgSpeed = vehicles.length > 0
-      ? Math.round(vehicles.reduce((s, v) => s + v.speedMph, 0) / vehicles.length)
-      : 0;
 
     el('stat-vehicles').textContent = vehicles.length;
-    el('stat-speed').textContent = vehicles.length > 0 ? avgSpeed : '\u2014';
     el('stat-up').textContent = ebCount;
     el('stat-down').textContent = wbCount;
     el('stat-anomalies').textContent = anomalies.length;
-
-    el('stat-sim-time').textContent = formatSimTime(meta.simTimeS ?? 0);
-  }
-
-  function formatSimTime(sec) {
-    const s = Math.floor(sec);
-    const m = Math.floor(s / 60);
-    const r = s % 60;
-    return `${m}:${String(r).padStart(2, '0')}`;
-  }
-
-  function updateChannelCount(count) {
-    el('stat-channels').textContent = count.toLocaleString();
   }
 
   function updateFleetMileposts(sim) {
@@ -160,5 +143,5 @@ export function initUI() {
     }
   }
 
-  return { updateStats, updateChannelCount, refreshFleetPanel, updateFleetMileposts };
+  return { updateStats, refreshFleetPanel, updateFleetMileposts };
 }
