@@ -3,7 +3,8 @@
  * Loads processed GIS data, initializes the map/waterfall/UI, and starts the traffic-first simulator.
  */
 import { registerSW } from 'virtual:pwa-register';
-import { initMap, setupTrafficSimulatorMapInteractions } from './map.js';
+import { initMap, setupTrafficSimulatorMapInteractions, syncMapLayoutForViewport } from './map.js';
+import { MOBILE_APP_LAYOUT_MEDIA_QUERY } from './mobile-app-layout-mq.js';
 import { initWaterfall } from './waterfall.js';
 import { createSimulation } from './simulation.js';
 import { initUI } from './ui.js';
@@ -17,7 +18,10 @@ async function boot() {
   const data = await runSplashGate(loadData);
   const map = initMap('map', data);
   window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => map.resize());
+    window.requestAnimationFrame(() => {
+      map.resize();
+      syncMapLayoutForViewport(map);
+    });
   });
   const waterfall = initWaterfall('waterfall-canvas', data);
   const ui = initUI();
@@ -165,9 +169,7 @@ function initResponsiveLayout(map, waterfall) {
   const sidebar = document.getElementById('sidebar');
   if (!app || !tabbar || !sidebar) return;
 
-  const mobileMq = window.matchMedia(
-    '(max-width: 768px), (max-width: 900px) and (max-height: 560px), (max-width: 1024px) and (max-height: 480px)',
-  );
+  const mobileMq = window.matchMedia(MOBILE_APP_LAYOUT_MEDIA_QUERY);
 
   function setMobileTab(tab) {
     const allowed = new Set(['map', 'stats']);
@@ -184,13 +186,21 @@ function initResponsiveLayout(map, waterfall) {
     if (t === 'map') {
       window.requestAnimationFrame(() => {
         map.resize();
+        syncMapLayoutForViewport(map);
         waterfall.resize?.();
+        if (mobileMq.matches) {
+          window.setTimeout(() => {
+            map.resize();
+            map.triggerRepaint?.();
+          }, 120);
+        }
       });
     }
   }
 
   function sync() {
     const mobile = mobileMq.matches;
+    syncMapLayoutForViewport(map);
     app.classList.toggle('app-mobile-layout', mobile);
     tabbar.hidden = !mobile;
     tabbar.classList.toggle('is-visible', mobile);
@@ -207,9 +217,21 @@ function initResponsiveLayout(map, waterfall) {
       tabbar.querySelectorAll('.mobile-tab').forEach((btn) => btn.setAttribute('aria-selected', 'false'));
       window.requestAnimationFrame(() => {
         map.resize();
+        syncMapLayoutForViewport(map);
         waterfall.resize?.();
       });
     }
+  }
+
+  const vv = window.visualViewport;
+  if (vv) {
+    const onVisualViewportChange = () => {
+      if (!mobileMq.matches) return;
+      map.resize();
+      waterfall.resize?.();
+    };
+    vv.addEventListener('resize', onVisualViewportChange);
+    vv.addEventListener('scroll', onVisualViewportChange);
   }
 
   tabbar.querySelectorAll('.mobile-tab').forEach((btn) => {

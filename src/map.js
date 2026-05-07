@@ -15,6 +15,10 @@
  * the intro orbit uses `easeTo` with `around` at the route center so rotation is interpolated smoothly.
  * Dynamic layers: anomaly pulses, then vehicles as fill-extrusion blocks on terrain.
  *
+ * **Mobile stack layout** (`mobile-app-layout-mq.js`): lower intro pitch + terrain exaggeration, capped max zoom
+ * near DEM resolution, tighter intro padding / zoom, longer post-terrain repaint burst, and `syncMapLayoutForViewport`
+ * on resize / visualViewport — reduces black draped tiles and blocky upscaled terrain while framing closer to the route.
+ *
  * Reference rasters are pre-rendered tiles: opacity and color tuning are available; per-feature
  * filtering (hiding POIs or hydrology labels) would require a vector style, not these layers.
  *
@@ -26,6 +30,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
 import { VEHICLE_HIT_LAYERS } from './map-constants.js';
+import { matchesMobileAppLayout } from './mobile-app-layout-mq.js';
 
 maplibregl.setWorkerUrl(maplibreglWorkerUrl);
 
@@ -60,6 +65,23 @@ const DEFAULT_VIEW_PITCH = 58;
 const TERRAIN_EXAGGERATION = 1.05;
 /** Cap user pitch with terrain on (desktop); steep angles worsen raster draping artifacts. */
 const MAX_VIEW_PITCH = 68;
+
+/** Mobile stack layout (`mobile-app-layout-mq.js`): gentler 3D + tighter framing than desktop. */
+const MOBILE_INTRO_VIEW_PITCH = 48;
+/** With terrain, keep user pitch in a band MapLibre handles more reliably on mobile GPUs. */
+const MOBILE_MAX_VIEW_PITCH = 56;
+/** Terrarium DEM maxzoom is 15 — zooming far past that stretches the mesh and looks blocky. */
+const MOBILE_MAX_MAP_ZOOM = 16.2;
+/** Slightly higher than desktop so `cameraForBounds` can sit closer to the corridor on small viewports. */
+const MOBILE_FIT_BOUNDS_MAX_ZOOM = 15.62;
+/** Extra zoom (added after desktop boosts) so the intro sits closer to the route on phones. */
+const MOBILE_INTRO_ROUTE_ZOOM_EXTRA = 0.48;
+/** Tighter padding than desktop — same inflated bounds, less empty margin around the route. */
+const MOBILE_CINEMATIC_REVEAL_PADDING = { top: 22, bottom: 26, left: 26, right: 26 };
+/** Slightly less inflate than desktop so the fitted camera is closer; paired with lower pitch to keep tiles loading. */
+const MOBILE_INTRO_BOUNDS_INFLATE = 1.2;
+const MOBILE_TERRAIN_EXAGGERATION = 1.0;
+const MOBILE_STABILIZE_BURST_FRAMES = 16;
 /**
  * Added to `cameraForBounds` fitted zoom so the full inflated corridor stays in frame while staying as tight
  * as tile loading allows (positive = zoom in).
@@ -110,6 +132,8 @@ const MAP_INTRO_JUMP_IDLE_FALLBACK_MS = 1800;
  * Hook `terrain`, then force layout + several repaints so peripheral tiles populate before intro orbit.
  */
 function stabilizeImageryAfterTerrainEnable(map) {
+  const tune = canyonMapViewportTune.get(map) ?? defaultCanyonMapViewportTune();
+  const burstGoal = tune.stabilizeBurstFrames;
   map.once('terrain', () => {
     window.requestAnimationFrame(() => {
       map.resize();
@@ -117,7 +141,14 @@ function stabilizeImageryAfterTerrainEnable(map) {
       let frames = 0;
       function burst() {
         map.triggerRepaint?.();
-        if (++frames < 8) window.requestAnimationFrame(burst);
+        if (++frames < burstGoal) window.requestAnimationFrame(burst);
+        else {
+          window.requestAnimationFrame(() => {
+            map.resize();
+            map.redraw();
+            map.triggerRepaint?.();
+          });
+        }
       }
       window.requestAnimationFrame(burst);
     });
@@ -159,6 +190,53 @@ const LAYER_TOGGLE_IDS = {
   mileposts: ['milepost-markers', 'milepost-labels'],
 };
 
+/** @typedef {{
+ *   mobile: boolean,
+ *   introPitch: number,
+ *   terrainExaggeration: number,
+ *   stabilizeBurstFrames: number,
+ *   introZoomExtra: number,
+ *   fitBoundsMaxZoom: number,
+ *   cinematicPadding: { top: number, bottom: number, left: number, right: number },
+ *   boundsInflate: number,
+ *   maxMapZoom: number,
+ * }} CanyonMapViewportTune */
+
+const canyonMapViewportTune = new WeakMap();
+
+function defaultCanyonMapViewportTune() {
+  return {
+    mobile: false,
+    introPitch: DEFAULT_VIEW_PITCH,
+    terrainExaggeration: TERRAIN_EXAGGERATION,
+    stabilizeBurstFrames: 8,
+    introZoomExtra: 0,
+    fitBoundsMaxZoom: FIT_BOUNDS_MAX_ZOOM,
+    cinematicPadding: CINEMATIC_REVEAL_PADDING,
+    boundsInflate: INTRO_BOUNDS_INFLATE_FACTOR,
+    maxMapZoom: 18,
+  };
+}
+
+/**
+ * Keep pitch / max zoom aligned when the user crosses the mobile layout breakpoint or rotates the device.
+ * @param {import('maplibre-gl').Map | null | undefined} map
+ */
+export function syncMapLayoutForViewport(map) {
+  if (!map || typeof map.setMaxZoom !== 'function') return;
+  const mobile = matchesMobileAppLayout();
+  const coarsePointer = globalThis.matchMedia?.('(pointer: coarse)')?.matches;
+  const narrowScreen = globalThis.matchMedia?.('(max-width: 768px)')?.matches;
+  map.setMaxZoom(mobile ? MOBILE_MAX_MAP_ZOOM : 18);
+  map.setMaxPitch(
+    mobile ? MOBILE_MAX_VIEW_PITCH : (coarsePointer && narrowScreen ? 60 : MAX_VIEW_PITCH),
+  );
+  if (typeof map.getPitch === 'function' && typeof map.getMaxPitch === 'function') {
+    const maxP = map.getMaxPitch();
+    if (map.getPitch() > maxP) map.setPitch(maxP);
+  }
+}
+
 export function initMap(containerId, data) {
   const roadBounds = boundsFromLineFeaturesGeojson(data.road);
   const bounds = unionBounds([
@@ -168,6 +246,32 @@ export function initMap(containerId, data) {
   const cinematicBounds = envelopeValid(roadBounds) ? roadBounds : bounds;
   const coarsePointer = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)')?.matches;
   const narrowScreen = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 768px)')?.matches;
+  const mobileLayout = matchesMobileAppLayout();
+
+  /** @type {CanyonMapViewportTune} */
+  const viewportTune = mobileLayout
+    ? {
+        mobile: true,
+        introPitch: MOBILE_INTRO_VIEW_PITCH,
+        terrainExaggeration: MOBILE_TERRAIN_EXAGGERATION,
+        stabilizeBurstFrames: MOBILE_STABILIZE_BURST_FRAMES,
+        introZoomExtra: MOBILE_INTRO_ROUTE_ZOOM_EXTRA,
+        fitBoundsMaxZoom: MOBILE_FIT_BOUNDS_MAX_ZOOM,
+        cinematicPadding: MOBILE_CINEMATIC_REVEAL_PADDING,
+        boundsInflate: MOBILE_INTRO_BOUNDS_INFLATE,
+        maxMapZoom: MOBILE_MAX_MAP_ZOOM,
+      }
+    : {
+        mobile: false,
+        introPitch: DEFAULT_VIEW_PITCH,
+        terrainExaggeration: TERRAIN_EXAGGERATION,
+        stabilizeBurstFrames: 8,
+        introZoomExtra: 0,
+        fitBoundsMaxZoom: FIT_BOUNDS_MAX_ZOOM,
+        cinematicPadding: CINEMATIC_REVEAL_PADDING,
+        boundsInflate: INTRO_BOUNDS_INFLATE_FACTOR,
+        maxMapZoom: 18,
+      };
 
   const map = new maplibregl.Map({
     container: containerId,
@@ -254,13 +358,19 @@ export function initMap(containerId, data) {
     zoom: 11,
     pitch: 0,
     bearing: DEFAULT_VIEW_BEARING,
-    maxPitch: coarsePointer && narrowScreen ? 60 : MAX_VIEW_PITCH,
-    maxZoom: 18,
+    maxPitch: mobileLayout ? MOBILE_MAX_VIEW_PITCH : (coarsePointer && narrowScreen ? 60 : MAX_VIEW_PITCH),
+    maxZoom: viewportTune.maxMapZoom,
     touchPitch: true,
   });
 
+  canyonMapViewportTune.set(map, viewportTune);
+  syncMapLayoutForViewport(map);
+
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
-  map.addControl(new maplibregl.TerrainControl({ source: 'terrainSource', exaggeration: TERRAIN_EXAGGERATION }), 'top-right');
+  map.addControl(
+    new maplibregl.TerrainControl({ source: 'terrainSource', exaggeration: viewportTune.terrainExaggeration }),
+    'top-right',
+  );
   map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
 
   const mapEl = document.getElementById(containerId);
@@ -277,8 +387,25 @@ export function initMap(containerId, data) {
   });
 
   map.on('load', () => {
-    // Style just became ready; size can be wrong if the container was offscreen (splash) or flex reflowed.
-    window.requestAnimationFrame(() => map.resize());
+    const tune = canyonMapViewportTune.get(map) ?? defaultCanyonMapViewportTune();
+    if (tune.mobile) {
+      if (map.getLayer('esri-imagery')) {
+        map.setPaintProperty('esri-imagery', 'raster-fade-duration', 220);
+      }
+      const bumpResize = () => {
+        map.resize();
+        map.triggerRepaint?.();
+      };
+      window.requestAnimationFrame(() => {
+        bumpResize();
+        window.requestAnimationFrame(() => {
+          bumpResize();
+          window.requestAnimationFrame(bumpResize);
+        });
+      });
+    } else {
+      window.requestAnimationFrame(() => map.resize());
+    }
     addRoadCenterlineLayers(map, data.road);
     addFiberLayer(map, data.fiberRoute);
     addMilepostLayers(map, data.mileposts);
@@ -314,18 +441,20 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
 
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
+  const tune = canyonMapViewportTune.get(map) ?? defaultCanyonMapViewportTune();
+
   const orbitPivot = centerOfBounds(bounds);
 
-  const inflated = inflateLngLatBounds(bounds, INTRO_BOUNDS_INFLATE_FACTOR);
+  const inflated = inflateLngLatBounds(bounds, tune.boundsInflate);
   const b = [
     [inflated[0], inflated[1]],
     [inflated[2], inflated[3]],
   ];
 
   const cam = map.cameraForBounds(b, {
-    padding: CINEMATIC_REVEAL_PADDING,
+    padding: tune.cinematicPadding,
     bearing: DEFAULT_VIEW_BEARING,
-    maxZoom: FIT_BOUNDS_MAX_ZOOM,
+    maxZoom: tune.fitBoundsMaxZoom,
     offset: INTRO_ROUTE_CAMERA_OFFSET_PX,
   });
   if (!cam?.center || cam.zoom == null) {
@@ -337,7 +466,10 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
   const cap = map.getMaxZoom?.() ?? 18;
   const zoom = Math.min(
     cap,
-    Math.max(minZ, cam.zoom + INTRO_ROUTE_ZOOM_BOOST + POST_TERRAIN_ZOOM_BOOST),
+    Math.max(
+      minZ,
+      cam.zoom + INTRO_ROUTE_ZOOM_BOOST + POST_TERRAIN_ZOOM_BOOST + tune.introZoomExtra,
+    ),
   );
 
   if (reducedMotion) {
@@ -345,10 +477,10 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
       center: cam.center,
       zoom,
       bearing: DEFAULT_VIEW_BEARING,
-      pitch: DEFAULT_VIEW_PITCH,
+      pitch: tune.introPitch,
     });
     stabilizeImageryAfterTerrainEnable(map);
-    map.setTerrain({ source: 'terrainSource', exaggeration: TERRAIN_EXAGGERATION });
+    map.setTerrain({ source: 'terrainSource', exaggeration: tune.terrainExaggeration });
     scheduleMapIntroVeilReveal(map, mapHost, orbitPivot);
     return;
   }
@@ -359,7 +491,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     center: cam.center,
     zoom,
     bearing: DEFAULT_VIEW_BEARING,
-    pitch: DEFAULT_VIEW_PITCH,
+    pitch: tune.introPitch,
   });
 
   let terrainStarted = false;
@@ -372,7 +504,7 @@ function runCinematicRouteRevealThenSpin(map, bounds, mapHost) {
     map.off('idle', enableTerrainAndReveal);
     if (jumpIdleFallbackTimer !== undefined) window.clearTimeout(jumpIdleFallbackTimer);
     stabilizeImageryAfterTerrainEnable(map);
-    map.setTerrain({ source: 'terrainSource', exaggeration: TERRAIN_EXAGGERATION });
+    map.setTerrain({ source: 'terrainSource', exaggeration: tune.terrainExaggeration });
     scheduleMapIntroVeilReveal(map, mapHost, orbitPivot);
   }
 
