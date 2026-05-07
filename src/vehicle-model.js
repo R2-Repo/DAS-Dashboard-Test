@@ -58,9 +58,8 @@ export function mapVehicleFootprintDims(typeOrSpec, opts = {}) {
 }
 
 /**
- * DAS coupling for the waterfall: tuned so every vehicle class matches the bicycle
- * trace (width + peak strength). Heavier types get a barely perceptible nudge so
- * they are not literally identical in amplitude.
+ * DAS coupling for the waterfall: lighter vehicles use a narrower channel footprint
+ * and lower peak strength (cooler, thinner traces); heavy vehicles read wider and hotter.
  *
  * @type {Record<string, { lengthM: number; widthM: number; heightM: number; color: string; label: string; dasHalfWidthCh: number; dasStrength: number; mapFootprintMul?: number }>}
  */
@@ -71,8 +70,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.6,
     color: '#26c6da',
     label: 'Bicycle',
-    dasHalfWidthCh: 4,
-    dasStrength: 0.24,
+    dasHalfWidthCh: 2.6,
+    dasStrength: 0.15,
   },
   motorcycle: {
     lengthM: 2.2,
@@ -80,8 +79,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.45,
     color: '#ba68c8',
     label: 'Motorcycle',
-    dasHalfWidthCh: 4,
-    dasStrength: 0.241,
+    dasHalfWidthCh: 3.2,
+    dasStrength: 0.185,
   },
   car: {
     lengthM: 4.6,
@@ -89,8 +88,8 @@ export const VEHICLE_SPECS = {
     heightM: 1.5,
     color: '#90caf9',
     label: 'Car',
-    dasHalfWidthCh: 4,
-    dasStrength: 0.242,
+    dasHalfWidthCh: 4.0,
+    dasStrength: 0.235,
   },
   truck: {
     lengthM: 9.0,
@@ -98,8 +97,8 @@ export const VEHICLE_SPECS = {
     heightM: 3.2,
     color: '#ffb74d',
     label: 'Pickup',
-    dasHalfWidthCh: 4,
-    dasStrength: 0.243,
+    dasHalfWidthCh: 5.0,
+    dasStrength: 0.305,
     mapFootprintMul: 0.78,
   },
   semi_truck: {
@@ -108,8 +107,8 @@ export const VEHICLE_SPECS = {
     heightM: 4.0,
     color: '#ff8a65',
     label: 'Bus',
-    dasHalfWidthCh: 4,
-    dasStrength: 0.244,
+    dasHalfWidthCh: 6.2,
+    dasStrength: 0.375,
     mapFootprintMul: 0.52,
   },
 };
@@ -134,17 +133,17 @@ export function vehicleDasFootprint(type) {
   return { halfWidth: s.dasHalfWidthCh, strength: s.dasStrength };
 }
 
-/** Near-unity: class ladder is already in `dasStrength`; keep heat almost invisible. */
+/** Secondary warmth multiplier on top of `dasStrength` (bicycle cooler, bus hotter). */
 export function vehicleDasClassHeat(type) {
   const t = normalizeVehicleType(type);
   const m = {
-    bicycle: 1.0,
-    motorcycle: 1.002,
-    car: 1.004,
-    truck: 1.006,
-    semi_truck: 1.008,
+    bicycle: 0.94,
+    motorcycle: 0.97,
+    car: 1.0,
+    truck: 1.05,
+    semi_truck: 1.1,
   };
-  return m[t] ?? 1.003;
+  return m[t] ?? 1.0;
 }
 
 /**
