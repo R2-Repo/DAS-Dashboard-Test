@@ -6,6 +6,7 @@
  *   so the horizontal axis is mirrored: low milepost on the left, high on the right).
  *   Y = time (vertical, newest at top flowing downward — matches common DAS waterfall plots).
  * Colormap: jet-like scale — deep blue → cyan → green → yellow → orange → red (high end capped, not maroon).
+ * Tunings bias lows cooler (more cyan/blue idle band) and highs slightly redder with less yellow-orange wash on traces.
  *
  * Display scaling uses a **fixed reference range** so that ambient noise stays in the dark-blue
  * band and vehicle/anomaly energy pops into green → yellow → red.  This avoids the problem with
@@ -45,33 +46,32 @@ const JET_B = new Uint8Array(LUT_SIZE);
 (function buildJetLUT() {
   for (let i = 0; i < LUT_SIZE; i++) {
     const t = i / (LUT_SIZE - 1);
-    // Standard jet: deep navy → blue → cyan → green → yellow → orange → red → dark red
-    if (t < 0.1) {
+    // Jet variant: slightly cooler navy/cyan idle band; shorter yellow-orange leg so peaks read redder sooner.
+    if (t < 0.11) {
       JET_R[i] = 0;
       JET_G[i] = 0;
-      JET_B[i] = Math.floor(80 + t / 0.1 * 175);
-    } else if (t < 0.35) {
+      JET_B[i] = Math.floor(72 + (t / 0.11) * 183);
+    } else if (t < 0.36) {
       JET_R[i] = 0;
-      JET_G[i] = Math.floor((t - 0.1) / 0.25 * 255);
+      JET_G[i] = Math.floor(((t - 0.11) / 0.25) * 255);
       JET_B[i] = 255;
-    } else if (t < 0.5) {
+    } else if (t < 0.48) {
       JET_R[i] = 0;
       JET_G[i] = 255;
-      JET_B[i] = Math.floor(255 - (t - 0.35) / 0.15 * 255);
-    } else if (t < 0.65) {
-      JET_R[i] = Math.floor((t - 0.5) / 0.15 * 255);
+      JET_B[i] = Math.floor(255 - ((t - 0.36) / 0.12) * 255);
+    } else if (t < 0.58) {
+      JET_R[i] = Math.floor(((t - 0.48) / 0.1) * 255);
       JET_G[i] = 255;
       JET_B[i] = 0;
-    } else if (t < 0.86) {
+    } else if (t < 0.78) {
       JET_R[i] = 255;
-      JET_G[i] = Math.floor(255 - (t - 0.65) / 0.21 * 255);
+      JET_G[i] = Math.floor(255 - ((t - 0.58) / 0.2) * 233);
       JET_B[i] = 0;
     } else {
-      // Cap jet's high end: warm red / light brick, not heavy maroon
-      const u = (t - 0.86) / (1 - 0.86);
-      JET_R[i] = Math.floor(228 + u * 27);
+      const u = (t - 0.78) / (1 - 0.78);
+      JET_R[i] = Math.floor(236 + u * 25);
       JET_G[i] = Math.floor(22 * (1 - u));
-      JET_B[i] = Math.floor(14 * (1 - u));
+      JET_B[i] = Math.floor(12 * (1 - u));
     }
   }
 })();
@@ -598,7 +598,8 @@ export function initWaterfall(canvasId, data, options = {}) {
     const vmin = 0.0;
     const vmax = 1.02;
     const span = vmax - vmin;
-    const gamma = 0.84;
+    /** Raised from 0.84: lower tail in the LUT (cooler idle) while strong peaks still reach red. */
+    const gamma = 0.89;
 
     // When zoomed out, many channels map to a single pixel.  Point-sampling
     // one channel per pixel misses narrow vehicle traces entirely.  Instead,
