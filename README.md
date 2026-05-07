@@ -24,11 +24,19 @@ npm run dev                            # open http://localhost:5173
 ```
 data/raw/        → Raw GIS inputs (fiber, road, mileposts, crossings)
 data/            → Processed data served by Vite (fiber_channels.json, etc.)
+docs/            → Deep-dive docs (waterfall + traffic rebuild guide)
 scripts/         → Python preprocessing (no pip deps — stdlib only)
 src/             → Frontend modules (map, waterfall, simulation, UI)
 test/            → Vitest test suite
 Scope/           → Full design spec and domain research
 ```
+
+### Documentation
+
+| Doc | Contents |
+|-----|----------|
+| [`docs/waterfall-traffic-rebuild.md`](docs/waterfall-traffic-rebuild.md) | How the waterfall, vehicle traces, simulation ticks, and map stay in sync—constants, data flow, file ownership, dual road/legacy paths, and a rebuild checklist |
+| [`Scope/Scope.md`](Scope/Scope.md) | Full product/design specification |
 
 ### Frontend modules
 
@@ -100,6 +108,10 @@ The simulation uses **2 m** channel spacing and a **100 ms** sim tick (one water
 | Tests (watch) | `npm run test:watch` |
 | Build | `npm run build` |
 | Preview prod | `npm run preview` |
+| Verify map (headless Chrome) | `npm run verify:map` — requires Chrome/Chromium; set `CHROME_PATH` if needed |
+| Verify waterfall traces | `npm run verify:waterfall` — same; checks demo fleet produces visible vehicle energy on canvas |
+
+After changing waterfall rendering, vehicle stamping, or map–sim coupling, run **`npm run build`** then **`npm test`** and, when possible, the **`verify:*`** scripts locally or in CI.
 
 ## Future Integration
 
