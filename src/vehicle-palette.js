@@ -17,7 +17,7 @@ function useTapPlacePalette() {
   return Boolean(coarse || narrow);
 }
 
-export function createVehiclePalette({ map, sim, paletteRoot }) {
+export function createVehiclePalette({ map, sim, paletteRoot, clearOthers }) {
   if (!paletteRoot) {
     return {
       getPendingPlaceType: () => null,
@@ -42,6 +42,7 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
   }
 
   function setPending(type) {
+    clearOthers?.();
     pendingPlaceType = type;
     paletteRoot.querySelectorAll('.palette-chip').forEach((btn) => {
       btn.classList.toggle('palette-chip-pending', btn.dataset.vehicleType === type);
@@ -54,6 +55,7 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
 
   paletteRoot.querySelectorAll('[data-vehicle-type]').forEach((btn) => {
     btn.addEventListener('dragstart', (e) => {
+      clearOthers?.();
       const t = btn.dataset.vehicleType;
       if (!t) return;
       e.dataTransfer?.setData(DRAG_MIME, t);
@@ -102,6 +104,7 @@ export function createVehiclePalette({ map, sim, paletteRoot }) {
 
     btn.addEventListener('click', () => {
       if (!useTapPlacePalette()) return;
+      clearOthers?.();
       const t = btn.dataset.vehicleType;
       if (!t) return;
       if (pendingPlaceType === t) clearPending();
