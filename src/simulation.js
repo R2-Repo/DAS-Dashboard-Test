@@ -38,11 +38,15 @@ const MS_PER_S = 1000;
 const MPH_TO_MS = 0.44704;
 
 /**
- * Absolute ceiling on fiber-index span for one row's diagonal stitch budget helper (tests / tooling).
- * Row synthesis uses a single centroid stamp per vehicle per tick so one time slice is not smeared
- * across many mileposts.
+ * Absolute ceiling for `waterfallStitchSpanBudget` (unit tests / legacy tooling).
  */
 const MAX_WATERFALL_STITCH_SPAN_CH = 380;
+
+/**
+ * Max |Δchannel| covered by per-tick motion stacking. Only the true prev→current motion is filled
+ * (no synthetic diagonal skew), so this stays small and avoids painting unrelated mileposts in one row.
+ */
+const MAX_WATERFALL_MOTION_STITCH_SPAN_CH = 10;
 
 /**
  * If fiber index jumps far more than along-road motion implies, the road→channel map likely
@@ -59,8 +63,8 @@ export function isFiberMappingGlitch(deltaRoadM, rawMotionCh, halfWidth) {
 const TERMINAL_DESPAWN_TICKS = 55;
 
 /**
- * Historical helper: allowed stitch length from observed along-fiber motion plus footprint slack.
- * Exported for unit tests; row synthesis no longer bridges multiple stamps per vehicle per tick.
+ * Historical helper: allowed stitch length from observed along-fiber motion plus footprint skew slack.
+ * Exported for unit tests.
  *
  * @param {number} rawChannelDelta — |channelPos − previous channelPos| for this vehicle (same tick basis)
  */
@@ -68,6 +72,47 @@ export function waterfallStitchSpanBudget(rawChannelDelta, halfWidth, skewAlongC
   const d = Math.abs(rawChannelDelta);
   const slack = halfWidth * 2.45 + Math.abs(skewAlongChannels) + 10;
   return Math.min(MAX_WATERFALL_STITCH_SPAN_CH, Math.max(24, d * 1.42 + slack));
+}
+
+/**
+ * Build 1–7 micro-stamps along true fiber motion for one sim tick. Restores peak row values for the
+ * fixed jet colormap (single centroid after #112 sat in the cyan band). Does not add skew along
+ * distance, so row width stays tight vs. the old long diagonal bridge.
+ *
+ * @param {number} prevStamp
+ * @param {number} rawCh
+ * @param {number} deltaRoadForStamp
+ * @param {number} rawMotionCh
+ * @param {number} halfWidth
+ * @param {number} peakStrength
+ * @returns {{ kind: 'one', pos: number, strength: number } | { kind: 'blend', stamps: { pos: number, strength: number }[] }}
+ */
+export function planVehicleWaterfallStamps(
+  prevStamp,
+  rawCh,
+  deltaRoadForStamp,
+  rawMotionCh,
+  halfWidth,
+  peakStrength,
+) {
+  if (isFiberMappingGlitch(deltaRoadForStamp, rawMotionCh, halfWidth)) {
+    return { kind: 'one', pos: rawCh, strength: peakStrength };
+  }
+  const spanCh = rawCh - prevStamp;
+  const spanAbs = Math.abs(spanCh);
+  if (!Number.isFinite(spanAbs) || spanAbs > MAX_WATERFALL_MOTION_STITCH_SPAN_CH) {
+    return { kind: 'one', pos: rawCh, strength: peakStrength };
+  }
+  const nSteps = Math.min(7, Math.max(2, Math.ceil(spanAbs * 3.5 + 2.5)));
+  const stackScale = 1 / nSteps ** 0.12;
+  const stamps = [];
+  for (let s = 0; s < nSteps; s++) {
+    const u = s / (nSteps - 1);
+    const pos = prevStamp + spanCh * u;
+    const along = 0.68 + 0.32 * (1 - Math.abs(u - 0.5) * 2);
+    stamps.push({ pos, strength: peakStrength * along * stackScale });
+  }
+  return { kind: 'blend', stamps };
 }
 
 /** Lookahead distance (m) for curve speed — slow before the bend. */
@@ -431,14 +476,20 @@ export function createSimulation(data, targets) {
       let peakStrength =
         strength * classHeat * microRipple * (0.96 + Math.random() * 0.04) * speedCoupling;
 
-      if (isFiberMappingGlitch(deltaRoadForStamp, rawMotionCh, halfWidth)) {
-        stampVehicleEnergyAt(rawCh, peakStrength, halfWidth);
+      const plan = planVehicleWaterfallStamps(
+        prevStamp,
+        rawCh,
+        deltaRoadForStamp,
+        rawMotionCh,
+        halfWidth,
+        peakStrength,
+      );
+      if (plan.kind === 'one') {
+        stampVehicleEnergyAt(plan.pos, plan.strength, halfWidth);
       } else {
-        // Realistic DAS: one row is one instant — localize energy near the vehicle during this tick
-        // (midpoint along fiber between previous and current samples). Multi-stamp "stitching" across
-        // the whole per-tick channel delta painted wide horizontal bars on the waterfall.
-        const centroidCh = (prevStamp + rawCh) * 0.5;
-        stampVehicleEnergyAt(centroidCh, peakStrength, halfWidth);
+        for (const st of plan.stamps) {
+          stampVehicleEnergyAt(st.pos, st.strength, halfWidth);
+        }
       }
 
       v.prevStampChannelPos = rawCh;
