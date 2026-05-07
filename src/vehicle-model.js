@@ -59,7 +59,8 @@ export function mapVehicleFootprintDims(typeOrSpec, opts = {}) {
 
 /**
  * DAS coupling for the waterfall: lighter vehicles use a narrower channel footprint
- * and lower peak strength (cooler, thinner traces); heavy vehicles read wider and hotter.
+ * and lower peak strength (cooler, thinner traces); heavy vehicles read wider; pickup
+ * and bus amplitudes are tuned for cooler jet traces than midsize cars.
  *
  * @type {Record<string, { lengthM: number; widthM: number; heightM: number; color: string; label: string; dasHalfWidthCh: number; dasStrength: number; mapFootprintMul?: number }>}
  */
@@ -98,7 +99,7 @@ export const VEHICLE_SPECS = {
     color: '#ffb74d',
     label: 'Pickup',
     dasHalfWidthCh: 5.0,
-    dasStrength: 0.305,
+    dasStrength: 0.275,
     mapFootprintMul: 0.78,
   },
   semi_truck: {
@@ -108,7 +109,7 @@ export const VEHICLE_SPECS = {
     color: '#ff8a65',
     label: 'Bus',
     dasHalfWidthCh: 6.2,
-    dasStrength: 0.375,
+    dasStrength: 0.265,
     mapFootprintMul: 0.52,
   },
 };
@@ -133,15 +134,15 @@ export function vehicleDasFootprint(type) {
   return { halfWidth: s.dasHalfWidthCh, strength: s.dasStrength };
 }
 
-/** Secondary warmth multiplier on top of `dasStrength` (bicycle cooler, bus hotter). */
+/** Secondary warmth multiplier on top of `dasStrength` (bicycle cooler; bus pulled down). */
 export function vehicleDasClassHeat(type) {
   const t = normalizeVehicleType(type);
   const m = {
     bicycle: 0.94,
     motorcycle: 0.97,
     car: 1.0,
-    truck: 1.05,
-    semi_truck: 1.1,
+    truck: 1.0,
+    semi_truck: 0.86,
   };
   return m[t] ?? 1.0;
 }
