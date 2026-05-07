@@ -100,6 +100,26 @@
             </div>
             <p id="vehicle-palette-touch-hint" class="vehicle-palette-touch-hint" hidden></p>
           </div>
+          <div id="hazard-palette" class="hazard-palette" aria-label="Place roadway hazards">
+            <span class="vehicle-palette-title">Hazards</span>
+            <div class="hazard-palette-row hazard-kind-row" role="group" aria-label="Hazard type">
+              <button type="button" class="palette-chip hazard-kind-chip" data-hazard-kind="crash" title="Vehicle crash">
+                Crash
+              </button>
+              <button type="button" class="palette-chip hazard-kind-chip" data-hazard-kind="rock_slide" title="Rock slide">
+                Rock slide
+              </button>
+              <button type="button" class="palette-chip hazard-kind-chip" data-hazard-kind="avalanche" title="Avalanche">
+                Avalanche
+              </button>
+            </div>
+            <div class="hazard-palette-row hazard-size-row" role="group" aria-label="Hazard size">
+              <button type="button" class="palette-chip hazard-size-chip" data-hazard-size="small">Small</button>
+              <button type="button" class="palette-chip hazard-size-chip hazard-size-selected" data-hazard-size="medium">Medium</button>
+              <button type="button" class="palette-chip hazard-size-chip" data-hazard-size="large">Large</button>
+            </div>
+            <p id="hazard-palette-touch-hint" class="vehicle-palette-touch-hint" hidden></p>
+          </div>
           <div class="traffic-control-actions traffic-control-actions-row">
             <button type="button" id="btn-demo-fleet" class="lab-btn" aria-expanded="false" aria-controls="demo-fleet-panel">Demo</button>
             <button type="button" id="btn-clear-fleet" class="lab-btn lab-btn-muted">Clear</button>

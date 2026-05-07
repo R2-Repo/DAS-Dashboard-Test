@@ -20,14 +20,14 @@ function vehicleIcon(type) {
 export function initUI() {
   const el = (id) => document.getElementById(id);
 
-  function updateStats(vehicles, anomalies) {
+  function updateStats(vehicles, hazards) {
     const ebCount = vehicles.filter((v) => v.laneKey === 'eb').length;
     const wbCount = vehicles.filter((v) => v.laneKey === 'wb').length;
 
     el('stat-vehicles').textContent = vehicles.length;
     el('stat-up').textContent = ebCount;
     el('stat-down').textContent = wbCount;
-    el('stat-anomalies').textContent = anomalies.length;
+    el('stat-anomalies').textContent = hazards.length;
   }
 
   function updateFleetMileposts(sim) {

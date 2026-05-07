@@ -1,5 +1,5 @@
 /**
- * 3D MapLibre map — terrain, GIS layers, and dynamic vehicle/anomaly markers.
+ * 3D MapLibre map — terrain, GIS layers, dynamic hazard footprints and vehicle markers.
  *
  * Tile sources (no API key in this build):
  *   - Base map: Esri World Imagery + reference overlays (transportation, boundaries/places) — hybrid satellite
@@ -13,7 +13,7 @@
  * Missing imagery “around” the route was caused by (1) MapLibre `cameraForBounds` ignoring pitch when picking
  * zoom — we inflate the bbox before fitting so edge tiles load. (2) Discrete `setBearing` steps caused jitter;
  * the intro orbit uses `easeTo` with `around` at the route center so rotation is interpolated smoothly.
- * Dynamic layers: anomaly pulses, then vehicles as fill-extrusion blocks on terrain.
+ * Dynamic layers: hazard footprints (fill), vehicles as fill-extrusion blocks on terrain.
  *
  * **Mobile stack layout** (`mobile-app-layout-mq.js`): lower intro pitch + terrain exaggeration, capped max zoom
  * near DEM resolution, tighter intro padding / zoom, longer post-terrain repaint burst, and `syncMapLayoutForViewport`
@@ -22,7 +22,7 @@
  * Reference rasters are pre-rendered tiles: opacity and color tuning are available; per-feature
  * filtering (hiding POIs or hydrology labels) would require a vector style, not these layers.
  *
- * Exports: initMap(), updateMapVehicles(), updateMapAnomalies() (re-exported from map-core.js)
+ * Exports: initMap(), updateMapVehicles(), updateMapHazards() (re-exported from map-core.js)
  */
 import maplibregl from 'maplibre-gl/dist/maplibre-gl-csp.js';
 import maplibreglWorkerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker.js?url';
@@ -409,7 +409,7 @@ export function initMap(containerId, data) {
     addRoadCenterlineLayers(map, data.road);
     addFiberLayer(map, data.fiberRoute);
     addMilepostLayers(map, data.mileposts);
-    addAnomalyLayer(map);
+    addHazardLayers(map);
     addVehicleLayers(map);
     addCanyonIntroHighlightLayers(map);
     setupCanyonIntroHighlightLifecycle(map);
@@ -1256,33 +1256,34 @@ export function setupTrafficSimulatorMapInteractions(map, sim, options = {}) {
   map.on('touchcancel', endDrag);
 }
 
-function addAnomalyLayer(map) {
-  map.addSource('anomalies', {
+function addHazardLayers(map) {
+  map.addSource('hazards', {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
   });
   map.addLayer({
-    id: 'anomaly-pulse',
-    type: 'circle',
-    source: 'anomalies',
+    id: 'hazard-footprints-fill',
+    type: 'fill',
+    source: 'hazards',
     paint: {
-      'circle-radius': 18,
-      'circle-color': '#ef5350',
-      'circle-opacity': 0.2,
-      'circle-blur': 1,
+      'fill-color': ['get', 'fill_color'],
+      'fill-opacity': 1,
     },
   });
   map.addLayer({
-    id: 'anomaly-markers',
-    type: 'circle',
-    source: 'anomalies',
+    id: 'hazard-footprints-outline',
+    type: 'line',
+    source: 'hazards',
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round',
+    },
     paint: {
-      'circle-radius': 7,
-      'circle-color': '#ef5350',
-      'circle-stroke-width': 2,
-      'circle-stroke-color': '#fff',
+      'line-color': ['get', 'outline_color'],
+      'line-width': 2,
+      'line-opacity': 0.92,
     },
   });
 }
 
-export { updateMapVehicles, updateMapAnomalies } from './map-core.js';
+export { updateMapVehicles, updateMapHazards } from './map-core.js';

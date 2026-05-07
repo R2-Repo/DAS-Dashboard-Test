@@ -10,6 +10,7 @@ import { createSimulation } from './simulation.js';
 import { initUI } from './ui.js';
 import { loadData } from './data-loader.js';
 import { createVehiclePalette } from './vehicle-palette.js';
+import { createHazardPalette } from './hazard-palette.js';
 import { runSplashGate } from './splash.js';
 
 registerSW({ immediate: true });
@@ -34,9 +35,23 @@ async function boot() {
 
   map.on('load', () => {
     const paletteRoot = document.getElementById('vehicle-palette');
-    const palette = createVehiclePalette({ map, sim, paletteRoot });
+    const hazardPaletteRoot = document.getElementById('hazard-palette');
+    let hazardPaletteRef = null;
+    const vehiclePalette = createVehiclePalette({
+      map,
+      sim,
+      paletteRoot,
+      clearOthers: () => hazardPaletteRef?.clearPending(),
+    });
+    hazardPaletteRef = createHazardPalette({
+      map,
+      sim,
+      paletteRoot: hazardPaletteRoot,
+      clearOthers: () => vehiclePalette.clearPending(),
+    });
     setupTrafficSimulatorMapInteractions(map, sim, {
-      tryConsumeMapClick: (e) => palette.tryConsumeMapClick(e),
+      tryConsumeMapClick: (e) =>
+        hazardPaletteRef.tryConsumeMapClick(e) || vehiclePalette.tryConsumeMapClick(e),
     });
   });
 
@@ -46,7 +61,7 @@ async function boot() {
   const mapHint = document.getElementById('traffic-map-hint');
   if (mapHint) {
     mapHint.textContent = sim.isRoadOk()
-      ? 'Drag a vehicle onto the map, or tap an icon then tap the map. New vehicles snap to the nearest lane by the drop point. Use the list to set direction (EB/WB) and speed; drag on the map to move.'
+      ? 'Drag a vehicle onto the map, or tap an icon then tap the map. Choose a hazard type (Crash / Rock slide / Avalanche), optional size, then tap the map to place. Hazards snap to the nearest lane; use the list for vehicles.'
       : 'Drag an icon onto the map (snaps to fiber). On a phone: tap an icon, then tap the map.';
   }
 

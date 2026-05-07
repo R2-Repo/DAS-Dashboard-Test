@@ -1,10 +1,10 @@
 /**
  * Traffic-first DAS simulator: user-controlled vehicles on SR-190 lanes drive
  * car-following dynamics; strain-rate proxy is synthesized each tick for the waterfall.
- * Hazards (e.g. rock slide) are event bands on the fiber — extend for avalanche later.
+ * Hazards (crash, rock slide, avalanche) are spatial bands on the fiber + tinted footprints on the map.
  */
 
-import { updateMapVehicles, updateMapAnomalies } from './map-core.js';
+import { updateMapVehicles, updateMapHazards } from './map-core.js';
 import {
   buildRoadMotionModel,
   roadDistanceToChannelPos,
@@ -31,6 +31,15 @@ import {
 } from './vehicle-model.js';
 import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
 import { syncVehicleCallouts, clearVehicleCallouts } from './vehicle-callouts.js';
+import {
+  buildCorridorPolygonLonLat,
+  hazardFallbackChannelHalfWidth,
+  hazardPeakIntensity,
+  lateralWidthsForHazard,
+  normalizeHazardKind,
+  normalizeHazardSize,
+  hazardPalette,
+} from './hazard-model.js';
 
 const CHANNEL_SPACING_M = 2.0;
 const TICK_MS = 100;
@@ -160,8 +169,9 @@ function curveSpeedCapMph(curvaturePerM) {
 const LAB_SNAP_MAX_M = 650;
 
 let vehicles = [];
-let anomalies = [];
+let hazards = [];
 let nextFleetId = 1;
+let nextHazardSeq = 1;
 let tickCount = 0;
 let intervalId = null;
 
@@ -174,6 +184,10 @@ function directionForLane(laneKey) {
 
 function formatFleetId(n) {
   return `VEH-${String(n).padStart(4, '0')}`;
+}
+
+function formatHazardId(n) {
+  return `HZD-${String(n).padStart(4, '0')}`;
 }
 
 /** MapLibre fill-extrusion opacity is layer-wide; encode per-vehicle alpha in the color string. */
@@ -424,9 +438,6 @@ export function createSimulation(data, targets) {
       v.currentMilepost = channels[ci].milepost;
     }
 
-    for (const a of anomalies) a.ttl -= 1;
-    anomalies = anomalies.filter((a) => a.ttl > 0);
-
     const row = new Float32Array(totalChannels);
     noiseSeed += 0.1;
 
@@ -498,12 +509,11 @@ export function createSimulation(data, targets) {
       v.prevStampRoadDistM = v.roadDistM;
     }
 
-    for (const a of anomalies) {
-      const decay = Math.min(1, a.ttl / a.initialTtl);
-      const baseIntensity = a.intensity * decay;
-      for (let i = a.startChannel; i <= a.endChannel && i < totalChannels; i++) {
+    for (const h of hazards) {
+      const baseIntensity = h.peakIntensity;
+      for (let i = h.startChannel; i <= h.endChannel && i < totalChannels; i++) {
         if (i < 0) continue;
-        const spatialVar = 0.35 + 0.65 * Math.abs(Math.sin(i * 0.12 + a.phase));
+        const spatialVar = 0.35 + 0.65 * Math.abs(Math.sin(i * 0.12 + h.phase));
         const temporalVar = 0.55 + 0.45 * Math.random();
         row[i] = Math.min(1.0, row[i] + baseIntensity * spatialVar * temporalVar * 0.55);
       }
@@ -602,24 +612,32 @@ export function createSimulation(data, targets) {
         };
       });
 
-    const anomalyFeatures = anomalies.map((a) => {
+    const hazardFeatures = hazards.map((h) => {
       const midIdx = Math.min(
-        Math.max(0, Math.floor((a.startChannel + a.endChannel) / 2)),
+        Math.max(0, Math.floor((h.startChannel + h.endChannel) / 2)),
         totalChannels - 1,
       );
       const ch = channels[midIdx];
+      const pal = hazardPalette(h.kind);
       return {
         type: 'Feature',
-        properties: { id: a.id, subtype: a.subtype, intensity: a.intensity, milepost: ch.milepost.toFixed(1) },
-        geometry: { type: 'Point', coordinates: [ch.lon, ch.lat] },
+        properties: {
+          id: h.id,
+          kind: h.kind,
+          size: h.size,
+          milepost: ch.milepost.toFixed(1),
+          fill_color: pal.fill,
+          outline_color: pal.outline,
+        },
+        geometry: h.geometry,
       };
     });
 
     updateMapVehicles(targets.map, vehicleFeatures);
     syncVehicleCallouts(targets.map, vehicles, selectedVehicleId);
-    updateMapAnomalies(targets.map, anomalyFeatures);
+    updateMapHazards(targets.map, hazardFeatures);
 
-    targets.ui.updateStats(vehicles, anomalies);
+    targets.ui.updateStats(vehicles, hazards);
 
     targets.ui.updateFleetMileposts?.(fleetPanelSimView);
   }
@@ -804,15 +822,119 @@ export function createSimulation(data, targets) {
     return vehicles.length < before;
   }
 
+  function channelSpanForHazardOnRoad(lane, roadDistM, lengthM) {
+    const half = lengthM / 2;
+    const maxS = lane.totalM;
+    const r0 = Math.max(0, Math.min(maxS, roadDistM - half));
+    const r1 = Math.max(0, Math.min(maxS, roadDistM + half));
+    const c0 = roadDistanceToChannelPos(lane, r0);
+    const c1 = roadDistanceToChannelPos(lane, r1);
+    const lo = Math.floor(Math.min(c0, c1));
+    const hi = Math.ceil(Math.max(c0, c1));
+    return {
+      startChannel: Math.max(0, Math.min(totalChannels - 1, lo)),
+      endChannel: Math.max(0, Math.min(totalChannels - 1, hi)),
+    };
+  }
+
+  function addHazardNearLngLat(lng, lat, opts = {}) {
+    const kind = normalizeHazardKind(opts.kind);
+    const size = normalizeHazardSize(opts.size);
+    const peakIntensity = hazardPeakIntensity(kind, size);
+    const phase = Math.random() * Math.PI * 2;
+    const { lengthM, leftWidthM, rightWidthM } = lateralWidthsForHazard(kind, size);
+
+    if (roadOk) {
+      const prefer = opts.placementLane;
+      const snap =
+        prefer && prefer !== 'auto'
+          ? nearestPointOnLanesPrefer(laneEb, laneWb, lng, lat, prefer)
+          : nearestPointOnLanes(laneEb, laneWb, lng, lat);
+      if (!snap || snap.distanceM > LAB_SNAP_MAX_M) return null;
+      const laneKey = snap.laneKey;
+      const lane = laneKey === 'eb' ? laneEb : laneWb;
+      if (!lane) return null;
+      const roadM = Math.max(0, Math.min(lane.totalM, snap.roadDistM));
+      const dir = directionForLane(laneKey);
+      const bearingDeg = travelBearingDegAtRoadDistance(lane, roadM, dir);
+      const [centerLon, centerLat] = lonLatAtRoadDistance(lane, roadM);
+      const geom = buildCorridorPolygonLonLat(
+        centerLon,
+        centerLat,
+        bearingDeg,
+        lengthM,
+        leftWidthM,
+        rightWidthM,
+      );
+      const { startChannel, endChannel } = channelSpanForHazardOnRoad(lane, roadM, lengthM);
+      const h = {
+        id: formatHazardId(nextHazardSeq++),
+        kind,
+        size,
+        laneKey,
+        roadDistM: roadM,
+        peakIntensity,
+        phase,
+        startChannel,
+        endChannel,
+        geometry: geom,
+      };
+      hazards.push(h);
+      return h;
+    }
+
+    let best = -1;
+    let bestD = Infinity;
+    for (let i = 0; i < totalChannels; i++) {
+      const ch = channels[i];
+      const d =
+        (ch.lon - lng) * (ch.lon - lng) * Math.cos((ch.lat * Math.PI) / 180) +
+        (ch.lat - lat) * (ch.lat - lat);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    if (best < 0) return null;
+    const halfCh = hazardFallbackChannelHalfWidth(size);
+    const startChannel = Math.max(0, best - halfCh);
+    const endChannel = Math.min(totalChannels - 1, best + halfCh);
+    const ch0 = channels[best];
+    const ch1 = channels[Math.min(best + 1, totalChannels - 1)];
+    const bearingDeg = bearingDegClockwiseFromNorthLonLat(ch0.lon, ch0.lat, ch1.lon, ch1.lat);
+    const geom = buildCorridorPolygonLonLat(
+      ch0.lon,
+      ch0.lat,
+      bearingDeg,
+      lengthM,
+      leftWidthM,
+      rightWidthM,
+    );
+    const h = {
+      id: formatHazardId(nextHazardSeq++),
+      kind,
+      size,
+      laneKey: null,
+      roadDistM: undefined,
+      peakIntensity,
+      phase,
+      startChannel,
+      endChannel,
+      geometry: geom,
+    };
+    hazards.push(h);
+    return h;
+  }
+
   function clearFleet() {
     vehicles = [];
-    anomalies = [];
+    hazards = [];
     setSelectedVehicleId(null);
     dragVehicleId = null;
     clearVehicleCallouts(targets.map);
     updateMapVehicles(targets.map, []);
-    updateMapAnomalies(targets.map, []);
-    targets.ui.updateStats(vehicles, anomalies);
+    updateMapHazards(targets.map, []);
+    targets.ui.updateStats(vehicles, hazards);
   }
 
   const DEMO_FLEET_MAX = 300;
@@ -916,12 +1038,12 @@ export function createSimulation(data, targets) {
     if (intervalId) clearInterval(intervalId);
     tickCount = 0;
     vehicles = [];
-    anomalies = [];
+    hazards = [];
     selectedVehicleId = null;
     dragVehicleId = null;
     plotFocusChannel = null;
     intervalId = setInterval(tick, TICK_MS);
-    targets.ui.updateStats(vehicles, anomalies);
+    targets.ui.updateStats(vehicles, hazards);
   }
 
   const api = {
@@ -932,6 +1054,7 @@ export function createSimulation(data, targets) {
     setSelectedVehicleId,
     focusMapOnChannel,
     addVehicleNearLngLat,
+    addHazardNearLngLat,
     placeVehicleAtLngLat,
     removeVehicle,
     clearFleet,

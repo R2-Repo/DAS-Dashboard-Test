@@ -445,6 +445,39 @@ html, body {
   line-height: 1.35;
 }
 
+.hazard-palette {
+  padding: 0 0.75rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.hazard-palette-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.hazard-kind-row .palette-chip {
+  flex: 1 1 auto;
+  min-width: 4rem;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.hazard-size-row .palette-chip {
+  flex: 1 1 30%;
+  min-width: 3rem;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.hazard-size-selected {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+  background: var(--bg-card-hover);
+}
+
 .demo-fleet-panel {
   padding: 0 0.75rem 0.55rem;
   border-bottom: 1px solid var(--border);

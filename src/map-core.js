@@ -8,7 +8,7 @@ export function updateMapVehicles(map, vehicleFeatures) {
   if (src) src.setData({ type: 'FeatureCollection', features: vehicleFeatures });
 }
 
-export function updateMapAnomalies(map, anomalyFeatures) {
-  const src = map.getSource('anomalies');
-  if (src) src.setData({ type: 'FeatureCollection', features: anomalyFeatures });
+export function updateMapHazards(map, hazardFeatures) {
+  const src = map.getSource('hazards');
+  if (src) src.setData({ type: 'FeatureCollection', features: hazardFeatures });
 }
