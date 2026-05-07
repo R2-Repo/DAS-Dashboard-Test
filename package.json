@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint src/",
     "verify:map": "npm run build && node scripts/verify-map-load.mjs",
+    "verify:waterfall": "npm run build && node scripts/verify-waterfall-trace.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
