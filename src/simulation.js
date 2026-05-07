@@ -468,13 +468,15 @@ export function createSimulation(data, targets) {
 
       const { halfWidth, strength } = vehicleDasFootprint(v.vehicleType);
       const mph = Math.max(0, v.speedMph);
-      const speedNorm = Math.min(1, mph / 20);
-      const speedCoupling = 0.05 + 0.95 * speedNorm ** 1.18;
+      // Speed→amplitude: gentle ramp so highway cruise stays mid-jet; top of the scale
+      // needs ~free-flow speed, not 20 mph (parameter-only tuning vs. prior mapping).
+      const speedNorm = Math.min(1, mph / 54);
+      const speedCoupling = 0.08 + 0.92 * speedNorm ** 0.58;
       const classHeat = vehicleDasClassHeat(v.vehicleType);
       const microRipple =
-        0.92 + 0.08 * Math.sin(rawCh * 0.11 + tickCount * 0.17 + v.id.length * 0.31);
+        0.94 + 0.06 * Math.sin(rawCh * 0.11 + tickCount * 0.17 + v.id.length * 0.31);
       let peakStrength =
-        strength * classHeat * microRipple * (0.96 + Math.random() * 0.04) * speedCoupling;
+        strength * classHeat * microRipple * (0.97 + Math.random() * 0.03) * speedCoupling;
 
       const plan = planVehicleWaterfallStamps(
         prevStamp,
