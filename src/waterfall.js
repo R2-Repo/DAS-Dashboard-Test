@@ -6,6 +6,7 @@
  *   so the horizontal axis is mirrored: low milepost on the left, high on the right).
  *   Y = time (vertical, newest at top flowing downward — matches common DAS waterfall plots).
  * Colormap: jet-like scale — deep blue → cyan → green → yellow → orange → red (high end capped, not maroon).
+ * Tuned for a cooler idle field (more blue/cyan) while strong vehicle rows lean saturated red, not yellow-orange wash.
  *
  * Display scaling uses a **fixed reference range** so that ambient noise stays in the dark-blue
  * band and vehicle/anomaly energy pops into green → yellow → red.  This avoids the problem with
@@ -45,33 +46,32 @@ const JET_B = new Uint8Array(LUT_SIZE);
 (function buildJetLUT() {
   for (let i = 0; i < LUT_SIZE; i++) {
     const t = i / (LUT_SIZE - 1);
-    // Standard jet: deep navy → blue → cyan → green → yellow → orange → red → dark red
-    if (t < 0.1) {
+    // Cooler lows + shorter yellow/orange leg so traces hit punchy red earlier (less warm halo on peaks).
+    if (t < 0.12) {
       JET_R[i] = 0;
       JET_G[i] = 0;
-      JET_B[i] = Math.floor(80 + t / 0.1 * 175);
-    } else if (t < 0.35) {
+      JET_B[i] = Math.floor(66 + (t / 0.12) * 189);
+    } else if (t < 0.37) {
       JET_R[i] = 0;
-      JET_G[i] = Math.floor((t - 0.1) / 0.25 * 255);
+      JET_G[i] = Math.floor(((t - 0.12) / 0.25) * 255);
       JET_B[i] = 255;
-    } else if (t < 0.5) {
+    } else if (t < 0.46) {
       JET_R[i] = 0;
       JET_G[i] = 255;
-      JET_B[i] = Math.floor(255 - (t - 0.35) / 0.15 * 255);
-    } else if (t < 0.65) {
-      JET_R[i] = Math.floor((t - 0.5) / 0.15 * 255);
+      JET_B[i] = Math.floor(255 - ((t - 0.37) / 0.09) * 255);
+    } else if (t < 0.55) {
+      JET_R[i] = Math.floor(((t - 0.46) / 0.09) * 255);
       JET_G[i] = 255;
       JET_B[i] = 0;
-    } else if (t < 0.86) {
+    } else if (t < 0.73) {
       JET_R[i] = 255;
-      JET_G[i] = Math.floor(255 - (t - 0.65) / 0.21 * 255);
+      JET_G[i] = Math.floor(255 - ((t - 0.55) / 0.18) * 235);
       JET_B[i] = 0;
     } else {
-      // Cap jet's high end: warm red / light brick, not heavy maroon
-      const u = (t - 0.86) / (1 - 0.86);
-      JET_R[i] = Math.floor(228 + u * 27);
-      JET_G[i] = Math.floor(22 * (1 - u));
-      JET_B[i] = Math.floor(14 * (1 - u));
+      const u = (t - 0.73) / (1 - 0.73);
+      JET_R[i] = 255;
+      JET_G[i] = Math.floor(20 * (1 - u));
+      JET_B[i] = Math.floor(8 * (1 - u));
     }
   }
 })();
@@ -598,7 +598,8 @@ export function initWaterfall(canvasId, data, options = {}) {
     const vmin = 0.0;
     const vmax = 1.02;
     const span = vmax - vmin;
-    const gamma = 0.84;
+    /** Pull quiet samples toward cooler LUT indices; paired with high-end val nudge below for red trace cores. */
+    const gamma = 0.91;
 
     // When zoomed out, many channels map to a single pixel.  Point-sampling
     // one channel per pixel misses narrow vehicle traces entirely.  Instead,
@@ -632,7 +633,13 @@ export function initWaterfall(canvasId, data, options = {}) {
         }
 
         const norm = (Math.min(vmax, Math.max(vmin, raw)) - vmin) / span;
-        const val = Math.pow(Math.min(1, Math.max(0, norm)), gamma);
+        const n = Math.min(1, Math.max(0, norm));
+        let val = n ** gamma;
+        // Only strong rows (vehicles) reach this — nudges them toward saturated red without warming noise.
+        if (n > 0.675) {
+          const w = ((n - 0.675) / (1 - 0.675)) ** 1.2;
+          val = Math.min(1, val + (1 - val) * 0.22 * w);
+        }
         const lutIdx = Math.min(LUT_SIZE - 1, Math.floor(val * (LUT_SIZE - 1)));
 
         for (let y = y0; y < y1; y++) {
