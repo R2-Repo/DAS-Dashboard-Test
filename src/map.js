@@ -149,6 +149,8 @@ const CANYON_INTRO_LAYER_GLOW = 'canyon-intro-highlight-glow';
 const CANYON_INTRO_LAYER_CORE = 'canyon-intro-highlight-core';
 /** Hide when current zoom exceeds baseline (post-idle) by this amount (user moved in on the map). */
 const CANYON_INTRO_ZOOM_IN_DELTA = 0.65;
+/** Throttle intro pulse paint updates (~15/s) so `setPaintProperty` does not run every display frame. */
+const CANYON_INTRO_PULSE_MIN_MS = 68;
 
 const LAYER_TOGGLE_IDS = {
   road: ['road-wb-centerline', 'road-eb-centerline'],
@@ -836,6 +838,8 @@ function setupCanyonIntroHighlightLifecycle(map) {
 
   let introActive = true;
   let rafId = 0;
+  /** @type {number} */
+  let lastIntroPulsePaintMs = 0;
   /** @type {number | null} */
   let baselineZoom = null;
 
@@ -844,6 +848,7 @@ function setupCanyonIntroHighlightLifecycle(map) {
     introActive = false;
     if (rafId) globalThis.cancelAnimationFrame(rafId);
     rafId = 0;
+    lastIntroPulsePaintMs = 0;
     map.off('zoom', checkDismissZoomIn);
     for (const id of [CANYON_INTRO_LAYER_GLOW, CANYON_INTRO_LAYER_CORE]) {
       if (map.getLayer(id)) {
@@ -865,7 +870,13 @@ function setupCanyonIntroHighlightLifecycle(map) {
 
   function animatePulse() {
     if (!introActive || !map.getLayer(CANYON_INTRO_LAYER_GLOW)) return;
-    const t = globalThis.performance.now() * 0.001;
+    const nowMs = globalThis.performance.now();
+    if (nowMs - lastIntroPulsePaintMs < CANYON_INTRO_PULSE_MIN_MS) {
+      rafId = globalThis.requestAnimationFrame(animatePulse);
+      return;
+    }
+    lastIntroPulsePaintMs = nowMs;
+    const t = nowMs * 0.001;
     const pulse = 0.5 + 0.5 * Math.sin(t * 2.75);
     map.setPaintProperty(CANYON_INTRO_LAYER_GLOW, 'line-width', 11 + pulse * 7);
     map.setPaintProperty(CANYON_INTRO_LAYER_GLOW, 'line-opacity', 0.32 + pulse * 0.38);

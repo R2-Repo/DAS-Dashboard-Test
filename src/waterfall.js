@@ -113,6 +113,10 @@ export function initWaterfall(canvasId, data, options = {}) {
   let viewStart = 0;
   let viewEnd = totalChannels;
   const buffer = new Float32Array(totalChannels * HISTORY_ROWS);
+  /** Reused across `render()` calls to avoid allocating width×height×4 bytes every tick. */
+  let imageDataScratch = null;
+  let imageDataScratchW = 0;
+  let imageDataScratchH = 0;
   let currentRow = 0;
   let hoveredChannel = null;
   /** Traffic lab: emphasize one channel column (integer index or null). */
@@ -589,7 +593,15 @@ export function initWaterfall(canvasId, data, options = {}) {
       scrollTrackChannelIntoView(trackChannel);
     }
 
-    const imageData = ctx.createImageData(width, height);
+    let imageData;
+    if (imageDataScratch && imageDataScratchW === width && imageDataScratchH === height) {
+      imageData = imageDataScratch;
+    } else {
+      imageDataScratch = ctx.createImageData(width, height);
+      imageDataScratchW = width;
+      imageDataScratchH = height;
+      imageData = imageDataScratch;
+    }
     const pix = imageData.data;
     const chanRange = viewEnd - viewStart;
     const rowH = height / HISTORY_ROWS;
