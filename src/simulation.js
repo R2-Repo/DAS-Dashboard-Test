@@ -38,6 +38,7 @@ import {
   hazardPeakIntensity,
   hazardWaterfallStampGain,
   hazardWaterfallEnvelope,
+  hazardEventPhaseTicks,
   lateralWidthsForHazard,
   normalizeHazardKind,
   normalizeHazardSize,
@@ -525,19 +526,32 @@ export function createSimulation(data, targets) {
       const halfSpanCh = Math.max(0.75, (h.endChannel - h.startChannel) / 2);
       const baseIntensity = h.peakIntensity * envelope;
 
-      const ci0 = Math.max(0, Math.floor(h.startChannel) - 2);
-      const ci1 = Math.min(totalChannels - 1, Math.ceil(h.endChannel) + 2);
+      const kind = normalizeHazardKind(h.kind);
+      const { prelude } = hazardEventPhaseTicks(h.kind, h.size);
+      const totalEventTicks = hazardEventDurationTicks(h.kind, h.size);
+      const spreadStart = Math.max(0, age - prelude * 0.35);
+      const spreadMix =
+        spreadStart <= 0
+          ? 0
+          : spreadStart ** 2 /
+            (spreadStart ** 2 + Math.max(20, (totalEventTicks - prelude * 0.35) ** 2 * 0.22));
+      let narrow = 0.19;
+      let wide = kind === 'crash' ? 0.92 : kind === 'rock_slide' ? 1.42 : 1.55;
+      if (kind === 'crash') narrow = 0.26;
+      const sigmaScale = narrow + (wide - narrow) * spreadMix;
+      const sigmaCh = Math.max(0.55, halfSpanCh * sigmaScale);
+
+      const tickBreath = 0.94 + 0.06 * Math.sin(tickCount * 0.11 + h.phase);
+      const gain = hazardWaterfallStampGain(h.kind, h.size);
+      const ciRadius = Math.min(totalChannels - 1, Math.ceil(sigmaCh * 4.5 + 3));
+      const ci0 = Math.max(0, Math.floor(centerCh - ciRadius));
+      const ci1 = Math.min(totalChannels - 1, Math.ceil(centerCh + ciRadius));
+
       for (let i = ci0; i <= ci1; i++) {
-        const dist = Math.abs(i - centerCh);
-        if (dist > halfSpanCh + 1.5) continue;
-        const t = dist / Math.max(0.5, halfSpanCh);
-        const lateral = Math.max(0, 1 - t * t);
-        if (lateral < 0.02) continue;
-        const spatialVar = 0.42 + 0.58 * Math.abs(Math.sin(i * 0.12 + h.phase));
-        const temporalVar = 0.62 + 0.38 * Math.random();
-        const gain = hazardWaterfallStampGain(h.kind, h.size);
-        const amp =
-          baseIntensity * spatialVar * temporalVar * 0.52 * lateral * gain;
+        const dist = i - centerCh;
+        const lateral = Math.exp(-(dist * dist) / (2 * sigmaCh * sigmaCh));
+        if (lateral < 0.007) continue;
+        const amp = baseIntensity * tickBreath * 0.46 * lateral * gain;
         if (amp < 0.001) continue;
         row[i] = Math.min(1.0, row[i] + amp);
       }
