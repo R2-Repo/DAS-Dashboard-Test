@@ -5,6 +5,7 @@ import {
   hazardFootprintMeters,
   hazardPeakIntensity,
   hazardWaterfallEnvelope,
+  hazardWaterfallStampGain,
   lateralWidthsForHazard,
   normalizeHazardKind,
   normalizeHazardSize,
@@ -32,6 +33,13 @@ describe('hazard-model', () => {
 
   it('maps intensity by size', () => {
     expect(hazardPeakIntensity('crash', 'small')).toBeLessThan(hazardPeakIntensity('crash', 'large'));
+  });
+
+  it('bumps hazard waterfall stamps toward orange/red on the jet scale', () => {
+    expect(hazardWaterfallStampGain('avalanche', 'large')).toBeGreaterThan(
+      hazardWaterfallStampGain('crash', 'small'),
+    );
+    expect(hazardWaterfallStampGain('crash', 'medium')).toBeGreaterThan(1.5);
   });
 
   it('waterfall envelope is time-limited with prelude / impact / tail shape', () => {
