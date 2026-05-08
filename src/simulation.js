@@ -36,6 +36,7 @@ import {
   hazardEventDurationTicks,
   hazardFallbackChannelHalfWidth,
   hazardPeakIntensity,
+  hazardWaterfallStampGain,
   hazardWaterfallEnvelope,
   lateralWidthsForHazard,
   normalizeHazardKind,
@@ -532,9 +533,11 @@ export function createSimulation(data, targets) {
         const t = dist / Math.max(0.5, halfSpanCh);
         const lateral = Math.max(0, 1 - t * t);
         if (lateral < 0.02) continue;
-        const spatialVar = 0.35 + 0.65 * Math.abs(Math.sin(i * 0.12 + h.phase));
-        const temporalVar = 0.55 + 0.45 * Math.random();
-        const amp = baseIntensity * spatialVar * temporalVar * 0.55 * lateral;
+        const spatialVar = 0.42 + 0.58 * Math.abs(Math.sin(i * 0.12 + h.phase));
+        const temporalVar = 0.62 + 0.38 * Math.random();
+        const gain = hazardWaterfallStampGain(h.kind, h.size);
+        const amp =
+          baseIntensity * spatialVar * temporalVar * 0.52 * lateral * gain;
         if (amp < 0.001) continue;
         row[i] = Math.min(1.0, row[i] + amp);
       }

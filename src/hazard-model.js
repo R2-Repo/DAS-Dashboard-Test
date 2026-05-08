@@ -64,6 +64,19 @@ export function hazardPeakIntensity(kind, size) {
   return Math.min(1, base * mul);
 }
 
+/**
+ * Extra multiplier for hazard-only waterfall stamping so peaks reach the jet LUT’s orange–red leg
+ * (fixed plot scaling keeps ambient in deep blue; uncorrected hazard coupling sat in cyan/yellow).
+ */
+export function hazardWaterfallStampGain(kind, size) {
+  const z = normalizeHazardSize(size);
+  const k = normalizeHazardKind(kind);
+  const tier = z === 'small' ? 1.92 : z === 'large' ? 2.52 : 2.15;
+  if (k === 'crash') return tier * 0.94;
+  if (k === 'rock_slide') return tier * 1.03;
+  return tier * 1.06;
+}
+
 export function hazardPalette(kind) {
   const k = normalizeHazardKind(kind);
   if (k === 'crash') {
