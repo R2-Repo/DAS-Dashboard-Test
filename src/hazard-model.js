@@ -220,15 +220,8 @@ export function hazardWaterfallEnvelope(kind, size, ageTicks) {
       const spike = Math.exp(-((u - 0.13) ** 2) / (2 * 0.065 ** 2));
       return 0.28 + 0.72 * spike;
     }
-    // Mass-flow hazards: several distinct surges with quieter intervals (mudslides / avalanches).
-    const floor = k === 'rock_slide' ? 0.27 : 0.25;
-    const sigma = k === 'rock_slide' ? 0.062 : 0.058;
-    const p1 = Math.exp(-((u - 0.17) ** 2) / (2 * sigma ** 2));
-    const p2 = Math.exp(-((u - 0.45) ** 2) / (2 * (sigma * 1.08) ** 2));
-    const p3 = Math.exp(-((u - 0.74) ** 2) / (2 * (sigma * 0.95) ** 2));
-    const peaks = Math.max(p1, Math.max(p2, p3));
-    const ripple = 0.92 + 0.08 * Math.sin(Math.PI * u * 2.4 + 0.4);
-    return floor + (1 - floor) * peaks * ripple;
+    const plateau = 0.52 + 0.48 * Math.sin(Math.PI * u);
+    return plateau;
   }
 
   const u = (ageTicks - prelude - main) / Math.max(1, tail);
