@@ -209,9 +209,9 @@ export function hazardWaterfallEnvelope(kind, size, ageTicks) {
       return 0.05 + 0.3 * ramp;
     }
     if (k === 'rock_slide') {
-      return 0.07 + 0.35 * ramp;
+      return 0.06 + 0.36 * ramp * ramp;
     }
-    return 0.07 + 0.34 * ramp;
+    return 0.06 + 0.35 * ramp * ramp;
   }
 
   if (ageTicks < prelude + main) {
@@ -220,15 +220,20 @@ export function hazardWaterfallEnvelope(kind, size, ageTicks) {
       const spike = Math.exp(-((u - 0.13) ** 2) / (2 * 0.065 ** 2));
       return 0.28 + 0.72 * spike;
     }
-    // Mass-flow hazards: several distinct surges with quieter intervals (mudslides / avalanches).
-    const floor = k === 'rock_slide' ? 0.27 : 0.25;
-    const sigma = k === 'rock_slide' ? 0.062 : 0.058;
-    const p1 = Math.exp(-((u - 0.17) ** 2) / (2 * sigma ** 2));
-    const p2 = Math.exp(-((u - 0.45) ** 2) / (2 * (sigma * 1.08) ** 2));
-    const p3 = Math.exp(-((u - 0.74) ** 2) / (2 * (sigma * 0.95) ** 2));
-    const peaks = Math.max(p1, Math.max(p2, p3));
-    const ripple = 0.92 + 0.08 * Math.sin(Math.PI * u * 2.4 + 0.4);
-    return floor + (1 - floor) * peaks * ripple;
+    // Mass-flow reference shape: asymmetric twin lobes (smaller / earlier left, larger / later right)
+    // with a warm yellow–orange bridge between red cores — not three sharp pulses or a flat plateau.
+    const uLeft = k === 'rock_slide' ? 0.3 : 0.28;
+    const uRight = k === 'rock_slide' ? 0.63 : 0.61;
+    const sLeft = k === 'rock_slide' ? 0.096 : 0.1;
+    const sRight = k === 'rock_slide' ? 0.116 : 0.122;
+    const hLeft = 0.76;
+    const hRight = 1.0;
+    const gL = hLeft * Math.exp(-((u - uLeft) ** 2) / (2 * sLeft * sLeft));
+    const gR = hRight * Math.exp(-((u - uRight) ** 2) / (2 * sRight * sRight));
+    const ridge = Math.max(gL, gR);
+    const soup = 0.5 * Math.min(1.2, gL + gR);
+    const body = Math.max(ridge, soup);
+    return Math.min(1, 0.41 + 0.59 * body);
   }
 
   const u = (ageTicks - prelude - main) / Math.max(1, tail);

@@ -38,7 +38,6 @@ import {
   hazardPeakIntensity,
   hazardWaterfallStampGain,
   hazardWaterfallEnvelope,
-  hazardEventPhaseTicks,
   lateralWidthsForHazard,
   normalizeHazardKind,
   normalizeHazardSize,
@@ -527,31 +526,53 @@ export function createSimulation(data, targets) {
       const baseIntensity = h.peakIntensity * envelope;
 
       const kind = normalizeHazardKind(h.kind);
-      const { prelude } = hazardEventPhaseTicks(h.kind, h.size);
-      const totalEventTicks = hazardEventDurationTicks(h.kind, h.size);
-      const spreadStart = Math.max(0, age - prelude * 0.35);
-      const spreadMix =
-        spreadStart <= 0
-          ? 0
-          : spreadStart ** 2 /
-            (spreadStart ** 2 + Math.max(20, (totalEventTicks - prelude * 0.35) ** 2 * 0.22));
-      let narrow = 0.19;
-      let wide = kind === 'crash' ? 0.92 : kind === 'rock_slide' ? 1.42 : 1.55;
-      if (kind === 'crash') narrow = 0.26;
-      const sigmaScale = narrow + (wide - narrow) * spreadMix;
-      const sigmaCh = Math.max(0.55, halfSpanCh * sigmaScale);
-
-      const tickBreath = 0.94 + 0.06 * Math.sin(tickCount * 0.11 + h.phase);
       const gain = hazardWaterfallStampGain(h.kind, h.size);
-      const ciRadius = Math.min(totalChannels - 1, Math.ceil(sigmaCh * 4.5 + 3));
-      const ci0 = Math.max(0, Math.floor(centerCh - ciRadius));
-      const ci1 = Math.min(totalChannels - 1, Math.ceil(centerCh + ciRadius));
+
+      if (kind === 'crash') {
+        const ci0 = Math.max(0, Math.floor(h.startChannel) - 2);
+        const ci1 = Math.min(totalChannels - 1, Math.ceil(h.endChannel) + 2);
+        for (let i = ci0; i <= ci1; i++) {
+          const dist = Math.abs(i - centerCh);
+          if (dist > halfSpanCh + 1.5) continue;
+          const t = dist / Math.max(0.5, halfSpanCh);
+          const lateral = Math.max(0, 1 - t * t);
+          if (lateral < 0.02) continue;
+          const spatialVar = 0.42 + 0.58 * Math.abs(Math.sin(i * 0.12 + h.phase));
+          const temporalVar = 0.62 + 0.38 * Math.random();
+          const amp = baseIntensity * spatialVar * temporalVar * 0.52 * lateral * gain;
+          if (amp < 0.001) continue;
+          row[i] = Math.min(1.0, row[i] + amp);
+        }
+        continue;
+      }
+
+      // Avalanche / rock slide: soft lateral gradients + halo + peripheral splashes (reference DAS look).
+      const sigmaCore = Math.max(1.05, halfSpanCh * 0.74);
+      const sigmaHalo = Math.max(2.0, halfSpanCh * 1.52);
+      const splashOff = halfSpanCh * 1.02;
+      const splashA = centerCh - splashOff * (0.62 + 0.22 * Math.sin(h.phase));
+      const splashB = centerCh + splashOff * (0.68 + 0.18 * Math.cos(h.phase * 1.37));
+
+      const tickGrain = 0.88 + 0.12 * Math.sin(tickCount * 0.12 + h.phase * 2.03);
+      const farRadius = Math.ceil(halfSpanCh * 2.35 + sigmaHalo * 2.65 + 10);
+      const ci0 = Math.max(0, Math.floor(centerCh - farRadius));
+      const ci1 = Math.min(totalChannels - 1, Math.ceil(centerCh + farRadius));
 
       for (let i = ci0; i <= ci1; i++) {
-        const dist = i - centerCh;
-        const lateral = Math.exp(-(dist * dist) / (2 * sigmaCh * sigmaCh));
-        if (lateral < 0.007) continue;
-        const amp = baseIntensity * tickBreath * 0.46 * lateral * gain;
+        const d0 = i - centerCh;
+        const core = Math.exp(-(d0 * d0) / (2 * sigmaCore * sigmaCore));
+        const halo = 0.34 * Math.exp(-(d0 * d0) / (2 * sigmaHalo * sigmaHalo));
+
+        const dA = i - splashA;
+        const spA = 0.27 * Math.exp(-(dA * dA) / (2 * (sigmaCore * 0.6) ** 2));
+        const dB = i - splashB;
+        const spB = 0.24 * Math.exp(-(dB * dB) / (2 * (sigmaCore * 0.56) ** 2));
+
+        const lateral = Math.min(1, core + halo + spA + spB);
+        if (lateral < 0.006) continue;
+
+        const spatialMod = 0.74 + 0.26 * Math.abs(Math.sin(i * 0.054 + h.phase * 1.33));
+        const amp = baseIntensity * tickGrain * spatialMod * lateral * gain * 0.45;
         if (amp < 0.001) continue;
         row[i] = Math.min(1.0, row[i] + amp);
       }
