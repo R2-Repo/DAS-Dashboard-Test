@@ -14,6 +14,8 @@ For product scope and domain background, see `Scope/Scope.md`. For GIS preproces
 
 The map and waterfall are **coupled by channel index**: picking a channel on the plot flies the map to that channel’s lon/lat; selecting a vehicle scrolls/highlights the corresponding channel.
 
+**Roadway hazards** (crash, rock slide, avalanche) reuse the same channel axis: each hazard stamps a span of channels each tick and renders a lane-aligned polygon on the map. See [`hazards.md`](hazards.md).
+
 ---
 
 ## 2. Architecture (data flow)
@@ -57,12 +59,12 @@ flowchart LR
 | File | Responsibility |
 |------|----------------|
 | `src/main.js` | Boots app, responsive layout, demo fleet buttons, connects waterfall pick → map focus |
-| `src/simulation.js` | Tick loop, IDM traffic, road vs legacy fiber paths, **row assembly** (`Float32Array` per channel), `pushRow` / highlight / track channel |
+| `src/simulation.js` | Tick loop, IDM traffic, **hazard channel stamps**, road vs legacy fiber paths, **row assembly** (`Float32Array` per channel), `pushRow` / highlight / track channel |
 | `src/waterfall.js` | Ring buffer history, **jet LUT**, scaling/gamma, **max pooling** across channels when zoomed out, pan/zoom/pick, highlight band overlay |
 | `src/vehicle-model.js` | Vehicle specs: physics lengths, **DAS half-width and strength per class**, map footprint scaling |
 | `src/road-geometry.js` | Road distance ↔ channel position, bearings, curvature, lane routing |
-| `src/map.js` / `src/map-core.js` | MapLibre layers, vehicle fill-extrusion features, interaction hooks |
-| `src/ui.js` | Sidebar stats and event feed (fed by simulation) |
+| `src/map.js` / `src/map-core.js` | MapLibre layers, **hazard** fill/line GeoJSON, vehicle fill-extrusion features, interaction hooks |
+| `src/ui.js` | Sidebar stats cards and fleet UI |
 
 ---
 

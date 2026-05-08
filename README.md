@@ -6,8 +6,8 @@ A small **web app** for SR-190 Big Cottonwood Canyon, Utah: a map of the road an
 
 - **3D MapLibre map** with terrain and hillshade (AWS Terrarium tiles, no API key)
 - **Real-time waterfall heatmap** with jet colormap and physics-based diagonal vehicle tracks
-- **Live event feed** showing vehicle detections and anomaly alerts by route + milepost
-- **Sidebar stats** (vehicles, speed, direction counts, alerts)
+- **Live-style sidebar context**: vehicle fleet controls and stats (milepost, speed, EB/WB), hazard count
+- **Lane-snapped roadway hazards** (crash, rock slide, avalanche) with map footprints and waterfall bands — see [`docs/hazards.md`](docs/hazards.md)
 - **Simulation engine** calibrated to real SR-190 canyon road physics
 - **Python preprocessing pipeline** for GIS data (fiber stitching, channel generation, milepost interpolation)
 
@@ -24,7 +24,7 @@ npm run dev                            # open http://localhost:5173
 ```
 data/raw/        → Raw GIS inputs (fiber, road, mileposts, crossings)
 data/            → Processed data served by Vite (fiber_channels.json, etc.)
-docs/            → Deep-dive docs (waterfall + traffic rebuild guide)
+docs/            → Deep-dive docs (waterfall/traffic rebuild, hazards handoff)
 scripts/         → Python preprocessing (no pip deps — stdlib only)
 src/             → Frontend modules (map, waterfall, simulation, UI)
 test/            → Vitest test suite
@@ -36,6 +36,7 @@ Scope/           → Full design spec and domain research
 | Doc | Contents |
 |-----|----------|
 | [`docs/waterfall-traffic-rebuild.md`](docs/waterfall-traffic-rebuild.md) | How the waterfall, vehicle traces, simulation ticks, and map stay in sync—constants, data flow, file ownership, dual road/legacy paths, and a rebuild checklist |
+| [`docs/hazards.md`](docs/hazards.md) | **Roadway hazards (V1+)**: map polygons, waterfall stamping, file ownership, extension recipes for agents (new kinds, DEM upslope, removal, tuning) |
 | [`Scope/Scope.md`](Scope/Scope.md) | Full product/design specification |
 
 ### Frontend modules
@@ -43,10 +44,12 @@ Scope/           → Full design spec and domain research
 | Module | Purpose |
 |--------|---------|
 | `src/main.js` | Boot sequence: load data → init map/waterfall/UI → start simulation |
-| `src/map.js` | MapLibre 3D map with terrain, road/fiber/milepost/crossing layers, vehicle markers |
+| `src/map.js` | MapLibre 3D map with terrain, road/fiber/milepost layers, hazard footprints, vehicle extrusions |
 | `src/waterfall.js` | Canvas-based DAS waterfall renderer with jet colormap LUT |
-| `src/simulation.js` | Physics engine: vehicle spawning/movement, anomalies, waterfall row generation |
-| `src/ui.js` | Sidebar: stats cards and scrolling event feed |
+| `src/simulation.js` | Traffic sim + **hazard placement**, waterfall row assembly (vehicles + hazards) |
+| `src/hazard-model.js` | Hazard tiers, corridor polygons, colors, DAS peak intensity |
+| `src/hazard-palette.js` | Sidebar UI to place hazards on the map |
+| `src/ui.js` | Sidebar stats cards |
 | `src/data-loader.js` | Fetches processed JSON/GeoJSON from Vite publicDir |
 
 ### Preprocessing scripts
