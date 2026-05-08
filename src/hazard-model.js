@@ -137,3 +137,84 @@ export function hazardFallbackChannelHalfWidth(size) {
   if (z === 'large') return 48;
   return 28;
 }
+
+/**
+ * DAS-style hazard lifetimes in simulation ticks (TICK_MS in simulation.js, 100ms each).
+ * Tuned so the waterfall shows a finite “blob”: precursor energy, main event, then decay — not
+ * a vertical column. Durations scale with size; kind controls shape (short impact vs. long mass flow).
+ */
+export function hazardEventPhaseTicks(kind, size) {
+  const k = normalizeHazardKind(kind);
+  const z = normalizeHazardSize(size);
+  const scale = z === 'small' ? 0.75 : z === 'large' ? 1.35 : 1.0;
+
+  if (k === 'crash') {
+    return {
+      prelude: Math.max(4, Math.round(14 * scale)),
+      main: Math.max(2, Math.round(5 * scale)),
+      tail: Math.max(8, Math.round(30 * scale)),
+    };
+  }
+  if (k === 'rock_slide') {
+    return {
+      prelude: Math.max(6, Math.round(24 * scale)),
+      main: Math.max(20, Math.round(58 * scale)),
+      tail: Math.max(25, Math.round(78 * scale)),
+    };
+  }
+  return {
+    prelude: Math.max(8, Math.round(38 * scale)),
+    main: Math.max(35, Math.round(88 * scale)),
+    tail: Math.max(40, Math.round(108 * scale)),
+  };
+}
+
+export function hazardEventDurationTicks(kind, size) {
+  const p = hazardEventPhaseTicks(kind, size);
+  return p.prelude + p.main + p.tail;
+}
+
+function smoothstep01(t) {
+  const x = Math.max(0, Math.min(1, t));
+  return x * x * (3 - 2 * x);
+}
+
+/**
+ * 0..1 coupling for a single simulation tick, after the hazard’s start. Returns 0 before the event
+ * and after it ends (so the waterfall does not show a static vertical band for the full history).
+ */
+export function hazardWaterfallEnvelope(kind, size, ageTicks) {
+  const k = normalizeHazardKind(kind);
+  const { prelude, main, tail } = hazardEventPhaseTicks(kind, size);
+  const total = prelude + main + tail;
+  if (ageTicks < 0 || ageTicks >= total) return 0;
+
+  if (ageTicks < prelude) {
+    const u = ageTicks / Math.max(1, prelude);
+    const ramp = smoothstep01(u);
+    if (k === 'crash') {
+      return 0.05 + 0.3 * ramp;
+    }
+    if (k === 'rock_slide') {
+      return 0.07 + 0.35 * ramp;
+    }
+    return 0.07 + 0.34 * ramp;
+  }
+
+  if (ageTicks < prelude + main) {
+    const u = (ageTicks - prelude) / Math.max(1, main);
+    if (k === 'crash') {
+      const spike = Math.exp(-((u - 0.13) ** 2) / (2 * 0.065 ** 2));
+      return 0.28 + 0.72 * spike;
+    }
+    const plateau = 0.52 + 0.48 * Math.sin(Math.PI * u);
+    return plateau;
+  }
+
+  const u = (ageTicks - prelude - main) / Math.max(1, tail);
+  const tailDecay = (1 - smoothstep01(u)) ** 1.55;
+  if (k === 'crash') {
+    return 0.07 * tailDecay;
+  }
+  return 0.48 * tailDecay;
+}
