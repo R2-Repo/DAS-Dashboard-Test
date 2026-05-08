@@ -33,8 +33,10 @@ import { LANE_ROUTE_COLOR_HEX } from './lane-route-colors.js';
 import { syncVehicleCallouts, clearVehicleCallouts } from './vehicle-callouts.js';
 import {
   buildCorridorPolygonLonLat,
+  hazardEventDurationTicks,
   hazardFallbackChannelHalfWidth,
   hazardPeakIntensity,
+  hazardWaterfallEnvelope,
   lateralWidthsForHazard,
   normalizeHazardKind,
   normalizeHazardSize,
@@ -309,6 +311,10 @@ export function createSimulation(data, targets) {
   function tick() {
     tickCount++;
 
+    hazards = hazards.filter(
+      (h) => tickCount - h.startTick < hazardEventDurationTicks(h.kind, h.size),
+    );
+
     const dtS = TICK_MS / MS_PER_S;
 
     if (roadOk) {
@@ -510,12 +516,27 @@ export function createSimulation(data, targets) {
     }
 
     for (const h of hazards) {
-      const baseIntensity = h.peakIntensity;
-      for (let i = h.startChannel; i <= h.endChannel && i < totalChannels; i++) {
-        if (i < 0) continue;
+      const age = tickCount - h.startTick;
+      const envelope = hazardWaterfallEnvelope(h.kind, h.size, age);
+      if (envelope < 0.002) continue;
+
+      const centerCh = (h.startChannel + h.endChannel) / 2;
+      const halfSpanCh = Math.max(0.75, (h.endChannel - h.startChannel) / 2);
+      const baseIntensity = h.peakIntensity * envelope;
+
+      const ci0 = Math.max(0, Math.floor(h.startChannel) - 2);
+      const ci1 = Math.min(totalChannels - 1, Math.ceil(h.endChannel) + 2);
+      for (let i = ci0; i <= ci1; i++) {
+        const dist = Math.abs(i - centerCh);
+        if (dist > halfSpanCh + 1.5) continue;
+        const t = dist / Math.max(0.5, halfSpanCh);
+        const lateral = Math.max(0, 1 - t * t);
+        if (lateral < 0.02) continue;
         const spatialVar = 0.35 + 0.65 * Math.abs(Math.sin(i * 0.12 + h.phase));
         const temporalVar = 0.55 + 0.45 * Math.random();
-        row[i] = Math.min(1.0, row[i] + baseIntensity * spatialVar * temporalVar * 0.55);
+        const amp = baseIntensity * spatialVar * temporalVar * 0.55 * lateral;
+        if (amp < 0.001) continue;
+        row[i] = Math.min(1.0, row[i] + amp);
       }
     }
 
@@ -875,6 +896,7 @@ export function createSimulation(data, targets) {
         roadDistM: roadM,
         peakIntensity,
         phase,
+        startTick: tickCount + 1,
         startChannel,
         endChannel,
         geometry: geom,
@@ -918,6 +940,7 @@ export function createSimulation(data, targets) {
       roadDistM: undefined,
       peakIntensity,
       phase,
+      startTick: tickCount + 1,
       startChannel,
       endChannel,
       geometry: geom,
