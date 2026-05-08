@@ -38,6 +38,7 @@ import {
   hazardPeakIntensity,
   hazardWaterfallStampGain,
   hazardWaterfallEnvelope,
+  hazardEventPhaseTicks,
   lateralWidthsForHazard,
   normalizeHazardKind,
   normalizeHazardSize,
@@ -69,6 +70,15 @@ export function isFiberMappingGlitch(deltaRoadM, rawMotionCh, halfWidth) {
   const roadEquivCh = deltaRoadM / CHANNEL_SPACING_M;
   const slack = halfWidth * 2 + 20;
   return rawMotionCh > roadEquivCh * 10 + slack;
+}
+
+/** Deterministic 0..1 mix per hazard id, channel index, and salt (columnar grain, no mirror symmetry). */
+function hazardChannelMix01(hazardId, channelIndex, salt) {
+  let h = Math.imul(channelIndex ^ salt, 2654435761) ^ Math.imul(hazardId.length, 1597334677);
+  for (let c = 0; c < hazardId.length; c++) {
+    h = Math.imul(h ^ hazardId.charCodeAt(c), 2246822519);
+  }
+  return ((h >>> 0) & 0xfffffff) / 268435455;
 }
 
 /** After this many ticks stopped near a route end, remove the vehicle (avoids phantom DAS / map clutter). */
@@ -546,33 +556,54 @@ export function createSimulation(data, targets) {
         continue;
       }
 
-      // Avalanche / rock slide: soft lateral gradients + halo + peripheral splashes (reference DAS look).
-      const sigmaCore = Math.max(1.05, halfSpanCh * 0.74);
-      const sigmaHalo = Math.max(2.0, halfSpanCh * 1.52);
-      const splashOff = halfSpanCh * 1.02;
-      const splashA = centerCh - splashOff * (0.62 + 0.22 * Math.sin(h.phase));
-      const splashB = centerCh + splashOff * (0.68 + 0.18 * Math.cos(h.phase * 1.37));
+      // Avalanche / rock slide: asymmetric columnar energy (no mirrored Gaussian halves). Slice-wise
+      // hash + multi-scale sin grain; lateral reach breathes with envelope; prelude adds left-side blips.
+      const { prelude } = hazardEventPhaseTicks(h.kind, h.size);
+      const widthNorm = 0.34 + 0.67 * envelope ** 0.88;
+      const halfEff = Math.max(0.55, halfSpanCh * widthNorm);
+      const reachL = halfEff * 1.18;
+      const reachR = halfEff * 1.42;
 
-      const tickGrain = 0.88 + 0.12 * Math.sin(tickCount * 0.12 + h.phase * 2.03);
-      const farRadius = Math.ceil(halfSpanCh * 2.35 + sigmaHalo * 2.65 + 10);
-      const ci0 = Math.max(0, Math.floor(centerCh - farRadius));
-      const ci1 = Math.min(totalChannels - 1, Math.ceil(centerCh + farRadius));
+      const ci0 = Math.max(0, Math.floor(centerCh - reachL - 12));
+      const ci1 = Math.min(totalChannels - 1, Math.ceil(centerCh + reachR + 10));
 
       for (let i = ci0; i <= ci1; i++) {
-        const d0 = i - centerCh;
-        const core = Math.exp(-(d0 * d0) / (2 * sigmaCore * sigmaCore));
-        const halo = 0.34 * Math.exp(-(d0 * d0) / (2 * sigmaHalo * sigmaHalo));
+        const signed = i - centerCh;
+        const dist = Math.abs(signed);
+        const maxReach = signed <= 0 ? reachL : reachR;
+        const edgeJitter =
+          hazardChannelMix01(h.id, i, age + tickCount * 193 + signed * 17) * 3.6;
+        if (dist > maxReach + edgeJitter) continue;
 
-        const dA = i - splashA;
-        const spA = 0.27 * Math.exp(-(dA * dA) / (2 * (sigmaCore * 0.6) ** 2));
-        const dB = i - splashB;
-        const spB = 0.24 * Math.exp(-(dB * dB) / (2 * (sigmaCore * 0.56) ** 2));
+        const t = dist / Math.max(0.38, halfEff);
+        let lateral = Math.max(0, 1 - t * t);
+        lateral *= 0.55 + 0.45 * hazardChannelMix01(h.id, i, age * 41 + 666);
 
-        const lateral = Math.min(1, core + halo + spA + spB);
-        if (lateral < 0.006) continue;
+        const envCol = 0.56 + 0.44 * hazardChannelMix01(h.id, i, age * 91 + tickCount * 3);
 
-        const spatialMod = 0.74 + 0.26 * Math.abs(Math.sin(i * 0.054 + h.phase * 1.33));
-        const amp = baseIntensity * tickGrain * spatialMod * lateral * gain * 0.45;
+        const grainLo = Math.abs(Math.sin(i * 0.33 + h.phase * 2.63));
+        const grainHi = Math.abs(Math.sin(i * 0.097 + tickCount * 0.23 + h.phase * 1.4));
+        const colMod = 0.26 + 0.74 * grainLo * (0.36 + 0.64 * grainHi);
+
+        const asym =
+          signed <= 0
+            ? 0.58 + 0.62 * hazardChannelMix01(h.id, i, tickCount + i * 59)
+            : 0.74 + 0.66 * Math.abs(Math.sin(i * 0.163 + tickCount * 0.097 + h.phase * 0.7));
+
+        let preBoost = 1;
+        if (age < prelude && signed < -halfEff * 0.11) {
+          const blip = hazardChannelMix01(h.id, i, 901 + tickCount * 7);
+          const um = age / Math.max(1, prelude);
+          if (blip > 0.8 && dist > halfEff * 0.2 && dist <= maxReach + edgeJitter * 0.45) {
+            preBoost = 1.02 + 1.18 * blip * Math.sqrt(um);
+          } else if (blip > 0.42) {
+            preBoost = 0.2 + 0.65 * blip;
+          }
+        }
+
+        const temporalVar = 0.46 + 0.54 * Math.random();
+        const amp =
+          baseIntensity * envCol * colMod * asym * lateral * temporalVar * preBoost * gain * 0.52;
         if (amp < 0.001) continue;
         row[i] = Math.min(1.0, row[i] + amp);
       }

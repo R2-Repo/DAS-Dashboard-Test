@@ -233,7 +233,8 @@ export function hazardWaterfallEnvelope(kind, size, ageTicks) {
     const ridge = Math.max(gL, gR);
     const soup = 0.5 * Math.min(1.2, gL + gR);
     const body = Math.max(ridge, soup);
-    return Math.min(1, 0.41 + 0.59 * body);
+    const fray = 0.89 + 0.11 * Math.abs(Math.sin(u * 33.1 + (k === 'rock_slide' ? 1.07 : 0.31)));
+    return Math.min(1, (0.41 + 0.59 * body) * fray);
   }
 
   const u = (ageTicks - prelude - main) / Math.max(1, tail);
