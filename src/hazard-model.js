@@ -60,7 +60,7 @@ export function hazardPeakIntensity(kind, size) {
   const z = normalizeHazardSize(size);
   const base = z === 'small' ? 0.38 : z === 'large' ? 0.78 : 0.56;
   const k = normalizeHazardKind(kind);
-  const mul = k === 'crash' ? 1.0 : k === 'rock_slide' ? 1.48 : 1.62;
+  const mul = k === 'crash' ? 1.14 : k === 'rock_slide' ? 1.48 : 1.62;
   return Math.min(1, base * mul);
 }
 
@@ -72,7 +72,7 @@ export function hazardWaterfallStampGain(kind, size) {
   const z = normalizeHazardSize(size);
   const k = normalizeHazardKind(kind);
   const tier = z === 'small' ? 1.92 : z === 'large' ? 2.52 : 2.15;
-  if (k === 'crash') return tier * 0.94;
+  if (k === 'crash') return tier * 1.26;
   if (k === 'rock_slide') return tier * 3.42;
   return tier * 3.62;
 }
@@ -206,7 +206,7 @@ export function hazardWaterfallEnvelope(kind, size, ageTicks) {
     const u = ageTicks / Math.max(1, prelude);
     const ramp = smoothstep01(u);
     if (k === 'crash') {
-      return 0.05 + 0.3 * ramp;
+      return 0.06 + 0.34 * ramp;
     }
     if (k === 'rock_slide') {
       return 0.06 + 0.36 * ramp * ramp;
@@ -218,7 +218,7 @@ export function hazardWaterfallEnvelope(kind, size, ageTicks) {
     const u = (ageTicks - prelude) / Math.max(1, main);
     if (k === 'crash') {
       const spike = Math.exp(-((u - 0.13) ** 2) / (2 * 0.065 ** 2));
-      return 0.28 + 0.72 * spike;
+      return 0.26 + 0.76 * spike;
     }
     // Mass-flow reference shape: asymmetric twin lobes (smaller / earlier left, larger / later right)
     // with a warm yellow–orange bridge between red cores — not three sharp pulses or a flat plateau.
