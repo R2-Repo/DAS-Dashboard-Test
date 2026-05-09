@@ -60,7 +60,7 @@ export function hazardPeakIntensity(kind, size) {
   const z = normalizeHazardSize(size);
   const base = z === 'small' ? 0.38 : z === 'large' ? 0.78 : 0.56;
   const k = normalizeHazardKind(kind);
-  const mul = k === 'crash' ? 1.0 : k === 'rock_slide' ? 1.48 : 1.62;
+  const mul = k === 'crash' ? 1.12 : k === 'rock_slide' ? 1.48 : 1.62;
   return Math.min(1, base * mul);
 }
 
@@ -72,7 +72,7 @@ export function hazardWaterfallStampGain(kind, size) {
   const z = normalizeHazardSize(size);
   const k = normalizeHazardKind(kind);
   const tier = z === 'small' ? 1.92 : z === 'large' ? 2.52 : 2.15;
-  if (k === 'crash') return tier * 0.94;
+  if (k === 'crash') return tier * 2.45;
   if (k === 'rock_slide') return tier * 3.42;
   return tier * 3.62;
 }
@@ -80,7 +80,7 @@ export function hazardWaterfallStampGain(kind, size) {
 export function hazardPalette(kind) {
   const k = normalizeHazardKind(kind);
   if (k === 'crash') {
-    return { fill: 'rgba(255,183,77,0.58)', outline: 'rgba(230,81,0,0.92)' };
+    return { fill: 'rgba(255,152,48,0.64)', outline: 'rgba(183,28,0,0.94)' };
   }
   if (k === 'rock_slide') {
     return { fill: 'rgba(141,110,99,0.65)', outline: 'rgba(62,39,35,0.9)' };
@@ -192,8 +192,8 @@ function smoothstep01(t) {
   return x * x * (3 - 2 * x);
 }
 
-/** Scales rock_slide-shaped coupling so crash reads as the same family, visibly smaller on the waterfall. */
-const CRASH_WATERFALL_SHAPE_SCALE = 0.7;
+/** Scales rock_slide-shaped coupling so crash reads as the same family; tuned vs. stamp gain + spatial scale. */
+const CRASH_WATERFALL_SHAPE_SCALE = 0.9;
 
 /**
  * Twin-lobe main-phase curve shared by rock slide and avalanche (crash uses rock_slide params, scaled).
