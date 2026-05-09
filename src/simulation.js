@@ -537,35 +537,21 @@ export function createSimulation(data, targets) {
 
       const kind = normalizeHazardKind(h.kind);
       const gain = hazardWaterfallStampGain(h.kind, h.size);
+      const miniCrash = kind === 'crash';
+      const crashSpatialScale = miniCrash ? 0.55 : 1.0;
+      const crashStampMul = miniCrash ? 0.82 : 1.0;
 
-      if (kind === 'crash') {
-        const ci0 = Math.max(0, Math.floor(h.startChannel) - 2);
-        const ci1 = Math.min(totalChannels - 1, Math.ceil(h.endChannel) + 2);
-        for (let i = ci0; i <= ci1; i++) {
-          const dist = Math.abs(i - centerCh);
-          if (dist > halfSpanCh + 1.5) continue;
-          const t = dist / Math.max(0.5, halfSpanCh);
-          const lateral = Math.max(0, 1 - t * t);
-          if (lateral < 0.02) continue;
-          const spatialVar = 0.42 + 0.58 * Math.abs(Math.sin(i * 0.12 + h.phase));
-          const temporalVar = 0.62 + 0.38 * Math.random();
-          const amp = baseIntensity * spatialVar * temporalVar * 0.52 * lateral * gain;
-          if (amp < 0.001) continue;
-          row[i] = Math.min(1.0, row[i] + amp);
-        }
-        continue;
-      }
-
-      // Avalanche / rock slide: asymmetric columnar energy (no mirrored Gaussian halves). Slice-wise
-      // hash + multi-scale sin grain; lateral reach breathes with envelope; prelude adds left-side blips.
+      // Avalanche / rock slide / crash (mini mass-flow): asymmetric columnar energy (no mirrored Gaussian halves).
+      // Crash uses the same stamping recipe scaled down so it matches rock slide / avalanche on the waterfall.
       const { prelude } = hazardEventPhaseTicks(h.kind, h.size);
       const widthNorm = 0.34 + 0.67 * envelope ** 0.88;
-      const halfEff = Math.max(0.55, halfSpanCh * widthNorm);
+      const halfEff = Math.max(0.55, halfSpanCh * widthNorm) * crashSpatialScale;
       const reachL = halfEff * 1.18;
       const reachR = halfEff * 1.42;
 
-      const ci0 = Math.max(0, Math.floor(centerCh - reachL - 12));
-      const ci1 = Math.min(totalChannels - 1, Math.ceil(centerCh + reachR + 10));
+      const reachPad = miniCrash ? 7 : 12;
+      const ci0 = Math.max(0, Math.floor(centerCh - reachL - reachPad));
+      const ci1 = Math.min(totalChannels - 1, Math.ceil(centerCh + reachR + (miniCrash ? 8 : 10)));
 
       for (let i = ci0; i <= ci1; i++) {
         const signed = i - centerCh;
@@ -603,7 +589,16 @@ export function createSimulation(data, targets) {
 
         const temporalVar = 0.46 + 0.54 * Math.random();
         const amp =
-          baseIntensity * envCol * colMod * asym * lateral * temporalVar * preBoost * gain * 0.52;
+          baseIntensity *
+          envCol *
+          colMod *
+          asym *
+          lateral *
+          temporalVar *
+          preBoost *
+          gain *
+          0.52 *
+          crashStampMul;
         if (amp < 0.001) continue;
         row[i] = Math.min(1.0, row[i] + amp);
       }
