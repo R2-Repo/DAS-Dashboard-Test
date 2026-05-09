@@ -538,27 +538,28 @@ export function createSimulation(data, targets) {
       const kind = normalizeHazardKind(h.kind);
       const gain = hazardWaterfallStampGain(h.kind, h.size);
       const miniCrash = kind === 'crash';
-      const crashSpatialScale = miniCrash ? 0.55 : 1.0;
-      const crashStampMul = miniCrash ? 0.82 : 1.0;
+      const crashSpatialScale = miniCrash ? 0.84 : 1.0;
+      const crashStampMul = miniCrash ? 1.05 : 1.0;
 
       // Avalanche / rock slide / crash (mini mass-flow): asymmetric columnar energy (no mirrored Gaussian halves).
-      // Crash uses the same stamping recipe scaled down so it matches rock slide / avalanche on the waterfall.
+      // Crash uses the same recipe with a slightly narrower lateral scale than rock slide / avalanche.
       const { prelude } = hazardEventPhaseTicks(h.kind, h.size);
       const widthNorm = 0.34 + 0.67 * envelope ** 0.88;
       const halfEff = Math.max(0.55, halfSpanCh * widthNorm) * crashSpatialScale;
       const reachL = halfEff * 1.18;
       const reachR = halfEff * 1.42;
 
-      const reachPad = miniCrash ? 7 : 12;
+      const reachPad = miniCrash ? 11 : 12;
       const ci0 = Math.max(0, Math.floor(centerCh - reachL - reachPad));
-      const ci1 = Math.min(totalChannels - 1, Math.ceil(centerCh + reachR + (miniCrash ? 8 : 10)));
+      const ci1 = Math.min(totalChannels - 1, Math.ceil(centerCh + reachR + 10));
 
       for (let i = ci0; i <= ci1; i++) {
         const signed = i - centerCh;
         const dist = Math.abs(signed);
         const maxReach = signed <= 0 ? reachL : reachR;
+        const jitterMag = miniCrash ? 4.85 : 3.6;
         const edgeJitter =
-          hazardChannelMix01(h.id, i, age + tickCount * 193 + signed * 17) * 3.6;
+          hazardChannelMix01(h.id, i, age + tickCount * 193 + signed * 17) * jitterMag;
         if (dist > maxReach + edgeJitter) continue;
 
         const t = dist / Math.max(0.38, halfEff);
@@ -567,14 +568,21 @@ export function createSimulation(data, targets) {
 
         const envCol = 0.56 + 0.44 * hazardChannelMix01(h.id, i, age * 91 + tickCount * 3);
 
-        const grainLo = Math.abs(Math.sin(i * 0.33 + h.phase * 2.63));
-        const grainHi = Math.abs(Math.sin(i * 0.097 + tickCount * 0.23 + h.phase * 1.4));
+        const grainCh = miniCrash ? 0.74 : 1.0;
+        const grainLo = Math.abs(Math.sin(i * 0.33 * grainCh + h.phase * 2.63));
+        const grainHi = Math.abs(
+          Math.sin(
+            i * 0.097 * grainCh + tickCount * (miniCrash ? 0.17 : 0.23) + h.phase * 1.4,
+          ),
+        );
         const colMod = 0.26 + 0.74 * grainLo * (0.36 + 0.64 * grainHi);
 
         const asym =
           signed <= 0
             ? 0.58 + 0.62 * hazardChannelMix01(h.id, i, tickCount + i * 59)
-            : 0.74 + 0.66 * Math.abs(Math.sin(i * 0.163 + tickCount * 0.097 + h.phase * 0.7));
+            : 0.74 +
+              0.66 *
+                Math.abs(Math.sin(i * 0.163 * grainCh + tickCount * 0.097 + h.phase * 0.7));
 
         let preBoost = 1;
         if (age < prelude && signed < -halfEff * 0.11) {
