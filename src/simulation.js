@@ -539,17 +539,22 @@ export function createSimulation(data, targets) {
       const gain = hazardWaterfallStampGain(h.kind, h.size);
 
       if (kind === 'crash') {
-        const ci0 = Math.max(0, Math.floor(h.startChannel) - 2);
-        const ci1 = Math.min(totalChannels - 1, Math.ceil(h.endChannel) + 2);
+        const pad = 4;
+        const ci0 = Math.max(0, Math.floor(h.startChannel) - pad);
+        const ci1 = Math.min(totalChannels - 1, Math.ceil(h.endChannel) + pad);
+        const tickGrain = 0.88 + 0.12 * Math.sin(tickCount * 0.24 + h.phase * 1.6);
         for (let i = ci0; i <= ci1; i++) {
           const dist = Math.abs(i - centerCh);
-          if (dist > halfSpanCh + 1.5) continue;
+          if (dist > halfSpanCh + 2.2) continue;
           const t = dist / Math.max(0.5, halfSpanCh);
           const lateral = Math.max(0, 1 - t * t);
           if (lateral < 0.02) continue;
-          const spatialVar = 0.42 + 0.58 * Math.abs(Math.sin(i * 0.12 + h.phase));
-          const temporalVar = 0.62 + 0.38 * Math.random();
-          const amp = baseIntensity * spatialVar * temporalVar * 0.52 * lateral * gain;
+          const spatialVar =
+            (0.35 + 0.65 * Math.abs(Math.sin(i * 0.12 + h.phase))) *
+            (0.78 + 0.22 * Math.abs(Math.sin(i * 0.36 + tickCount * 0.16 + h.phase)));
+          const temporalVar = 0.45 + 0.55 * Math.random();
+          const amp =
+            baseIntensity * spatialVar * temporalVar * tickGrain * 0.58 * lateral * gain;
           if (amp < 0.001) continue;
           row[i] = Math.min(1.0, row[i] + amp);
         }
