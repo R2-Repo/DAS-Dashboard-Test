@@ -192,6 +192,30 @@ function smoothstep01(t) {
   return x * x * (3 - 2 * x);
 }
 
+/** Scales rock_slide-shaped coupling so crash reads as the same family, visibly smaller on the waterfall. */
+const CRASH_WATERFALL_SHAPE_SCALE = 0.7;
+
+/**
+ * Twin-lobe main-phase curve shared by rock slide and avalanche (crash uses rock_slide params, scaled).
+ */
+function massFlowMainEnvelope01(u, kind) {
+  const k = normalizeHazardKind(kind);
+  const uLeft = k === 'avalanche' ? 0.28 : 0.3;
+  const uRight = k === 'avalanche' ? 0.61 : 0.63;
+  const sLeft = k === 'avalanche' ? 0.1 : 0.096;
+  const sRight = k === 'avalanche' ? 0.122 : 0.116;
+  const hLeft = 0.76;
+  const hRight = 1.0;
+  const gL = hLeft * Math.exp(-((u - uLeft) ** 2) / (2 * sLeft * sLeft));
+  const gR = hRight * Math.exp(-((u - uRight) ** 2) / (2 * sRight * sRight));
+  const ridge = Math.max(gL, gR);
+  const soup = 0.5 * Math.min(1.2, gL + gR);
+  const body = Math.max(ridge, soup);
+  const frayPhase = k === 'avalanche' ? 0.31 : 1.07;
+  const fray = 0.89 + 0.11 * Math.abs(Math.sin(u * 33.1 + frayPhase));
+  return Math.min(1, (0.41 + 0.59 * body) * fray);
+}
+
 /**
  * 0..1 coupling for a single simulation tick, after the hazard’s start. Returns 0 before the event
  * and after it ends (so the waterfall does not show a static vertical band for the full history).
@@ -206,7 +230,7 @@ export function hazardWaterfallEnvelope(kind, size, ageTicks) {
     const u = ageTicks / Math.max(1, prelude);
     const ramp = smoothstep01(u);
     if (k === 'crash') {
-      return 0.05 + 0.3 * ramp;
+      return CRASH_WATERFALL_SHAPE_SCALE * (0.06 + 0.36 * ramp * ramp);
     }
     if (k === 'rock_slide') {
       return 0.06 + 0.36 * ramp * ramp;
@@ -217,30 +241,18 @@ export function hazardWaterfallEnvelope(kind, size, ageTicks) {
   if (ageTicks < prelude + main) {
     const u = (ageTicks - prelude) / Math.max(1, main);
     if (k === 'crash') {
-      const spike = Math.exp(-((u - 0.13) ** 2) / (2 * 0.065 ** 2));
-      return 0.28 + 0.72 * spike;
+      return Math.min(1, CRASH_WATERFALL_SHAPE_SCALE * massFlowMainEnvelope01(u, 'rock_slide'));
     }
-    // Mass-flow reference shape: asymmetric twin lobes (smaller / earlier left, larger / later right)
-    // with a warm yellow–orange bridge between red cores — not three sharp pulses or a flat plateau.
-    const uLeft = k === 'rock_slide' ? 0.3 : 0.28;
-    const uRight = k === 'rock_slide' ? 0.63 : 0.61;
-    const sLeft = k === 'rock_slide' ? 0.096 : 0.1;
-    const sRight = k === 'rock_slide' ? 0.116 : 0.122;
-    const hLeft = 0.76;
-    const hRight = 1.0;
-    const gL = hLeft * Math.exp(-((u - uLeft) ** 2) / (2 * sLeft * sLeft));
-    const gR = hRight * Math.exp(-((u - uRight) ** 2) / (2 * sRight * sRight));
-    const ridge = Math.max(gL, gR);
-    const soup = 0.5 * Math.min(1.2, gL + gR);
-    const body = Math.max(ridge, soup);
-    const fray = 0.89 + 0.11 * Math.abs(Math.sin(u * 33.1 + (k === 'rock_slide' ? 1.07 : 0.31)));
-    return Math.min(1, (0.41 + 0.59 * body) * fray);
+    if (k === 'rock_slide') {
+      return massFlowMainEnvelope01(u, 'rock_slide');
+    }
+    return massFlowMainEnvelope01(u, 'avalanche');
   }
 
   const u = (ageTicks - prelude - main) / Math.max(1, tail);
   const tailDecay = (1 - smoothstep01(u)) ** 1.55;
   if (k === 'crash') {
-    return 0.07 * tailDecay;
+    return CRASH_WATERFALL_SHAPE_SCALE * 0.48 * tailDecay;
   }
   return 0.48 * tailDecay;
 }
