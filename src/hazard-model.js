@@ -60,7 +60,14 @@ export function hazardPeakIntensity(kind, size) {
   const z = normalizeHazardSize(size);
   const base = z === 'small' ? 0.38 : z === 'large' ? 0.78 : 0.56;
   const k = normalizeHazardKind(kind);
-  const mul = k === 'crash' ? 1.12 : k === 'rock_slide' ? 1.48 : 1.62;
+  const mul =
+    k === 'crash'
+      ? z === 'large'
+        ? 1.12
+        : 1.24
+      : k === 'rock_slide'
+        ? 1.48
+        : 1.62;
   return Math.min(1, base * mul);
 }
 
@@ -72,15 +79,25 @@ export function hazardWaterfallStampGain(kind, size) {
   const z = normalizeHazardSize(size);
   const k = normalizeHazardKind(kind);
   const tier = z === 'small' ? 1.92 : z === 'large' ? 2.52 : 2.15;
-  if (k === 'crash') return tier * 2.45;
+  if (k === 'crash') {
+    const bump = z === 'large' ? 2.45 : z === 'medium' ? 2.98 : 3.12;
+    return tier * bump;
+  }
   if (k === 'rock_slide') return tier * 3.42;
   return tier * 3.62;
 }
 
-export function hazardPalette(kind) {
+/**
+ * @param {string} [size] Defaults to medium; only affects crash map tint.
+ */
+export function hazardPalette(kind, size) {
   const k = normalizeHazardKind(kind);
+  const z = normalizeHazardSize(size);
   if (k === 'crash') {
-    return { fill: 'rgba(255,152,48,0.64)', outline: 'rgba(183,28,0,0.94)' };
+    if (z === 'large') {
+      return { fill: 'rgba(255,152,48,0.64)', outline: 'rgba(183,28,0,0.94)' };
+    }
+    return { fill: 'rgba(255,94,28,0.68)', outline: 'rgba(142,6,0,0.96)' };
   }
   if (k === 'rock_slide') {
     return { fill: 'rgba(141,110,99,0.65)', outline: 'rgba(62,39,35,0.9)' };
@@ -192,8 +209,13 @@ function smoothstep01(t) {
   return x * x * (3 - 2 * x);
 }
 
-/** Scales rock_slide-shaped coupling so crash reads as the same family; tuned vs. stamp gain + spatial scale. */
-const CRASH_WATERFALL_SHAPE_SCALE = 0.9;
+/** Stronger for small/medium so low-tier crashes still read clearly vs. large on the waterfall. */
+function crashWaterfallShapeScale(size) {
+  const z = normalizeHazardSize(size);
+  if (z === 'small') return 0.98;
+  if (z === 'medium') return 0.95;
+  return 0.9;
+}
 
 /**
  * Twin-lobe main-phase curve shared by rock slide and avalanche (crash uses rock_slide params, scaled).
@@ -225,12 +247,13 @@ export function hazardWaterfallEnvelope(kind, size, ageTicks) {
   const { prelude, main, tail } = hazardEventPhaseTicks(kind, size);
   const total = prelude + main + tail;
   if (ageTicks < 0 || ageTicks >= total) return 0;
+  const crashShape = k === 'crash' ? crashWaterfallShapeScale(size) : 1;
 
   if (ageTicks < prelude) {
     const u = ageTicks / Math.max(1, prelude);
     const ramp = smoothstep01(u);
     if (k === 'crash') {
-      return CRASH_WATERFALL_SHAPE_SCALE * (0.06 + 0.36 * ramp * ramp);
+      return crashShape * (0.06 + 0.36 * ramp * ramp);
     }
     if (k === 'rock_slide') {
       return 0.06 + 0.36 * ramp * ramp;
@@ -241,7 +264,7 @@ export function hazardWaterfallEnvelope(kind, size, ageTicks) {
   if (ageTicks < prelude + main) {
     const u = (ageTicks - prelude) / Math.max(1, main);
     if (k === 'crash') {
-      return Math.min(1, CRASH_WATERFALL_SHAPE_SCALE * massFlowMainEnvelope01(u, 'rock_slide'));
+      return Math.min(1, crashShape * massFlowMainEnvelope01(u, 'rock_slide'));
     }
     if (k === 'rock_slide') {
       return massFlowMainEnvelope01(u, 'rock_slide');
@@ -252,7 +275,7 @@ export function hazardWaterfallEnvelope(kind, size, ageTicks) {
   const u = (ageTicks - prelude - main) / Math.max(1, tail);
   const tailDecay = (1 - smoothstep01(u)) ** 1.55;
   if (k === 'crash') {
-    return CRASH_WATERFALL_SHAPE_SCALE * 0.48 * tailDecay;
+    return crashShape * 0.48 * tailDecay;
   }
   return 0.48 * tailDecay;
 }
