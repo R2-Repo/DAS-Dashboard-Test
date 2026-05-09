@@ -537,9 +537,22 @@ export function createSimulation(data, targets) {
 
       const kind = normalizeHazardKind(h.kind);
       const gain = hazardWaterfallStampGain(h.kind, h.size);
+      const z = normalizeHazardSize(h.size);
       const miniCrash = kind === 'crash';
-      const crashSpatialScale = miniCrash ? 0.84 : 1.0;
-      const crashStampMul = miniCrash ? 1.05 : 1.0;
+      let crashSpatialScale = 1.0;
+      let crashStampMul = 1.0;
+      if (miniCrash) {
+        if (z === 'large') {
+          crashSpatialScale = 0.84;
+          crashStampMul = 1.05;
+        } else if (z === 'medium') {
+          crashSpatialScale = 0.94;
+          crashStampMul = 1.16;
+        } else {
+          crashSpatialScale = 1.0;
+          crashStampMul = 1.2;
+        }
+      }
 
       // Avalanche / rock slide / crash (mini mass-flow): asymmetric columnar energy (no mirrored Gaussian halves).
       // Crash uses the same recipe with a slightly narrower lateral scale than rock slide / avalanche.
@@ -549,7 +562,7 @@ export function createSimulation(data, targets) {
       const reachL = halfEff * 1.18;
       const reachR = halfEff * 1.42;
 
-      const reachPad = miniCrash ? 11 : 12;
+      const reachPad = !miniCrash || z !== 'large' ? 12 : 11;
       const ci0 = Math.max(0, Math.floor(centerCh - reachL - reachPad));
       const ci1 = Math.min(totalChannels - 1, Math.ceil(centerCh + reachR + 10));
 
@@ -557,7 +570,7 @@ export function createSimulation(data, targets) {
         const signed = i - centerCh;
         const dist = Math.abs(signed);
         const maxReach = signed <= 0 ? reachL : reachR;
-        const jitterMag = miniCrash ? 4.85 : 3.6;
+        const jitterMag = miniCrash ? (z === 'large' ? 4.85 : 5.1) : 3.6;
         const edgeJitter =
           hazardChannelMix01(h.id, i, age + tickCount * 193 + signed * 17) * jitterMag;
         if (dist > maxReach + edgeJitter) continue;
@@ -711,7 +724,7 @@ export function createSimulation(data, targets) {
         totalChannels - 1,
       );
       const ch = channels[midIdx];
-      const pal = hazardPalette(h.kind);
+      const pal = hazardPalette(h.kind, h.size);
       return {
         type: 'Feature',
         properties: {
