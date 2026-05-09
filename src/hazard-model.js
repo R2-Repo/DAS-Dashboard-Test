@@ -60,7 +60,7 @@ export function hazardPeakIntensity(kind, size) {
   const z = normalizeHazardSize(size);
   const base = z === 'small' ? 0.38 : z === 'large' ? 0.78 : 0.56;
   const k = normalizeHazardKind(kind);
-  const mul = k === 'crash' ? 1.0 : k === 'rock_slide' ? 1.14 : 1.2;
+  const mul = k === 'crash' ? 1.0 : k === 'rock_slide' ? 1.48 : 1.62;
   return Math.min(1, base * mul);
 }
 
@@ -73,8 +73,8 @@ export function hazardWaterfallStampGain(kind, size) {
   const k = normalizeHazardKind(kind);
   const tier = z === 'small' ? 1.92 : z === 'large' ? 2.52 : 2.15;
   if (k === 'crash') return tier * 0.94;
-  if (k === 'rock_slide') return tier * 1.14;
-  return tier * 1.2;
+  if (k === 'rock_slide') return tier * 3.42;
+  return tier * 3.62;
 }
 
 export function hazardPalette(kind) {
